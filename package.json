@@ -1,0 +1,43 @@
+{
+  "name": "ifta-tax-system",
+  "version": "1.0.0",
+  "description": "Sistema de gestión de impuestos IFTA para empresas de transporte",
+  "main": "backend/src/index.js",
+  "scripts": {
+    "start": "node backend/src/index.js",
+    "dev": "nodemon backend/src/index.js",
+    "client": "cd frontend && npm start",
+    "install-all": "npm install && cd frontend && npm install",
+    "create-db": "node scripts/create-database.js",
+    "drop-db": "node scripts/drop-database.js",
+    "migrate": "node scripts/run-migrations.js",
+    "db:reset": "npm run drop-db && npm run create-db && npm run migrate",
+    "test": "node tests/api.test.js",
+    "docs": "echo 'Documentación disponible en: http://localhost:5000/api-docs'"
+  },
+  "keywords": [
+    "ifta",
+    "tax",
+    "transportation"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^1.9.0",
+    "bcryptjs": "^2.4.3",
+    "colors": "^1.4.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.0.3",
+    "express": "^4.18.2",
+    "express-validator": "^7.0.1",
+    "jsonwebtoken": "^9.0.0",
+    "nodemailer": "^6.9.9",
+    "pg": "^8.10.0",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^4.6.3",
+    "winston": "^3.11.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10"
+  }
+}

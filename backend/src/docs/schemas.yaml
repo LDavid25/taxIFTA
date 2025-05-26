@@ -1,0 +1,340 @@
+components:
+  schemas:
+    User:
+      type: object
+      required:
+        - email
+        - password
+        - name
+        - role
+      properties:
+        id:
+          type: integer
+          description: ID único del usuario
+        email:
+          type: string
+          format: email
+          description: Correo electrónico del usuario
+        name:
+          type: string
+          description: Nombre completo del usuario
+        role:
+          type: string
+          enum: [admin, client]
+          description: Rol del usuario
+        company_id:
+          type: integer
+          description: ID de la compañía a la que pertenece el usuario
+        created_at:
+          type: string
+          format: date-time
+          description: Fecha de creación del usuario
+        updated_at:
+          type: string
+          format: date-time
+          description: Fecha de última actualización del usuario
+      example:
+        id: 1
+        email: usuario@ejemplo.com
+        name: Juan Pérez
+        role: client
+        company_id: 1
+        created_at: "2025-05-20T14:30:00Z"
+        updated_at: "2025-05-20T14:30:00Z"
+    
+    Company:
+      type: object
+      required:
+        - name
+        - tax_id
+      properties:
+        id:
+          type: integer
+          description: ID único de la compañía
+        name:
+          type: string
+          description: Nombre de la compañía
+        tax_id:
+          type: string
+          description: Número de identificación fiscal
+        address:
+          type: string
+          description: Dirección de la compañía
+        city:
+          type: string
+          description: Ciudad
+        state:
+          type: string
+          description: Estado/Provincia
+        zip_code:
+          type: string
+          description: Código postal
+        country:
+          type: string
+          description: País
+        phone:
+          type: string
+          description: Número de teléfono
+        email:
+          type: string
+          format: email
+          description: Correo electrónico de contacto
+        created_at:
+          type: string
+          format: date-time
+          description: Fecha de creación
+        updated_at:
+          type: string
+          format: date-time
+          description: Fecha de última actualización
+      example:
+        id: 1
+        name: Transportes XYZ
+        tax_id: 12345678A
+        address: Calle Principal 123
+        city: Ciudad Ejemplo
+        state: Estado Ejemplo
+        zip_code: 12345
+        country: País Ejemplo
+        phone: +1234567890
+        email: contacto@transportesxyz.com
+        created_at: "2025-05-20T14:30:00Z"
+        updated_at: "2025-05-20T14:30:00Z"
+    
+    Vehicle:
+      type: object
+      required:
+        - license_plate
+        - make
+        - model
+        - year
+        - fuel_type
+      properties:
+        id:
+          type: integer
+          description: ID único del vehículo
+        company_id:
+          type: integer
+          description: ID de la compañía propietaria
+        license_plate:
+          type: string
+          description: Placa del vehículo
+        vin_number:
+          type: string
+          description: Número de identificación del vehículo (VIN)
+        make:
+          type: string
+          description: Marca del vehículo
+        model:
+          type: string
+          description: Modelo del vehículo
+        year:
+          type: integer
+          description: Año del vehículo
+        fuel_type:
+          type: string
+          enum: [gasoline, diesel, electric, hybrid, other]
+          description: Tipo de combustible
+        is_active:
+          type: boolean
+          description: Indica si el vehículo está activo
+        created_at:
+          type: string
+          format: date-time
+          description: Fecha de creación
+        updated_at:
+          type: string
+          format: date-time
+          description: Fecha de última actualización
+      example:
+        id: 1
+        company_id: 1
+        license_plate: ABC-123
+        vin_number: 1HGCM82633A123456
+        make: Volvo
+        model: FH16
+        year: 2022
+        fuel_type: diesel
+        is_active: true
+        created_at: "2025-05-20T14:30:00Z"
+        updated_at: "2025-05-20T14:30:00Z"
+    
+    Trip:
+      type: object
+      required:
+        - vehicle_id
+        - start_date
+        - end_date
+        - origin_state
+        - destination_state
+        - miles
+      properties:
+        id:
+          type: integer
+          description: ID único del viaje
+        vehicle_id:
+          type: integer
+          description: ID del vehículo
+        start_date:
+          type: string
+          format: date
+          description: Fecha de inicio del viaje
+        end_date:
+          type: string
+          format: date
+          description: Fecha de fin del viaje
+        origin_state:
+          type: string
+          description: Estado de origen
+        destination_state:
+          type: string
+          description: Estado de destino
+        miles:
+          type: number
+          format: float
+          description: Millas recorridas
+        gallons:
+          type: number
+          format: float
+          description: Galones consumidos
+        created_at:
+          type: string
+          format: date-time
+          description: Fecha de creación
+        updated_at:
+          type: string
+          format: date-time
+          description: Fecha de última actualización
+      example:
+        id: 1
+        vehicle_id: 1
+        start_date: "2025-05-01"
+        end_date: "2025-05-03"
+        origin_state: "CA"
+        destination_state: "NV"
+        miles: 350.5
+        gallons: 45.2
+        created_at: "2025-05-20T14:30:00Z"
+        updated_at: "2025-05-20T14:30:00Z"
+    
+    TaxRate:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: ID único de la tasa de impuesto
+        state:
+          type: string
+          description: Código del estado
+        rate:
+          type: number
+          format: float
+          description: Tasa de impuesto
+        effective_date:
+          type: string
+          format: date
+          description: Fecha de entrada en vigor
+        end_date:
+          type: string
+          format: date
+          description: Fecha de finalización
+      example:
+        id: 1
+        state: "CA"
+        rate: 0.505
+        effective_date: "2025-01-01"
+        end_date: null
+    
+    Declaration:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: ID único de la declaración
+        company_id:
+          type: integer
+          description: ID de la compañía
+        quarter:
+          type: integer
+          enum: [1, 2, 3, 4]
+          description: Trimestre del año
+        year:
+          type: integer
+          description: Año
+        status:
+          type: string
+          enum: [draft, submitted, approved, rejected]
+          description: Estado de la declaración
+        total_miles:
+          type: number
+          format: float
+          description: Total de millas recorridas
+        total_gallons:
+          type: number
+          format: float
+          description: Total de galones consumidos
+        total_tax:
+          type: number
+          format: float
+          description: Total de impuestos a pagar
+        created_at:
+          type: string
+          format: date-time
+          description: Fecha de creación
+        updated_at:
+          type: string
+          format: date-time
+          description: Fecha de última actualización
+      example:
+        id: 1
+        company_id: 1
+        quarter: 2
+        year: 2025
+        status: "submitted"
+        total_miles: 15000.5
+        total_gallons: 2500.75
+        total_tax: 1250.38
+        created_at: "2025-05-20T14:30:00Z"
+        updated_at: "2025-05-20T14:30:00Z"
+    
+    Error:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [error]
+        message:
+          type: string
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+              message:
+                type: string
+      example:
+        status: "error"
+        message: "Error de validación"
+        errors: [
+          {
+            "field": "license_plate",
+            "message": "La placa es requerida"
+          }
+        ]
+    
+    Success:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [success]
+        message:
+          type: string
+        data:
+          type: object
+      example:
+        status: "success"
+        message: "Operación exitosa"
+        data: {}
