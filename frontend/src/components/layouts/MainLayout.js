@@ -30,7 +30,8 @@ import {
   Brightness4 as DarkModeIcon,
   Brightness7 as LightModeIcon,
   Logout as LogoutIcon,
-  Settings as SettingsIcon
+  Settings as SettingsIcon,
+  History as HistoryIcon
 } from '@mui/icons-material';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -43,7 +44,7 @@ const drawerWidth = 240;
 const Main = styled('main', { shouldForwardProp: (prop) => prop !== 'open' })(
   ({ theme, open }) => ({
     flexGrow: 1,
-    padding: theme.spacing(3),
+    padding: theme.spacing(2, 3, 3, 2), // Reduced left and right padding
     transition: theme.transitions.create('margin', {
       easing: theme.transitions.easing.sharp,
       duration: theme.transitions.duration.leavingScreen,
@@ -54,7 +55,7 @@ const Main = styled('main', { shouldForwardProp: (prop) => prop !== 'open' })(
         easing: theme.transitions.easing.easeOut,
         duration: theme.transitions.duration.enteringScreen,
       }),
-      marginLeft: drawerWidth,
+      marginLeft: drawerWidth/10,
     }),
   }),
 );
@@ -138,6 +139,7 @@ const MainLayout = () => {
     { text: 'Vehículos', icon: <CarIcon />, path: '/vehicles' },
     { text: 'Viajes', icon: <MapIcon />, path: '/trips' },
     { text: 'Declaraciones', icon: <DescriptionIcon />, path: '/declarations' },
+    { text: 'Historial de Consumo', icon: <HistoryIcon />, path: '/consumption-history' },
   ];
   
   return (

@@ -32,13 +32,13 @@ export const ThemeProvider = ({ children }) => {
         palette: {
           mode,
           primary: {
-            main: '#1976d2',
+            main: '#000',
             light: '#42a5f5',
             dark: '#1565c0',
             contrastText: '#fff',
           },
           secondary: {
-            main: '#f50057',
+            main: '#000',
             light: '#ff4081',
             dark: '#c51162',
             contrastText: '#fff',
@@ -105,6 +105,25 @@ export const ThemeProvider = ({ children }) => {
               root: {
                 textTransform: 'none',
                 borderRadius: 8,
+                '&:hover': {
+                  backgroundColor: '#e6c630', // Color de fondo al hacer hover
+                  color: '#000', // Color del texto al hacer hover
+                },
+              },
+              // Para el botón primario
+              containedPrimary: {
+                '&:hover': {
+                  backgroundColor: '#e6c630',
+                  color: '#000',
+                },
+              },
+              // Para el botón secundario
+              outlinedPrimary: {
+                '&:hover': {
+                  backgroundColor: 'rgba(230, 198, 48, 0.1)', // Versión más clara para el hover de botones outline
+                  borderColor: '#e6c630',
+                  color: '#e6c630',
+                },
               },
             },
           },
@@ -112,8 +131,8 @@ export const ThemeProvider = ({ children }) => {
             styleOverrides: {
               root: {
                 borderRadius: 12,
-                boxShadow: mode === 'light' 
-                  ? '0px 2px 4px rgba(0, 0, 0, 0.1)' 
+                boxShadow: mode === 'light'
+                  ? '0px 2px 4px rgba(0, 0, 0, 0.1)'
                   : '0px 2px 4px rgba(0, 0, 0, 0.3)',
               },
             },
@@ -128,8 +147,8 @@ export const ThemeProvider = ({ children }) => {
           MuiAppBar: {
             styleOverrides: {
               root: {
-                boxShadow: mode === 'light' 
-                  ? '0px 2px 4px rgba(0, 0, 0, 0.1)' 
+                boxShadow: mode === 'light'
+                  ? '0px 2px 4px rgba(0, 0, 0, 0.1)'
                   : '0px 2px 4px rgba(0, 0, 0, 0.3)',
               },
             },

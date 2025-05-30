@@ -1,0 +1,15 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 7
+    },
+    "auditLog": "D:\\dev\\taxIFTA\\logs\\.a57a1bfc558c60933df560fb62f698c121049777-audit.json",
+    "files": [
+        {
+            "date": 1748492137071,
+            "name": "D:\\dev\\taxIFTA\\logs\\http-2025-05-29.log",
+            "hash": "b9b6dd262d278ad40a8afe0503e75538c6fc412bd2e31a315c2420e66016830a"
+        }
+    ],
+    "hashType": "sha256"
+}

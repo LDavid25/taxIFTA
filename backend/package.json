@@ -1,0 +1,84 @@
+{
+  "name": "ifta-easy-tax-backend",
+  "version": "1.0.0",
+  "description": "Backend for IFTA Easy Tax System",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js",
+    "test": "jest --detectOpenHandles --forceExit",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "lint": "eslint . --ext .js",
+    "lint:fix": "eslint . --ext .js --fix",
+    "format": "prettier --write \"**/*.+(js|json|md)\"",
+    "db:test": "node scripts/test-db.js",
+    "db:sync": "node scripts/test-db.js --force",
+    "db:migrate": "node scripts/run-migrations.js",
+    "db:create-admin": "node scripts/create-admin.js"
+  },
+  "keywords": [
+    "ifta",
+    "tax",
+    "trucking",
+    "node",
+    "express",
+    "postgresql",
+    "sequelize"
+  ],
+  "author": "IFTA Easy Tax Team",
+  "license": "MIT",
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "bcryptjs": "^2.4.3",
+    "compression": "^1.7.4",
+    "cookie-parser": "^1.4.6",
+    "cors": "^2.8.5",
+    "crypto-js": "^4.1.1",
+    "dotenv": "^16.0.3",
+    "express": "^4.18.2",
+    "express-mongo-sanitize": "^2.2.0",
+    "express-rate-limit": "^6.7.0",
+    "express-validator": "^7.0.1",
+    "helmet": "^7.0.0",
+    "hpp": "^0.2.3",
+    "http-status-codes": "^2.2.0",
+    "jsonwebtoken": "^9.0.1",
+    "morgan": "^1.10.0",
+    "pg": "^8.16.0",
+    "pg-hstore": "^2.3.4",
+    "sequelize": "^6.37.7",
+    "sequelize-cli": "^6.6.3",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.0",
+    "uuid": "^9.0.0",
+    "validator": "^13.9.0",
+    "winston": "^3.8.2",
+    "winston-daily-rotate-file": "^4.7.1",
+    "xss-clean": "^0.1.1"
+  },
+  "devDependencies": {
+    "eslint": "^8.33.0",
+    "eslint-config-airbnb-base": "^15.0.0",
+    "eslint-config-prettier": "^8.6.0",
+    "eslint-plugin-import": "^2.27.5",
+    "eslint-plugin-prettier": "^4.2.1",
+    "jest": "^29.4.1",
+    "nodemon": "^3.1.10",
+    "prettier": "^2.8.4",
+    "sequelize-mock": "^0.10.2",
+    "supertest": "^6.3.3"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "coveragePathIgnorePatterns": [
+      "/node_modules/"
+    ],
+    "testPathIgnorePatterns": [
+      "/node_modules/"
+    ]
+  }
+}
