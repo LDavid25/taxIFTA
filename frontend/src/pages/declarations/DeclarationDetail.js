@@ -353,12 +353,12 @@ const DeclarationDetail = () => {
               </Card>
             </Grid>
             
-            {/* Viajes incluidos */}
+            {/* Included Consumption */}
             <Grid item xs={12} md={6}>
               <Card sx={{ height: '100%' }}>
                 <CardContent>
                   <Typography variant="h6" gutterBottom>
-                    Viajes Incluidos
+                    Included Consumption
                   </Typography>
                   <Divider sx={{ mb: 3 }} />
                   

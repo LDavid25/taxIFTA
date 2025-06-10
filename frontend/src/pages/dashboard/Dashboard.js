@@ -117,7 +117,7 @@ const Dashboard = () => {
           <Card sx={{ height: '100%' }}>
             <CardContent>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Typography variant="h6" color="text.secondary">Viajes</Typography>
+                <Typography variant="h6" color="text.secondary">Consumption</Typography>
                 <Avatar sx={{ bgcolor: 'secondary.main' }}>
                   <MapIcon />
                 </Avatar>
@@ -191,7 +191,7 @@ const Dashboard = () => {
                   sx={{ mb: 1, width: '100%' }}
                   onClick={() => navigate('/trips/new')}
                 >
-                  Nuevo Viaje
+                  New Consumption
                 </Button>
                 <Button 
                   variant="outlined" 
@@ -231,7 +231,7 @@ const Dashboard = () => {
                       </Avatar>
                     </ListItemAvatar>
                     <ListItemText
-                      primary={`Viaje: ${trip.origin_state} → ${trip.destination_state}`}
+                      primary={`Consumption: ${trip.origin_state} → ${trip.destination_state}`}
                       secondary={
                         <>
                           <Typography

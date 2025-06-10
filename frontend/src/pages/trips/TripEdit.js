@@ -13,13 +13,13 @@ const TripEdit = () => {
           Dashboard
         </Link>
         <Link component={RouterLink} to="/trips" color="inherit">
-          Viajes
+          Consumption
         </Link>
-        <Typography color="text.primary">Editar Viaje</Typography>
+        <Typography color="text.primary">Edit Consumption</Typography>
       </Breadcrumbs>
       
       <Typography variant="h5" sx={{ mb: 3 }}>
-        Editar Viaje #{id}
+        Edit Consumption #{id}
       </Typography>
       
       <Card>

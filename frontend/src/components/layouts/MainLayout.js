@@ -136,10 +136,9 @@ const MainLayout = () => {
   // Elementos del menú lateral
   const menuItems = [
     { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
-    { text: 'Vehículos', icon: <CarIcon />, path: '/vehicles' },
-    { text: 'Viajes', icon: <MapIcon />, path: '/trips' },
+    { text: 'Consumption', icon: <MapIcon />, path: '/trips' },
     { text: 'Declaraciones', icon: <DescriptionIcon />, path: '/declarations' },
-    { text: 'Historial de Consumo', icon: <HistoryIcon />, path: '/consumption-history' },
+    { text: 'Historial de Consumo', icon: <HistoryIcon />, path: '/consumption' },
   ];
   
   return (

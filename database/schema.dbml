@@ -1,0 +1,159 @@
+// Esquema DBML para el sistema de impuestos IFTA
+// Generado el 2024-05-30
+
+// Tabla de compañías
+Table companies {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  name varchar(255) [not null]
+  address text
+  city varchar(100)
+  state varchar(2) [not null]
+  zip_code varchar(20)
+  phone varchar(50)
+  email varchar(255)
+  distribution_emails jsonb [note: 'Array de 1 a 10 correos electrónicos']
+  created_at timestamptz [default: `now()`]
+  updated_at timestamptz [default: `now()`]
+  
+  indexes {
+    (id) [name: 'idx_companies_id']
+    (name) [name: 'idx_companies_name']
+  }
+}
+
+// Tabla de usuarios
+Table users {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  email varchar(255) [not null, unique]
+  password varchar(255) [not null]
+  name varchar(255) [not null]
+  role varchar(50) [not null, note: 'admin o cliente']
+  company_id uuid [ref: > companies.id]
+  is_active boolean [default: true]
+  created_at timestamptz [default: `now()`]
+  updated_at timestamptz [default: `now()`]
+  
+  indexes {
+    (id) [name: 'idx_users_id']
+    (email) [name: 'idx_users_email']
+    (company_id) [name: 'idx_users_company']
+  }
+}
+
+// Tabla para reportes trimestrales
+Table ifta_quarterly_reports {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  company_id uuid [ref: > companies.id, not null]
+  quarter integer [not null, note: '1-4. 1: Ene-Mar, 2: Abr-Jun, 3: Jul-Sep, 4: Oct-Dic']
+  year integer [not null]
+  created_at timestamptz [default: `now()`]
+  updated_at timestamptz [default: `now()`]
+  
+  indexes {
+    (id) [name: 'idx_ifta_quarterly_reports_id']
+    (company_id) [name: 'idx_ifta_quarterly_reports_company']
+    (company_id, quarter, year) [unique, name: 'unq_company_quarter_year']
+  }
+}
+
+// Tabla de reportes IFTA
+Table ifta_reports {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  company_id uuid [ref: > companies.id, not null]
+  quarterly_report_id uuid [ref: > ifta_quarterly_reports.id, note: 'Referencia al trimestre']
+  vehicle_plate varchar(20) [not null, note: 'Matrícula del vehículo']
+  report_year integer [not null]
+  report_month integer [not null, note: '1-12']
+  quarter integer [note: '1-4. Calculado automáticamente del mes']
+  status varchar(20) [default: 'in_progress', note: 'sent, rejected, in_progress, completed']
+  total_miles decimal(12,2) [default: 0]
+  total_gallons decimal(12,3) [default: 0]
+  total_tax_due decimal(12,2) [default: 0]
+  notes varchar(256)
+  created_by uuid [ref: > users.id]
+  submitted_at timestamptz
+  approved_at timestamptz
+  created_at timestamptz [default: `now()`]
+  updated_at timestamptz [default: `now()`]
+  
+  indexes {
+    (id) [name: 'idx_ifta_reports_id']
+    (company_id) [name: 'idx_ifta_reports_company']
+    (quarterly_report_id) [name: 'idx_ifta_reports_quarterly']
+    (report_year, quarter) [name: 'idx_ifta_reports_quarter_year']
+    (vehicle_plate) [name: 'idx_ifta_reports_plate']
+    (report_year, report_month) [name: 'idx_ifta_reports_period']
+    (status) [name: 'idx_ifta_reports_status']
+    (company_id, vehicle_plate, report_year, report_month) [unique, name: 'unq_ifta_report_per_vehicle_month']
+  }
+  
+  Note: 'Los reportes se agrupan automáticamente por trimestre según el mes del reporte'
+}
+
+
+// Tabla de estados por reporte
+Table ifta_report_states {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  report_id uuid [ref: > ifta_reports.id, not null]
+  state_code char(2) [not null, note: 'Código de estado de 2 letras']
+  miles decimal(12,2) [not null]
+  gallons decimal(12,3) [not null]
+  mpg decimal(10,2) [note: 'Millas por galón (calculado)']
+  created_at timestamptz [default: `now()`]
+  updated_at timestamptz [default: `now()`]
+  
+  indexes {
+    (id) [name: 'idx_ifta_report_states_id']
+    (report_id, state_code) [unique, name: 'unq_report_state']
+    (state_code) [name: 'idx_report_states_code']
+  }
+  
+  Note: 'Detalle de millas y galones por estado para cada reporte'
+}
+
+
+// Triggers para actualizar automáticamente los timestamps
+// (Estos son solo para documentación, en DBML no se pueden definir triggers reales)
+
+// Comentarios adicionales
+TableGroup ifta_tables {
+  companies
+  users
+  ifta_quarterly_reports
+  ifta_reports
+  ifta_report_states
+}
+
+// Tabla de archivos adjuntos de reportes
+Table ifta_report_attachments {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  report_id uuid [ref: > ifta_reports.id, not null]
+  file_name varchar(255) [not null]
+  file_type varchar(100) [not null, note: 'MIME type del archivo']
+  file_size bigint [not null, note: 'Tamaño en bytes']
+  file_path text [not null, note: 'Ruta donde se almacena el archivo']
+  file_extension varchar(10) [note: 'Extensión del archivo']
+  description text [note: 'Descripción opcional del archivo']
+  note varchar(100) [note: 'Nota opcional para el archivo adjunto']
+  uploaded_by uuid [ref: > users.id, note: 'Usuario que subió el archivo']
+  created_at timestamptz [default: `now()`]
+  updated_at timestamptz [default: `now()`]
+  
+  indexes {
+    (id) [name: 'idx_ifta_attachments_id']
+    (report_id) [name: 'idx_ifta_attachments_report']
+    (uploaded_by) [name: 'idx_ifta_attachments_uploader']
+  }
+  
+  Note: 'Almacena los archivos adjuntos asociados a los reportes IFTA (PDF, imágenes)'
+}
+
+// Relaciones principales
+Ref: companies.id < users.company_id
+Ref: companies.id < ifta_reports.company_id
+Ref: companies.id < ifta_quarterly_reports.company_id
+Ref: users.id < ifta_reports.created_by
+Ref: ifta_reports.id < ifta_report_states.report_id
+Ref: ifta_quarterly_reports.id < ifta_reports.quarterly_report_id
+Ref: ifta_reports.id < ifta_report_attachments.report_id
+Ref: users.id < ifta_report_attachments.uploaded_by

@@ -11,61 +11,94 @@ import {
   Button,
   Grid,
   Divider,
-  Chip
+  Chip,
+  Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableRow
 } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
-import { Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
+import { Edit as EditIcon, Receipt as ReceiptIcon } from '@mui/icons-material';
 import AlertMessage from '../../components/common/AlertMessage';
 import LoadingScreen from '../../components/common/LoadingScreen';
-import { getTripById } from '../../services/tripService';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
 
-const TripDetail = () => {
+const formatDate = (dateString) => {
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return 'Invalid Date';
+    return format(date, 'PPP', { locale: es });
+  } catch (error) {
+    console.error('Error formatting date:', error);
+    return 'Invalid Date';
+  }
+};
+
+const getQuarter = (dateString) => {
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return 'Q? ????'; // Return placeholder for invalid dates
+    const month = date.getMonth() + 1; // getMonth() is zero-based
+    const year = date.getFullYear();
+    const quarter = Math.ceil(month / 3);
+    return `Q${quarter} ${year}`;
+  } catch (error) {
+    console.error('Error getting quarter:', error);
+    return 'Q? ????'; // Return placeholder if there's an error
+  }
+};
+
+const ConsumptionDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
-  const [trip, setTrip] = useState(null);
+  const [consumption, setConsumption] = useState(null);
   const [alert, setAlert] = useState({ open: false, message: '', severity: 'info' });
 
-  // Cargar datos del viaje
+  // Cargar datos del consumo
   useEffect(() => {
-    const fetchTrip = async () => {
+    const fetchConsumption = async () => {
       setLoading(true);
       try {
         // En una implementación real, esto obtendría datos de la API
-        // const response = await getTripById(id);
-        // setTrip(response.data);
+        // const response = await getConsumptionById(id);
+        // setConsumption(response.data);
         
         // Simulamos datos para la demostración
         setTimeout(() => {
-          setTrip({
+          // Datos de ejemplo que coinciden con la estructura de ConsumptionHistory
+          setConsumption({
             id: parseInt(id),
-            vehicle_id: 1,
-            vehicle_license_plate: 'ABC123',
-            vehicle_make: 'Ford',
-            vehicle_model: 'F-150',
-            origin_state: 'TX',
-            destination_state: 'CA',
-            trip_date: '2025-05-15',
-            distance: 1200,
-            fuel_consumed: 120,
-            mpg: 10,
-            status: 'completed',
-            created_at: '2025-05-14T10:30:00Z',
-            updated_at: '2025-05-16T14:45:00Z'
+            date: '2023-05-15',
+            unitNumber: 'TRK-001',
+            milesTraveled: 1250,
+            totalGallons: 250.5,
+            status: 'Completed',
+            receiptId: 'rec123',
+            state: 'CA',
+            mpg: 5.0,
+            taxPaid: 125.25,
+            receiptNumber: 'RCPT-2023-001',
+            notes: 'Consumo de combustible para viaje de entrega',
+            created_at: '2023-05-14T10:30:00Z',
+            updated_at: '2023-05-16T14:45:00Z'
           });
           setLoading(false);
         }, 1000);
       } catch (error) {
         setAlert({
           open: true,
-          message: error.message || 'Error al cargar los datos del viaje',
+          message: error.message || 'Error al cargar los datos del consumo',
           severity: 'error'
         });
         setLoading(false);
       }
     };
 
-    fetchTrip();
+    fetchConsumption();
   }, [id]);
 
   // Manejar cierre de la alerta
@@ -73,20 +106,15 @@ const TripDetail = () => {
     setAlert({ ...alert, open: false });
   };
 
-  // Manejar edición del viaje
+  // Manejar edición del consumo
   const handleEdit = () => {
-    navigate(`/trips/${id}/edit`);
+    navigate(`/consumption/${id}/edit`);
   };
 
-  // Manejar eliminación del viaje
-  const handleDelete = () => {
-    // En una implementación real, esto mostraría un diálogo de confirmación
-    // y luego eliminaría el viaje
-    setAlert({
-      open: true,
-      message: 'Esta funcionalidad se implementará en el futuro',
-      severity: 'info'
-    });
+  // Manejar visualización del recibo
+  const handleViewReceipt = () => {
+    // Navegar a la vista del recibo o abrir un modal
+    console.log('Viewing receipt:', consumption.receiptId);
   };
 
   if (loading) {
@@ -94,7 +122,7 @@ const TripDetail = () => {
   }
 
   return (
-    <Box>
+    <Box sx={{ backgroundColor: '#ff000020', minHeight: '100vh', p: 2 }}>
       <AlertMessage
         open={alert.open}
         onClose={handleAlertClose}
@@ -103,157 +131,215 @@ const TripDetail = () => {
         autoHideDuration={6000}
       />
       
-      <Breadcrumbs aria-label="breadcrumb" sx={{ mb: 2 }}>
+      <Breadcrumbs aria-label="breadcrumb" sx={{ mb: 3 }}>
         <Link component={RouterLink} to="/dashboard" color="inherit">
           Dashboard
         </Link>
-        <Link component={RouterLink} to="/trips" color="inherit">
-          Viajes
+        <Link component={RouterLink} to="/consumption" color="inherit">
+          Consumption History
         </Link>
-        <Typography color="text.primary">Detalles del Viaje</Typography>
+        <Typography color="text.primary">Consumption Details</Typography>
       </Breadcrumbs>
       
-      {trip && (
+      {consumption && (
         <>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
-            <Typography variant="h5">
-              Viaje #{trip.id}: {trip.origin_state} → {trip.destination_state}
-            </Typography>
+            <Box>
+              <Typography variant="h4" component="h1" fontWeight="bold" gutterBottom>
+                Consumption Record #{consumption.id}
+              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Chip
+                  label={consumption.status}
+                  color={
+                    consumption.status === 'Completed' ? 'success' :
+                    consumption.status === 'Pending' ? 'warning' : 'default'
+                  }
+                  size="small"
+                />
+                <Typography variant="body2" color="text.secondary">
+                  {formatDate(consumption.date)}
+                </Typography>
+              </Box>
+            </Box>
             <Box>
               <Button
-                variant="outlined"
+                variant="contained"
                 startIcon={<EditIcon />}
                 onClick={handleEdit}
-                sx={{ mr: 1 }}
+                sx={{ mr: 1, textTransform: 'none' }}
               >
-                Editar
+                Edit
               </Button>
               <Button
                 variant="outlined"
-                color="error"
-                startIcon={<DeleteIcon />}
-                onClick={handleDelete}
+                startIcon={<ReceiptIcon />}
+                onClick={handleViewReceipt}
+                sx={{ textTransform: 'none' }}
               >
-                Eliminar
+                View Receipt
               </Button>
             </Box>
           </Box>
           
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Información del Viaje
-              </Typography>
-              <Divider sx={{ mb: 3 }} />
-              
-              <Grid container spacing={2}>
-                <Grid item xs={12} md={6}>
-                  <Typography variant="subtitle1" color="text.secondary">
-                    Vehículo
+          <Grid container spacing={3}>
+            <Grid item xs={12} md={8}>
+              <Card>
+                <CardContent>
+                  <Typography variant="h6" gutterBottom>
+                    Consumption Details
                   </Typography>
-                  <Typography variant="body1" gutterBottom>
-                    {trip.vehicle_make} {trip.vehicle_model} ({trip.vehicle_license_plate})
-                  </Typography>
-                </Grid>
-                
-                <Grid item xs={12} md={6}>
-                  <Typography variant="subtitle1" color="text.secondary">
-                    Fecha del Viaje
-                  </Typography>
-                  <Typography variant="body1" gutterBottom>
-                    {new Date(trip.trip_date).toLocaleDateString()}
-                  </Typography>
-                </Grid>
-                
-                <Grid item xs={12} md={6}>
-                  <Typography variant="subtitle1" color="text.secondary">
-                    Estado de Origen
-                  </Typography>
-                  <Typography variant="body1" gutterBottom>
-                    {trip.origin_state}
-                  </Typography>
-                </Grid>
-                
-                <Grid item xs={12} md={6}>
-                  <Typography variant="subtitle1" color="text.secondary">
-                    Estado de Destino
-                  </Typography>
-                  <Typography variant="body1" gutterBottom>
-                    {trip.destination_state}
-                  </Typography>
-                </Grid>
-                
-                <Grid item xs={12} md={6}>
-                  <Typography variant="subtitle1" color="text.secondary">
-                    Distancia Recorrida
-                  </Typography>
-                  <Typography variant="body1" gutterBottom>
-                    {trip.distance} millas
-                  </Typography>
-                </Grid>
-                
-                <Grid item xs={12} md={6}>
-                  <Typography variant="subtitle1" color="text.secondary">
-                    Combustible Consumido
-                  </Typography>
-                  <Typography variant="body1" gutterBottom>
-                    {trip.fuel_consumed} galones
-                  </Typography>
-                </Grid>
-                
-                <Grid item xs={12} md={6}>
-                  <Typography variant="subtitle1" color="text.secondary">
-                    Rendimiento
-                  </Typography>
-                  <Typography variant="body1" gutterBottom>
-                    {trip.mpg} millas por galón
-                  </Typography>
-                </Grid>
-                
-                <Grid item xs={12} md={6}>
-                  <Typography variant="subtitle1" color="text.secondary">
-                    Estado
-                  </Typography>
-                  <Chip 
-                    label={trip.status === 'completed' ? 'Completado' : 'Pendiente'} 
-                    color={trip.status === 'completed' ? 'success' : 'warning'} 
-                    size="small"
-                  />
-                </Grid>
-                
-                <Grid item xs={12} md={6}>
-                  <Typography variant="subtitle1" color="text.secondary">
-                    Fecha de Creación
-                  </Typography>
-                  <Typography variant="body1" gutterBottom>
-                    {new Date(trip.created_at).toLocaleString()}
-                  </Typography>
-                </Grid>
-                
-                <Grid item xs={12} md={6}>
-                  <Typography variant="subtitle1" color="text.secondary">
-                    Última Actualización
-                  </Typography>
-                  <Typography variant="body1" gutterBottom>
-                    {new Date(trip.updated_at).toLocaleString()}
-                  </Typography>
-                </Grid>
-              </Grid>
-            </CardContent>
+                  <Divider sx={{ mb: 3 }} />
+                  
+                  <TableContainer component={Paper} variant="outlined">
+                    <Table>
+                      <TableBody>
+                        <TableRow>
+                          <TableCell component="th" sx={{ width: '40%', fontWeight: 'bold' }}>Unit Number</TableCell>
+                          <TableCell>{consumption.unitNumber}</TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell component="th" sx={{ fontWeight: 'bold' }}>Date</TableCell>
+                          <TableCell>{formatDate(consumption.date)}</TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell component="th" sx={{ fontWeight: 'bold' }}>Quarter</TableCell>
+                          <TableCell>{getQuarter(consumption.date)}</TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell component="th" sx={{ fontWeight: 'bold' }}>Miles Traveled</TableCell>
+                          <TableCell>{consumption.milesTraveled.toLocaleString()} miles</TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell component="th" sx={{ fontWeight: 'bold' }}>Total Gallons</TableCell>
+                          <TableCell>{consumption.totalGallons.toFixed(2)} gal</TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell component="th" sx={{ fontWeight: 'bold' }}>MPG</TableCell>
+                          <TableCell>{consumption.mpg}</TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell component="th" sx={{ fontWeight: 'bold' }}>Tax Paid</TableCell>
+                          <TableCell>${consumption.taxPaid.toFixed(2)}</TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell component="th" sx={{ fontWeight: 'bold' }}>State</TableCell>
+                          <TableCell>{consumption.state}</TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell component="th" sx={{ fontWeight: 'bold' }}>Receipt Number</TableCell>
+                          <TableCell>{consumption.receiptNumber || 'N/A'}</TableCell>
+                        </TableRow>
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                  
+                  {consumption.notes && (
+                    <Box sx={{ mt: 3 }}>
+                      <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                        Notes
+                      </Typography>
+                      <Paper variant="outlined" sx={{ p: 2, backgroundColor: 'action.hover' }}>
+                        <Typography variant="body2">
+                          {consumption.notes}
+                        </Typography>
+                      </Paper>
+                    </Box>
+                  )}
+                </CardContent>
+              </Card>
+            </Grid>
             
-            <CardActions sx={{ justifyContent: 'flex-end', p: 2 }}>
-              <Button
-                variant="outlined"
-                onClick={() => navigate('/trips')}
-              >
-                Volver a la Lista
-              </Button>
-            </CardActions>
-          </Card>
+            <Grid item xs={12} md={4}>
+              <Card>
+                <CardContent>
+                  <Typography variant="h6" gutterBottom>
+                    Summary
+                  </Typography>
+                  <Divider sx={{ mb: 3 }} />
+                  
+                  <Box sx={{ mb: 3 }}>
+                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                      Fuel Efficiency
+                    </Typography>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                      <Typography variant="body2">Miles Traveled:</Typography>
+                      <Typography variant="body2" fontWeight="bold">
+                        {consumption.milesTraveled.toLocaleString()} miles
+                      </Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                      <Typography variant="body2">Gallons Consumed:</Typography>
+                      <Typography variant="body2" fontWeight="bold">
+                        {consumption.totalGallons.toFixed(2)} gal
+                      </Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                      <Typography variant="body2">MPG:</Typography>
+                      <Typography variant="body2" fontWeight="bold">
+                        {consumption.mpg}
+                      </Typography>
+                    </Box>
+                  </Box>
+                  
+                  <Divider sx={{ my: 2 }} />
+                  
+                  <Box sx={{ mb: 3 }}>
+                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                      Tax Information
+                    </Typography>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                      <Typography variant="body2">Tax Rate:</Typography>
+                      <Typography variant="body2">
+                        {((consumption.taxPaid / consumption.totalGallons) * 100).toFixed(2)}¢/gal
+                      </Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                      <Typography variant="body2">Tax Paid:</Typography>
+                      <Typography variant="body1" fontWeight="bold">
+                        ${consumption.taxPaid.toFixed(2)}
+                      </Typography>
+                    </Box>
+                  </Box>
+                  
+                  <Divider sx={{ my: 2 }} />
+                  
+                  <Box>
+                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                      Record Information
+                    </Typography>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                      <Typography variant="body2">Status:</Typography>
+                      <Chip
+                        label={consumption.status}
+                        color={
+                          consumption.status === 'Completed' ? 'success' :
+                          consumption.status === 'Pending' ? 'warning' : 'default'
+                        }
+                        size="small"
+                      />
+                    </Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                      <Typography variant="body2">Created:</Typography>
+                      <Typography variant="body2">
+                        {new Date(consumption.created_at).toLocaleString()}
+                      </Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <Typography variant="body2">Last Updated:</Typography>
+                      <Typography variant="body2">
+                        {new Date(consumption.updated_at).toLocaleString()}
+                      </Typography>
+                    </Box>
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
+          </Grid>
         </>
       )}
     </Box>
   );
 };
 
-export default TripDetail;
+export default ConsumptionDetail;

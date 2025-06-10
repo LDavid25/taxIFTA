@@ -9,8 +9,7 @@ INSERT INTO companies (
     country,
     phone,
     email,
-    tax_id,
-    ifta_account_number
+    tax_id
 ) VALUES (
     '11111111-1111-1111-1111-111111111112',
     'IFTA Easy Tax',
@@ -21,8 +20,7 @@ INSERT INTO companies (
     'País',
     '1234567890',
     'info@iftaeasytax.com',
-    'TAX123456789',
-    'IFTA123456789'
+    'TAX123456789'
 ) ON CONFLICT (id) DO NOTHING;
 
 -- Crear el usuario administrador

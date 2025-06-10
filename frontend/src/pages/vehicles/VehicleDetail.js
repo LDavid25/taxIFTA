@@ -283,7 +283,7 @@ const VehicleDetail = () => {
                 aria-label="vehicle tabs"
               >
                 <Tab label="Información" id="vehicle-tab-0" />
-                <Tab label="Viajes" id="vehicle-tab-1" />
+                <Tab label="Consumption" id="vehicle-tab-1" />
               </Tabs>
             </Box>
             
@@ -294,7 +294,7 @@ const VehicleDetail = () => {
               
               {tabValue === 1 && (
                 <DataTable
-                  title={`Viajes del Vehículo (${trips.length})`}
+                  title={`Vehicle Consumption (${trips.length})`}
                   columns={tripColumns}
                   data={trips}
                   onView={handleViewTrip}

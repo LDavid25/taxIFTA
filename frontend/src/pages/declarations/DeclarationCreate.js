@@ -29,7 +29,7 @@ const DeclarationCreate = () => {
           </Typography>
           <ul>
             <li>Trimestre y año de la declaración</li>
-            <li>Viajes a incluir en la declaración</li>
+            <li>Consumption to include in the declaration</li>
             <li>Opción para calcular automáticamente los impuestos</li>
           </ul>
           

@@ -31,7 +31,7 @@ const DeclarationEdit = () => {
             Aquí se implementará un formulario para modificar:
           </Typography>
           <ul>
-            <li>Viajes incluidos en la declaración</li>
+            <li>Consumption included in the declaration</li>
             <li>Ajustes manuales a los cálculos</li>
             <li>Estado de la declaración</li>
           </ul>

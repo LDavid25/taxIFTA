@@ -49,7 +49,7 @@ const VehicleList = () => {
         value ? 'Activo' : 'Inactivo'
       )
     },
-    { id: 'trips_count', label: 'Viajes', minWidth: 80, type: 'number' }
+    { id: 'trips_count', label: 'Consumption', minWidth: 100, type: 'number' }
   ];
 
   // Cargar vehículos

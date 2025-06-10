@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Card,
@@ -22,33 +22,33 @@ import * as Yup from 'yup';
 import AlertMessage from '../../components/common/AlertMessage';
 import { useAuth } from '../../context/AuthContext';
 
-// Esquema de validación para actualizar perfil
+// Validation schema for profile update
 const profileValidationSchema = Yup.object({
   name: Yup.string()
-    .required('El nombre es requerido')
-    .max(100, 'El nombre no puede tener más de 100 caracteres'),
+    .required('Name is required')
+    .max(100, 'Name cannot be longer than 100 characters'),
   company_name: Yup.string()
-    .required('El nombre de la empresa es requerido')
-    .max(100, 'El nombre de la empresa no puede tener más de 100 caracteres'),
+    .required('Company name is required')
+    .max(100, 'Company name cannot be longer than 100 characters'),
   email: Yup.string()
-    .email('Ingrese un correo electrónico válido')
-    .required('El correo electrónico es requerido')
+    .email('Enter a valid email')
+    .required('Email is required')
 });
 
-// Esquema de validación para cambiar contraseña
+// Validation schema for password change
 const passwordValidationSchema = Yup.object({
   current_password: Yup.string()
-    .required('La contraseña actual es requerida'),
+    .required('Current password is required'),
   new_password: Yup.string()
-    .required('La nueva contraseña es requerida')
-    .min(8, 'La contraseña debe tener al menos 8 caracteres')
+    .required('New password is required')
+    .min(8, 'Password must be at least 8 characters')
     .matches(
       /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/,
-      'La contraseña debe contener al menos una letra mayúscula, una minúscula, un número y un carácter especial'
+      'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character'
     ),
   confirm_password: Yup.string()
-    .oneOf([Yup.ref('new_password'), null], 'Las contraseñas deben coincidir')
-    .required('Confirme su nueva contraseña')
+    .oneOf([Yup.ref('new_password'), null], 'Passwords must match')
+    .required('Confirm your new password')
 });
 
 const Profile = () => {
@@ -58,26 +58,28 @@ const Profile = () => {
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [notificationEmails, setNotificationEmails] = useState([]);
+  const [newEmail, setNewEmail] = useState('');
+  const [emailError, setEmailError] = useState('');
   
   // Inicializar formik para el perfil
   const profileFormik = useFormik({
     initialValues: {
       name: currentUser?.name || '',
-      company_name: currentUser?.company_name || '',
       email: currentUser?.email || ''
     },
     validationSchema: profileValidationSchema,
     onSubmit: async (values) => {
       setLoading(true);
       try {
-        // En una implementación real, esto llamaría a la API
+        // In a real implementation, this would call the API
         // await updateUserProfile(values);
         
-        // Simulamos una actualización exitosa
+        // Simulate a successful update
         setTimeout(() => {
           setAlert({
             open: true,
-            message: 'Perfil actualizado exitosamente',
+            message: 'Profile updated successfully',
             severity: 'success'
           });
           setLoading(false);
@@ -85,7 +87,7 @@ const Profile = () => {
       } catch (error) {
         setAlert({
           open: true,
-          message: error.message || 'Error al actualizar el perfil',
+          message: error.message || 'Error updating profile',
           severity: 'error'
         });
         setLoading(false);
@@ -104,14 +106,14 @@ const Profile = () => {
     onSubmit: async (values) => {
       setLoading(true);
       try {
-        // En una implementación real, esto llamaría a la API
+        // In a real implementation, this would call the API
         // await changePassword(values);
         
-        // Simulamos una actualización exitosa
+        // Simulate a successful update
         setTimeout(() => {
           setAlert({
             open: true,
-            message: 'Contraseña actualizada exitosamente',
+            message: 'Password updated successfully',
             severity: 'success'
           });
           passwordFormik.resetForm();
@@ -120,7 +122,7 @@ const Profile = () => {
       } catch (error) {
         setAlert({
           open: true,
-          message: error.message || 'Error al actualizar la contraseña',
+          message: error.message || 'Error updating password',
           severity: 'error'
         });
         setLoading(false);
@@ -128,9 +130,83 @@ const Profile = () => {
     }
   });
   
-  // Manejar cierre de la alerta
+  // Load notification emails on component mount
+  useEffect(() => {
+    // Simulate API call to load notification emails
+    const loadNotificationEmails = async () => {
+      try {
+        // In a real app: const response = await api.get('/api/notification-emails');
+        // setNotificationEmails(response.data);
+        
+        // Mock data for demonstration
+        setNotificationEmails([
+          'admin@example.com',
+          'notifications@example.com'
+        ]);
+      } catch (error) {
+        console.error('Error loading notification emails:', error);
+        setAlert({
+          open: true,
+          message: 'Error loading notification emails',
+          severity: 'error'
+        });
+      }
+    };
+    
+    loadNotificationEmails();
+  }, []);
+
+  // Handle alert close
   const handleAlertClose = () => {
     setAlert({ ...alert, open: false });
+  };
+
+  // Handle adding a new notification email
+  const handleAddEmail = (e) => {
+    e.preventDefault();
+    
+    // Validate email
+    if (!newEmail) {
+      setEmailError('Email is required');
+      return;
+    }
+    
+    if (!/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(newEmail)) {
+      setEmailError('Please enter a valid email address');
+      return;
+    }
+    
+    if (notificationEmails.includes(newEmail)) {
+      setEmailError('This email is already in the list');
+      return;
+    }
+    
+    // In a real app, this would be an API call
+    // await api.post('/api/notification-emails', { email: newEmail });
+    
+    setNotificationEmails([...notificationEmails, newEmail]);
+    setNewEmail('');
+    setEmailError('');
+    
+    setAlert({
+      open: true,
+      message: 'Notification email added successfully',
+      severity: 'success'
+    });
+  };
+
+  // Handle removing a notification email
+  const handleRemoveEmail = async (emailToRemove) => {
+    // In a real app, this would be an API call
+    // await api.delete(`/api/notification-emails/${encodeURIComponent(emailToRemove)}`);
+    
+    setNotificationEmails(notificationEmails.filter(email => email !== emailToRemove));
+    
+    setAlert({
+      open: true,
+      message: 'Notification email removed successfully',
+      severity: 'success'
+    });
   };
 
   return (
@@ -144,11 +220,11 @@ const Profile = () => {
       />
       
       <Typography variant="h5" sx={{ mb: 3 }}>
-        Mi Perfil
+        My Profile
       </Typography>
       
       <Grid container spacing={3}>
-        {/* Información del perfil */}
+        {/* Profile Information */}
         <Grid item xs={12} md={6}>
           <Card>
             <CardContent>
@@ -160,16 +236,19 @@ const Profile = () => {
                 </Avatar>
                 <Box>
                   <Typography variant="h6">
-                    {currentUser?.name || 'Usuario'}
+                    {currentUser?.name || 'User'}
+                  </Typography>
+                  <Typography variant="subtitle2" color="text.secondary" sx={{ fontWeight: 'medium' }}>
+                    {currentUser?.company_name || 'No company'}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    {currentUser?.email || 'usuario@ejemplo.com'}
+                    {currentUser?.email || 'user@example.com'}
                   </Typography>
                 </Box>
               </Box>
               
               <Typography variant="h6" gutterBottom>
-                Información Personal
+                Personal Information
               </Typography>
               <Divider sx={{ mb: 3 }} />
               
@@ -180,7 +259,7 @@ const Profile = () => {
                       fullWidth
                       id="name"
                       name="name"
-                      label="Nombre Completo"
+                      label="Full Name"
                       value={profileFormik.values.name}
                       onChange={profileFormik.handleChange}
                       onBlur={profileFormik.handleBlur}
@@ -193,24 +272,9 @@ const Profile = () => {
                   <Grid item xs={12}>
                     <TextField
                       fullWidth
-                      id="company_name"
-                      name="company_name"
-                      label="Nombre de la Empresa"
-                      value={profileFormik.values.company_name}
-                      onChange={profileFormik.handleChange}
-                      onBlur={profileFormik.handleBlur}
-                      error={profileFormik.touched.company_name && Boolean(profileFormik.errors.company_name)}
-                      helperText={profileFormik.touched.company_name && profileFormik.errors.company_name}
-                      disabled={loading}
-                    />
-                  </Grid>
-                  
-                  <Grid item xs={12}>
-                    <TextField
-                      fullWidth
                       id="email"
                       name="email"
-                      label="Correo Electrónico"
+                      label="Email"
                       value={profileFormik.values.email}
                       onChange={profileFormik.handleChange}
                       onBlur={profileFormik.handleBlur}
@@ -228,7 +292,7 @@ const Profile = () => {
                     color="primary"
                     disabled={loading || !profileFormik.isValid}
                   >
-                    {loading ? 'Guardando...' : 'Guardar Cambios'}
+                    {loading ? 'Saving...' : 'Save Changes'}
                   </Button>
                 </Box>
               </form>
@@ -236,12 +300,12 @@ const Profile = () => {
           </Card>
         </Grid>
         
-        {/* Cambio de contraseña */}
+        {/* Change Password */}
         <Grid item xs={12} md={6}>
           <Card>
             <CardContent>
               <Typography variant="h6" gutterBottom>
-                Cambiar Contraseña
+                Change Password
               </Typography>
               <Divider sx={{ mb: 3 }} />
               
@@ -252,7 +316,7 @@ const Profile = () => {
                       fullWidth
                       id="current_password"
                       name="current_password"
-                      label="Contraseña Actual"
+                      label="Current Password"
                       type={showCurrentPassword ? 'text' : 'password'}
                       value={passwordFormik.values.current_password}
                       onChange={passwordFormik.handleChange}
@@ -281,7 +345,7 @@ const Profile = () => {
                       fullWidth
                       id="new_password"
                       name="new_password"
-                      label="Nueva Contraseña"
+                      label="New Password"
                       type={showNewPassword ? 'text' : 'password'}
                       value={passwordFormik.values.new_password}
                       onChange={passwordFormik.handleChange}
@@ -310,7 +374,7 @@ const Profile = () => {
                       fullWidth
                       id="confirm_password"
                       name="confirm_password"
-                      label="Confirmar Nueva Contraseña"
+                      label="Confirm New Password"
                       type={showConfirmPassword ? 'text' : 'password'}
                       value={passwordFormik.values.confirm_password}
                       onChange={passwordFormik.handleChange}
@@ -342,10 +406,112 @@ const Profile = () => {
                     color="primary"
                     disabled={loading || !passwordFormik.isValid}
                   >
-                    {loading ? 'Actualizando...' : 'Cambiar Contraseña'}
+                    {loading ? 'Updating...' : 'Change Password'}
                   </Button>
                 </Box>
               </form>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        {/* Notification Emails Section */}
+        <Grid item xs={12} md={6}>
+          <Card>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                Notification Settings
+              </Typography>
+              <Divider sx={{ mb: 3 }} />
+              
+              <Typography variant="subtitle1" gutterBottom>
+                Notification Emails
+              </Typography>
+              <Typography variant="body2" color="text.secondary" paragraph>
+                Add email addresses that should receive system notifications and reports
+              </Typography>
+              
+              <Box component="form" onSubmit={handleAddEmail} sx={{ mb: 3 }}>
+                <Grid container spacing={2} alignItems="flex-start">
+                  <Grid item xs={12} sm={8} md={8}>
+                    <TextField
+                      fullWidth
+                      label="Add Notification Email"
+                      variant="outlined"
+                      size="small"
+                      value={newEmail}
+                      onChange={(e) => {
+                        setNewEmail(e.target.value);
+                        if (emailError) setEmailError('');
+                      }}
+                      error={!!emailError}
+                      helperText={emailError}
+                      placeholder="email@example.com"
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={4} md={4}>
+                    <Button 
+                      type="submit" 
+                      variant="contained" 
+                      color="primary"
+                      fullWidth
+                      sx={{ height: '40px' }}
+                    >
+                      Add Email
+                    </Button>
+                  </Grid>
+                </Grid>
+              </Box>
+              
+              {notificationEmails.length > 0 ? (
+                <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
+                  {notificationEmails.map((email) => (
+                    <Box 
+                      key={email}
+                      sx={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        p: 1.5,
+                        borderBottom: '1px solid',
+                        borderColor: 'divider',
+                        '&:last-child': {
+                          borderBottom: 'none'
+                        }
+                      }}
+                    >
+                      <Typography variant="body1">{email}</Typography>
+                      <Button
+                        size="small"
+                        color="error"
+                        onClick={() => handleRemoveEmail(email)}
+                        sx={{ minWidth: 'auto' }}
+                      >
+                        Remove
+                      </Button>
+                    </Box>
+                  ))}
+                </Box>
+              ) : (
+                <Box 
+                  sx={{ 
+                    p: 3, 
+                    textAlign: 'center',
+                    border: '1px dashed',
+                    borderColor: 'divider',
+                    borderRadius: 1
+                  }}
+                >
+                  <Typography variant="body2" color="text.secondary">
+                    No notification emails added yet
+                  </Typography>
+                </Box>
+              )}
+              
+              <Box sx={{ mt: 2 }}>
+                <Typography variant="caption" color="text.secondary">
+                  These emails will receive system notifications and reports
+                </Typography>
+              </Box>
             </CardContent>
           </Card>
         </Grid>

@@ -35,8 +35,7 @@ import {
   AddTwoTone as AddTwoTone,
   Search as SearchIcon,
   FilterList as FilterListIcon,
-  ExpandMore as ExpandMoreIcon,
-  Visibility as VisibilityIcon
+  ExpandMore as ExpandMoreIcon
 } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
@@ -94,37 +93,40 @@ const formatCurrency = (amount) => {
 
 const formatDate = (dateString) => {
   try {
-    if (!dateString) return 'N/A';
-    
     const date = new Date(dateString);
-    if (isNaN(date.getTime())) return 'Fecha inválida';
+    if (isNaN(date.getTime())) return 'Invalid Date';
     
+    // Get day and month
     const day = date.getDate();
-    const month = date.toLocaleString('es-ES', { month: 'short' });
-    const year = date.getFullYear();
+    const month = date.toLocaleString('default', { month: 'short' });
     
-    return `${day} ${month}. ${year}`;
+    return (
+      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+        <Typography component="span" variant="body1" fontWeight="bold">
+          {day}
+        </Typography>
+        <Typography component="span" variant="body2" color="text.secondary">
+          {month}.
+        </Typography>
+      </Box>
+    );
   } catch (error) {
-    console.error('Error formateando fecha:', error);
-    return 'Fecha inválida';
+    console.error('Error formatting date:', error);
+    return 'Invalid Date';
   }
 };
 
 const getQuarter = (dateString) => {
   try {
-    if (!dateString) return 'N/A';
-    
     const date = new Date(dateString);
-    if (isNaN(date.getTime())) return 'Q? ????'; // Retornar marcador de posición si la fecha no es válida
-    
-    const month = date.getMonth() + 1; // getMonth() comienza en 0 (enero = 0)
+    if (isNaN(date.getTime())) return 'Q? ????'; // Return placeholder for invalid dates
+    const month = date.getMonth() + 1; // getMonth() is zero-based
     const year = date.getFullYear();
     const quarter = Math.ceil(month / 3);
-    
     return `Q${quarter} ${year}`;
   } catch (error) {
-    console.error('Error obteniendo trimestre:', error);
-    return 'Q? ????'; // Retornar marcador de posición si hay un error
+    console.error('Error getting quarter:', error);
+    return 'Q? ????'; // Return placeholder if there's an error
   }
 };
 
@@ -193,10 +195,10 @@ const MobileTableRow = ({ row, onViewReceipt }) => {
                   variant="outlined"
                   size="small"
                   startIcon={<ReceiptIcon />}
-                  onClick={() => onViewReceipt(row.id)}
+                  onClick={() => onViewReceipt(row.receiptId)}
                   fullWidth
                 >
-                  Ver Detalles
+                  View Receipt
                 </Button>
               </Grid>
             </Grid>
@@ -208,7 +210,6 @@ const MobileTableRow = ({ row, onViewReceipt }) => {
 };
 
 const ConsumptionHistory = () => {
-  const navigate = useNavigate();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [page, setPage] = useState(0);
@@ -217,9 +218,10 @@ const ConsumptionHistory = () => {
   const [endDate, setEndDate] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
+  const navigate = useNavigate();
 
   const handleAddConsumption = () => {
-    navigate('/consumption/new');
+    navigate('/trips/create');
   };
 
   const handleChangePage = (event, newPage) => {
@@ -231,8 +233,8 @@ const ConsumptionHistory = () => {
     setPage(0);
   };
 
-  const handleViewReceipt = (id) => {
-    navigate(`/consumption/${id}`);
+  const handleViewReceipt = (receiptId) => {
+    console.log('View receipt:', receiptId);
   };
 
   const filteredData = sampleData.filter((row) => {
@@ -263,7 +265,7 @@ const ConsumptionHistory = () => {
             variant="contained"
             color="primary"
             startIcon={<AddTwoTone />}
-            onClick={() => navigate('/trips/create')}
+            onClick={handleAddConsumption}
             sx={{ textTransform: 'none' }}
           >
             Add Consumption Record
@@ -412,12 +414,11 @@ const ConsumptionHistory = () => {
                         </TableCell>
                         <TableCell>
                           <IconButton
-                            onClick={() => handleViewReceipt(row.id)}
+                            onClick={() => handleViewReceipt(row.receiptId)}
                             size="small"
                             sx={{ color: 'primary.main' }}
-                            aria-label="Ver detalles"
                           >
-                            <VisibilityIcon />
+                            <ReceiptIcon />
                           </IconButton>
                         </TableCell>
                       </TableRow>

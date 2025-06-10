@@ -47,6 +47,7 @@ import Profile from './pages/profile/Profile';
 
 // Páginas privadas - Historial de Consumo
 import ConsumptionHistory from './pages/consumption/ConsumptionHistory';
+import ConsumptionDetail from './pages/consumption/ConsumptionDetail';
 
 // Páginas de error
 import NotFound from './pages/errors/NotFound';
@@ -133,7 +134,8 @@ function App() {
             <Route path="profile" element={<Profile />} />
             
             {/* Historial de Consumo */}
-            <Route path="consumption-history" element={<ConsumptionHistory />} />
+            <Route path="consumption" element={<ConsumptionHistory />} />
+            <Route path="consumption/:id" element={<ConsumptionDetail />} />
           </Route>
           
           {/* Ruta 404 */}

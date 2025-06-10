@@ -99,21 +99,21 @@ const TripList = () => {
       />
       
       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
-        <Typography variant="h5">Viajes</Typography>
+        <Typography variant="h5">Consumption</Typography>
         <Button
           variant="contained"
           color="primary"
           startIcon={<AddIcon />}
           onClick={handleCreate}
         >
-          Nuevo Viaje
+          New Consumption
         </Button>
       </Box>
       
       <Card>
         <CardContent>
           <Typography variant="h6" gutterBottom>
-            Lista de Viajes
+            Consumption List
           </Typography>
           <Divider sx={{ mb: 2 }} />
           
