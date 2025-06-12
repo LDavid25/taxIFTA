@@ -89,7 +89,6 @@ function App() {
           }>
             <Route index element={<Login />} />
             <Route path="login" element={<Login />} />
-            <Route path="register" element={<Register />} />
             <Route path="forgot-password" element={<ForgotPassword />} />
             <Route path="reset-password" element={<ResetPassword />} />
             <Route path="contact" element={<ContactPage />} />
@@ -110,6 +109,9 @@ function App() {
             
             {/* Perfil de usuario */}
             <Route path="profile" element={<Profile />} />
+            
+            {/* Registro de usuario (protegido) */}
+            <Route path="register" element={<Register />} />
             
             {/* Historial de Consumo */}
             <Route path="consumption" element={<ConsumptionHistory />} />

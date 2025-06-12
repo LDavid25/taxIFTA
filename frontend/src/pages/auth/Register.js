@@ -21,27 +21,26 @@ import * as Yup from 'yup';
 import AlertMessage from '../../components/common/AlertMessage';
 import { register } from '../../services/authService';
 
-// Esquema de validación con Yup
+// Validation schema with Yup
 const validationSchema = Yup.object({
   name: Yup.string()
-    .required('El nombre es requerido')
-    .max(100, 'El nombre no puede tener más de 100 caracteres'),
+    .required('Name is required')
+    .max(100, 'Name cannot be longer than 100 characters'),
   company_name: Yup.string()
-    .required('El nombre de la empresa es requerido')
-    .max(100, 'El nombre de la empresa no puede tener más de 100 caracteres'),
+    .required('Company name is required')
+    .max(100, 'Company name cannot be longer than 100 characters'),
   email: Yup.string()
-    .email('Ingrese un correo electrónico válido')
-    .required('El correo electrónico es requerido'),
+    .email('Enter a valid email')
+    .required('Email is required'),
   password: Yup.string()
-    .required('La contraseña es requerida')
-    .min(8, 'La contraseña debe tener al menos 8 caracteres')
+    .required('Password is required')
+    .min(8, 'Password must be at least 8 characters')
     .matches(
-      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/,
-      'La contraseña debe contener al menos una letra mayúscula, una minúscula, un número y un carácter especial'
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/, 'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character'
     ),
   confirm_password: Yup.string()
-    .oneOf([Yup.ref('password'), null], 'Las contraseñas deben coincidir')
-    .required('Confirme su contraseña')
+    .oneOf([Yup.ref('password'), null], 'Passwords must match')
+    .required('Confirm your password')
 });
 
 const Register = () => {
@@ -51,7 +50,7 @@ const Register = () => {
   const [loading, setLoading] = useState(false);
   const [alert, setAlert] = useState({ open: false, message: '', severity: 'info' });
 
-  // Inicializar Formik
+  // Initialize Formik
   const formik = useFormik({
     initialValues: {
       name: '',
@@ -73,18 +72,18 @@ const Register = () => {
         
         setAlert({
           open: true,
-          message: 'Registro exitoso. Ahora puede iniciar sesión.',
+          message: 'Registration successful. You can now log in.',
           severity: 'success'
         });
         
-        // Redirigir al login después de 2 segundos
+        // Redirect to login after 2 seconds
         setTimeout(() => {
           navigate('/login');
         }, 2000);
       } catch (error) {
         setAlert({
           open: true,
-          message: error.response?.data?.message || 'Error al registrarse. Inténtelo de nuevo.',
+          message: error.response?.data?.message || 'Error during registration. Please try again.',
           severity: 'error'
         });
         setLoading(false);
@@ -92,17 +91,17 @@ const Register = () => {
     }
   });
 
-  // Manejar cierre de la alerta
+  // Handle alert close
   const handleAlertClose = () => {
     setAlert({ ...alert, open: false });
   };
 
-  // Alternar visibilidad de la contraseña
+  // Toggle password visibility
   const handleTogglePasswordVisibility = () => {
     setShowPassword(!showPassword);
   };
 
-  // Alternar visibilidad de la confirmación de contraseña
+  // Toggle confirm password visibility
   const handleToggleConfirmPasswordVisibility = () => {
     setShowConfirmPassword(!showConfirmPassword);
   };
@@ -117,23 +116,23 @@ const Register = () => {
         autoHideDuration={6000}
       />
       
-      <Box sx={{ mb: 3, textAlign: 'center' }}>
+      <Box sx={{ mt: 3, mb: 3, textAlign: 'left'}}>
         <Typography variant="h4" component="h1" gutterBottom>
-          Crear Cuenta
+          Create Account
         </Typography>
         <Typography variant="body1" color="text.secondary">
-          Regístrese para comenzar a utilizar el sistema
+          Register to start using the system
         </Typography>
       </Box>
       
       <form onSubmit={formik.handleSubmit}>
         <Grid container spacing={2}>
-          <Grid item xs={12}>
+          <Grid item xs={12} md={8}>
             <TextField
               fullWidth
               id="name"
               name="name"
-              label="Nombre Completo"
+              label="Full Name"
               value={formik.values.name}
               onChange={formik.handleChange}
               onBlur={formik.handleBlur}
@@ -144,12 +143,12 @@ const Register = () => {
             />
           </Grid>
           
-          <Grid item xs={12}>
+          <Grid item xs={12} md={8}>
             <TextField
               fullWidth
               id="company_name"
               name="company_name"
-              label="Nombre de la Empresa"
+              label="Company Name"
               value={formik.values.company_name}
               onChange={formik.handleChange}
               onBlur={formik.handleBlur}
@@ -160,12 +159,12 @@ const Register = () => {
             />
           </Grid>
           
-          <Grid item xs={12}>
+          <Grid item xs={12} md={8}>
             <TextField
               fullWidth
               id="email"
               name="email"
-              label="Correo Electrónico"
+              label="Email Address"
               value={formik.values.email}
               onChange={formik.handleChange}
               onBlur={formik.handleBlur}
@@ -176,12 +175,12 @@ const Register = () => {
             />
           </Grid>
           
-          <Grid item xs={12}>
+          <Grid item xs={12} md={8}>
             <TextField
               fullWidth
               id="password"
               name="password"
-              label="Contraseña"
+              label="Password"
               type={showPassword ? 'text' : 'password'}
               value={formik.values.password}
               onChange={formik.handleChange}
@@ -206,12 +205,12 @@ const Register = () => {
             />
           </Grid>
           
-          <Grid item xs={12}>
+          <Grid item xs={12} md={8}>
             <TextField
               fullWidth
               id="confirm_password"
               name="confirm_password"
-              label="Confirmar Contraseña"
+              label="Confirm Password"
               type={showConfirmPassword ? 'text' : 'password'}
               value={formik.values.confirm_password}
               onChange={formik.handleChange}
@@ -239,25 +238,16 @@ const Register = () => {
         
         <Button
           type="submit"
-          fullWidth
           variant="contained"
           color="primary"
           disabled={loading || !formik.isValid}
           sx={{ mt: 3, mb: 2 }}
         >
-          {loading ? <CircularProgress size={24} /> : 'Registrarse'}
+          {loading ? <CircularProgress size={24} /> : 'Register'}
         </Button>
         
         <Divider sx={{ my: 2 }} />
         
-        <Box sx={{ textAlign: 'center' }}>
-          <Typography variant="body2">
-            ¿Ya tiene una cuenta?{' '}
-            <Link component={RouterLink} to="/login" variant="body2">
-              Inicie sesión aquí
-            </Link>
-          </Typography>
-        </Box>
       </form>
     </Box>
   );
