@@ -263,7 +263,7 @@ const ConsumptionHistory = () => {
             variant="contained"
             color="primary"
             startIcon={<AddTwoTone />}
-            onClick={() => navigate('/trips/create')}
+            onClick={() => navigate('/consumption/create')}
             sx={{ textTransform: 'none' }}
           >
             Add Consumption Record

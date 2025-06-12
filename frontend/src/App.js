@@ -34,6 +34,7 @@ import Profile from './pages/profile/Profile';
 
 // Páginas privadas - Historial de Consumo
 import ConsumptionHistory from './pages/consumption/ConsumptionHistory';
+import ConsumptionCreate from './pages/consumption/ConsumptionCreate';
 import ConsumptionDetail from './pages/consumption/ConsumptionDetail';
 
 // Páginas de compañías
@@ -112,6 +113,7 @@ function App() {
             
             {/* Historial de Consumo */}
             <Route path="consumption" element={<ConsumptionHistory />} />
+            <Route path="consumption/create" element={<ConsumptionCreate />} />
             <Route path="consumption/:id" element={<ConsumptionDetail />} />
             
             {/* Compañías */}
