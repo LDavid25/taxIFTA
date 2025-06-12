@@ -31,7 +31,8 @@ import {
   Brightness7 as LightModeIcon,
   Logout as LogoutIcon,
   Settings as SettingsIcon,
-  History as HistoryIcon
+  History as HistoryIcon,
+  Business as BusinessIcon
 } from '@mui/icons-material';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -136,9 +137,9 @@ const MainLayout = () => {
   // Elementos del menú lateral
   const menuItems = [
     { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
-    { text: 'Consumption', icon: <MapIcon />, path: '/trips' },
     { text: 'Declaraciones', icon: <DescriptionIcon />, path: '/declarations' },
     { text: 'Historial de Consumo', icon: <HistoryIcon />, path: '/consumption' },
+    { text: 'Compañías', icon: <BusinessIcon />, path: '/companies' },
   ];
   
   return (

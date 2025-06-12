@@ -7,7 +7,11 @@ import {
   CardContent,
   Typography,
   Divider,
-  Chip
+  Chip,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem
 } from '@mui/material';
 import { Add as AddIcon } from '@mui/icons-material';
 import { getDeclarations } from '../../services/declarationService';
@@ -19,6 +23,7 @@ const DeclarationList = () => {
   const [loading, setLoading] = useState(true);
   const [declarations, setDeclarations] = useState([]);
   const [alert, setAlert] = useState({ open: false, message: '', severity: 'info' });
+  const [statusFilter, setStatusFilter] = useState('all');
 
   // Cargar declaraciones
   useEffect(() => {
@@ -131,16 +136,22 @@ const DeclarationList = () => {
         autoHideDuration={6000}
       />
       
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h5">Declaraciones</Typography>
-        <Button
-          variant="contained"
-          color="primary"
-          startIcon={<AddIcon />}
-          onClick={handleCreate}
-        >
-          Nueva Declaración
-        </Button>
+        <FormControl variant="outlined" size="small" sx={{ minWidth: 180 }}>
+          <InputLabel>Filtrar por estado</InputLabel>
+          <Select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            label="Filtrar por estado"
+          >
+            <MenuItem value="all">Todos</MenuItem>
+            <MenuItem value="approved">Aprobadas</MenuItem>
+            <MenuItem value="pending">Pendientes</MenuItem>
+            <MenuItem value="submitted">Enviadas</MenuItem>
+            <MenuItem value="rejected">Rechazadas</MenuItem>
+          </Select>
+        </FormControl>
       </Box>
       
       <Card>
@@ -150,9 +161,13 @@ const DeclarationList = () => {
           </Typography>
           <Divider sx={{ mb: 2 }} />
           
-          {declarations.length > 0 ? (
+          {declarations.filter(declaration => 
+            statusFilter === 'all' ? true : declaration.status === statusFilter
+          ).length > 0 ? (
             <Box>
-              {declarations.map((declaration) => (
+              {declarations
+                .filter(declaration => statusFilter === 'all' ? true : declaration.status === statusFilter)
+                .map((declaration) => (
                 <Card 
                   key={declaration.id} 
                   sx={{ mb: 2, cursor: 'pointer' }}

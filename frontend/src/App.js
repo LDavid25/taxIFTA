@@ -24,21 +24,8 @@ import ContactPage from './pages/ContactPage';
 // Páginas privadas - Dashboard
 import Dashboard from './pages/dashboard/Dashboard';
 
-// Páginas privadas - Vehículos
-import VehicleList from './pages/vehicles/VehicleList';
-import VehicleCreate from './pages/vehicles/VehicleCreate';
-import VehicleEdit from './pages/vehicles/VehicleEdit';
-import VehicleDetail from './pages/vehicles/VehicleDetail';
-
-// Páginas privadas - Viajes
-import TripList from './pages/trips/TripList';
-import TripCreate from './pages/trips/TripCreate';
-import TripEdit from './pages/trips/TripEdit';
-import TripDetail from './pages/trips/TripDetail';
-
 // Páginas privadas - Declaraciones
 import DeclarationList from './pages/declarations/DeclarationList';
-import DeclarationCreate from './pages/declarations/DeclarationCreate';
 import DeclarationEdit from './pages/declarations/DeclarationEdit';
 import DeclarationDetail from './pages/declarations/DeclarationDetail';
 
@@ -48,6 +35,9 @@ import Profile from './pages/profile/Profile';
 // Páginas privadas - Historial de Consumo
 import ConsumptionHistory from './pages/consumption/ConsumptionHistory';
 import ConsumptionDetail from './pages/consumption/ConsumptionDetail';
+
+// Páginas de compañías
+import CompanyListPage from './pages/companies/CompanyListPage';
 
 // Páginas de error
 import NotFound from './pages/errors/NotFound';
@@ -112,21 +102,8 @@ function App() {
           }>
             <Route path="dashboard" element={<Dashboard />} />
             
-            {/* Rutas de vehículos */}
-            <Route path="vehicles" element={<VehicleList />} />
-            <Route path="vehicles/create" element={<VehicleCreate />} />
-            <Route path="vehicles/:id" element={<VehicleDetail />} />
-            <Route path="vehicles/:id/edit" element={<VehicleEdit />} />
-            
-            {/* Rutas de viajes */}
-            <Route path="trips" element={<TripList />} />
-            <Route path="trips/create" element={<TripCreate />} />
-            <Route path="trips/:id" element={<TripDetail />} />
-            <Route path="trips/:id/edit" element={<TripEdit />} />
-            
             {/* Rutas de declaraciones */}
             <Route path="declarations" element={<DeclarationList />} />
-            <Route path="declarations/create" element={<DeclarationCreate />} />
             <Route path="declarations/:id" element={<DeclarationDetail />} />
             <Route path="declarations/:id/edit" element={<DeclarationEdit />} />
             
@@ -136,6 +113,9 @@ function App() {
             {/* Historial de Consumo */}
             <Route path="consumption" element={<ConsumptionHistory />} />
             <Route path="consumption/:id" element={<ConsumptionDetail />} />
+            
+            {/* Compañías */}
+            <Route path="companies" element={<CompanyListPage />} />
           </Route>
           
           {/* Ruta 404 */}

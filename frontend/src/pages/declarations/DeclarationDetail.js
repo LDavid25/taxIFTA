@@ -18,10 +18,23 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Paper
+  Paper,
+  FormControl,
+  Select,
+  MenuItem,
+  InputLabel,
+  IconButton
 } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
-import { Edit as EditIcon, Delete as DeleteIcon, Print as PrintIcon, Send as SendIcon } from '@mui/icons-material';
+import { 
+  Edit as EditIcon, 
+  Delete as DeleteIcon, 
+  Print as PrintIcon, 
+  Send as SendIcon,
+  UploadFile as UploadFileIcon,
+  CheckCircle as CheckCircleIcon,
+  PictureAsPdf as PictureAsPdfIcon
+} from '@mui/icons-material';
 import AlertMessage from '../../components/common/AlertMessage';
 import LoadingScreen from '../../components/common/LoadingScreen';
 import { getDeclarationById } from '../../services/declarationService';
@@ -32,6 +45,182 @@ const DeclarationDetail = () => {
   const [loading, setLoading] = useState(true);
   const [declaration, setDeclaration] = useState(null);
   const [alert, setAlert] = useState({ open: false, message: '', severity: 'info' });
+  const [status, setStatus] = useState('');
+  const [selectedStartQuarter, setSelectedStartQuarter] = useState('1');
+  const [selectedEndQuarter, setSelectedEndQuarter] = useState('4');
+  const [monthlySummary, setMonthlySummary] = useState([]);
+  const [availableYears, setAvailableYears] = useState([]);
+  const [selectedStartYear, setSelectedStartYear] = useState('');
+  const [selectedEndYear, setSelectedEndYear] = useState('');
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [filePreview, setFilePreview] = useState('');
+
+  // Obtener lista de años disponibles
+  useEffect(() => {
+    if (!declaration) return;
+
+    const years = new Set();
+    declaration.trips.forEach(trip => {
+      const date = new Date(trip.trip_date);
+      years.add(date.getFullYear());
+    });
+
+    const sortedYears = Array.from(years).sort();
+    setAvailableYears(sortedYears);
+
+    // Establecer años predeterminados (más antiguo y más reciente)
+    if (sortedYears.length > 0) {
+      setSelectedStartYear(sortedYears[0].toString());
+      setSelectedEndYear(sortedYears[sortedYears.length - 1].toString());
+    }
+  }, [declaration]);
+
+  // Calcular resumen mensual
+  useEffect(() => {
+    if (!declaration || !selectedStartYear || !selectedEndYear) return;
+
+    const tripsByMonth = {};
+
+    declaration.trips.forEach(trip => {
+      const date = new Date(trip.trip_date);
+      const month = date.getMonth() + 1;
+      const year = date.getFullYear();
+      const quarter = Math.ceil(month / 3);
+
+      // Filtrar por rango de años
+      if (year < parseInt(selectedStartYear) || year > parseInt(selectedEndYear)) return;
+
+      // Filtrar por trimestres seleccionados
+      if (year === parseInt(selectedStartYear) && year === parseInt(selectedEndYear)) {
+        // Mismo año, verificar rango de trimestres
+        if (quarter < parseInt(selectedStartQuarter) || quarter > parseInt(selectedEndQuarter)) return;
+      } else if (year === parseInt(selectedStartYear)) {
+        // Año inicial, verificar solo trimestre mínimo
+        if (quarter < parseInt(selectedStartQuarter)) return;
+      } else if (year === parseInt(selectedEndYear)) {
+        // Final year, check only maximum quarter
+        if (quarter > parseInt(selectedEndQuarter)) return;
+      }
+
+      const monthKey = `${year}-${month.toString().padStart(2, '0')}`;
+
+      if (!tripsByMonth[monthKey]) {
+        tripsByMonth[monthKey] = {
+          month: month,
+          year: year,
+          quarter: quarter,
+          monthName: date.toLocaleString('default', { month: 'long' }),
+          totalMiles: 0,
+          totalGallons: 0
+        };
+      }
+
+      tripsByMonth[monthKey].totalMiles += trip.distance;
+      tripsByMonth[monthKey].totalGallons += trip.fuel_consumed;
+    });
+
+    setMonthlySummary(Object.values(tripsByMonth));
+  }, [declaration, selectedStartYear, selectedEndYear, selectedStartQuarter, selectedEndQuarter]);
+
+  // Filtrar viajes por rango de fechas seleccionado
+  const filteredTrips = declaration?.trips.filter(trip => {
+    if (!selectedStartYear || !selectedEndYear) return false;
+
+    const date = new Date(trip.trip_date);
+    const month = date.getMonth() + 1;
+    const year = date.getFullYear();
+    const quarter = Math.ceil(month / 3);
+
+    // Filtrar por rango de años
+    if (year < parseInt(selectedStartYear) || year > parseInt(selectedEndYear)) return false;
+
+    // Filtrar por trimestres seleccionados
+    if (year === parseInt(selectedStartYear) && year === parseInt(selectedEndYear)) {
+      // Mismo año, verificar rango de trimestres
+      if (quarter < parseInt(selectedStartQuarter) || quarter > parseInt(selectedEndQuarter)) return false;
+    } else if (year === parseInt(selectedStartYear)) {
+      // Año inicial, verificar solo trimestre mínimo
+      if (quarter < parseInt(selectedStartQuarter)) return false;
+    } else if (year === parseInt(selectedEndYear)) {
+      // Año final, verificar solo trimestre máximo
+      if (quarter > parseInt(selectedEndQuarter)) return false;
+    }
+
+    return true;
+  }) || [];
+
+  // Obtener trimestre de un mes
+  const getQuarter = (month) => {
+    return Math.ceil(month / 3);
+  };
+
+  // Obtener rango de meses de un trimestre
+  const getQuarterRange = (quarter) => {
+    const months = [
+      'Enero - Marzo',
+      'Abril - Junio',
+      'Julio - Septiembre',
+      'Octubre - Diciembre'
+    ];
+    return months[quarter - 1] || '';
+  };
+
+  // Map state codes to full names
+  const stateCodeToName = (code) => {
+    const states = {
+      'AL': 'Alabama',
+      'AK': 'Alaska',
+      'AZ': 'Arizona',
+      'AR': 'Arkansas',
+      'CA': 'California',
+      'CO': 'Colorado',
+      'CT': 'Connecticut',
+      'DE': 'Delaware',
+      'FL': 'Florida',
+      'GA': 'Georgia',
+      'HI': 'Hawaii',
+      'ID': 'Idaho',
+      'IL': 'Illinois',
+      'IN': 'Indiana',
+      'IA': 'Iowa',
+      'KS': 'Kansas',
+      'KY': 'Kentucky',
+      'LA': 'Louisiana',
+      'ME': 'Maine',
+      'MD': 'Maryland',
+      'MA': 'Massachusetts',
+      'MI': 'Michigan',
+      'MN': 'Minnesota',
+      'MS': 'Mississippi',
+      'MO': 'Missouri',
+      'MT': 'Montana',
+      'NE': 'Nebraska',
+      'NV': 'Nevada',
+      'NH': 'New Hampshire',
+      'NJ': 'New Jersey',
+      'NM': 'New Mexico',
+      'NY': 'New York',
+      'NC': 'North Carolina',
+      'ND': 'North Dakota',
+      'OH': 'Ohio',
+      'OK': 'Oklahoma',
+      'OR': 'Oregon',
+      'PA': 'Pennsylvania',
+      'RI': 'Rhode Island',
+      'SC': 'South Carolina',
+      'SD': 'South Dakota',
+      'TN': 'Tennessee',
+      'TX': 'Texas',
+      'UT': 'Utah',
+      'VT': 'Vermont',
+      'VA': 'Virginia',
+      'WA': 'Washington',
+      'WV': 'West Virginia',
+      'WI': 'Wisconsin',
+      'WY': 'Wyoming'
+    };
+    return states[code] || code;
+  };
 
   // Cargar datos de la declaración
   useEffect(() => {
@@ -41,24 +230,23 @@ const DeclarationDetail = () => {
         // En una implementación real, esto obtendría datos de la API
         // const response = await getDeclarationById(id);
         // setDeclaration(response.data);
-        
+
         // Simulamos datos para la demostración
         setTimeout(() => {
-          setDeclaration({
+          const declarationData = {
             id: parseInt(id),
             quarter: 'Q1',
             year: 2025,
             total_miles: 5200,
             total_gallons: 520,
-            total_tax: 1250.75,
             status: 'approved',
             created_at: '2025-04-15T10:30:00Z',
             updated_at: '2025-04-20T14:45:00Z',
             state_summary: [
-              { state: 'TX', miles: 1500, gallons: 150, tax_rate: 0.20, tax_due: 30.00 },
-              { state: 'CA', miles: 1200, gallons: 120, tax_rate: 0.65, tax_due: 78.00 },
-              { state: 'AZ', miles: 800, gallons: 80, tax_rate: 0.26, tax_due: 20.80 },
-              { state: 'NM', miles: 1700, gallons: 170, tax_rate: 0.21, tax_due: 35.70 }
+              { state: 'TX', miles: 1500, gallons: 150 },
+              { state: 'CA', miles: 1200, gallons: 120 },
+              { state: 'AZ', miles: 800, gallons: 80 },
+              { state: 'NM', miles: 1700, gallons: 170 }
             ],
             trips: [
               { id: 1, trip_date: '2025-01-15', origin_state: 'TX', destination_state: 'CA', distance: 1200, fuel_consumed: 120 },
@@ -66,13 +254,15 @@ const DeclarationDetail = () => {
               { id: 3, trip_date: '2025-03-05', origin_state: 'AZ', destination_state: 'NM', distance: 1700, fuel_consumed: 170 },
               { id: 4, trip_date: '2025-03-20', origin_state: 'NM', destination_state: 'TX', distance: 1500, fuel_consumed: 150 }
             ]
-          });
+          };
+          setDeclaration(declarationData);
+          setStatus(declarationData.status);
           setLoading(false);
         }, 1000);
       } catch (error) {
         setAlert({
           open: true,
-          message: error.message || 'Error al cargar los datos de la declaración',
+          message: error.message || 'Error loading declaration data',
           severity: 'error'
         });
         setLoading(false);
@@ -98,7 +288,7 @@ const DeclarationDetail = () => {
     // y luego eliminaría la declaración
     setAlert({
       open: true,
-      message: 'Esta funcionalidad se implementará en el futuro',
+      message: 'This functionality will be implemented in the future',
       severity: 'info'
     });
   };
@@ -107,7 +297,7 @@ const DeclarationDetail = () => {
   const handlePrint = () => {
     setAlert({
       open: true,
-      message: 'Funcionalidad de impresión en desarrollo',
+      message: 'Print functionality in development',
       severity: 'info'
     });
   };
@@ -116,9 +306,21 @@ const DeclarationDetail = () => {
   const handleSubmit = () => {
     setAlert({
       open: true,
-      message: 'Funcionalidad de envío en desarrollo',
+      message: 'Submission functionality in development',
       severity: 'info'
     });
+  };
+
+  // Manejar cambio de estado
+  const handleStatusChange = (event) => {
+    const newStatus = event.target.value;
+    setStatus(newStatus);
+    // En una implementación real, aquí se haría una llamada a la API para actualizar el estado
+    setDeclaration(prev => ({
+      ...prev,
+      status: newStatus,
+      updated_at: new Date().toISOString()
+    }));
   };
 
   // Obtener color según el estado de la declaración
@@ -141,20 +343,20 @@ const DeclarationDetail = () => {
   const getStatusText = (status) => {
     switch (status) {
       case 'approved':
-        return 'Aprobada';
+        return 'Approved';
       case 'pending':
-        return 'Pendiente';
+        return 'Pending';
       case 'submitted':
-        return 'Enviada';
+        return 'Submitted';
       case 'rejected':
-        return 'Rechazada';
+        return 'Rejected';
       default:
         return status;
     }
   };
 
   if (loading) {
-    return <LoadingScreen message="Cargando datos de la declaración..." />;
+    return <LoadingScreen message="Loading declaration data..." />;
   }
 
   return (
@@ -166,17 +368,217 @@ const DeclarationDetail = () => {
         message={alert.message}
         autoHideDuration={6000}
       />
-      
-      <Breadcrumbs aria-label="breadcrumb" sx={{ mb: 2 }}>
+
+      <Breadcrumbs aria-label="breadcrumb" sx={{ mb: 3 }}>
         <Link component={RouterLink} to="/dashboard" color="inherit">
           Dashboard
         </Link>
         <Link component={RouterLink} to="/declarations" color="inherit">
-          Declaraciones
+          Declarations
         </Link>
-        <Typography color="text.primary">Detalles de la Declaración</Typography>
+        <Typography color="text.primary">Declaration Details</Typography>
       </Breadcrumbs>
-      
+
+
+      {/* Filter by date range */}
+      <Card sx={{ mb: 3 }}>
+        <CardContent sx={{ display: 'flex', flexDirection: 'row', gap: 2 }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <Typography variant="h6">Filter by Date Range</Typography>
+
+            {/* Fila de selectores de fecha inicial */}
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'center' }}>
+              <Typography variant="subtitle2">From:</Typography>
+
+              {/* Año inicial */}
+              <FormControl variant="outlined" size="small" sx={{ minWidth: 120 }}>
+                <InputLabel>Start Year</InputLabel>
+                <Select
+                  value={selectedStartYear}
+                  onChange={(e) => setSelectedStartYear(e.target.value)}
+                  label="Initial Year"
+                >
+                  {availableYears.map(year => (
+                    <MenuItem key={`start-year-${year}`} value={year.toString()}>
+                      {year}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+
+              {/* Trimestre inicial */}
+              <FormControl variant="outlined" size="small" sx={{ minWidth: 180 }}>
+                <InputLabel>Start Quarter</InputLabel>
+                <Select
+                  value={selectedStartQuarter}
+                  onChange={(e) => setSelectedStartQuarter(e.target.value)}
+                  label="Start Quarter"
+                >
+                  <MenuItem value="1">Q1: Jan - Mar</MenuItem>
+                  <MenuItem value="2">Q2: Apr - Jun</MenuItem>
+                  <MenuItem value="3">Q3: Jul - Sep</MenuItem>
+                  <MenuItem value="4">Q4: Oct - Dec</MenuItem>
+                </Select>
+              </FormControl>
+            </Box>
+
+            {/* Fila de selectores de fecha final */}
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'center' }}>
+              <Typography variant="subtitle2">To:</Typography>
+
+              {/* Año final */}
+              <FormControl variant="outlined" size="small" sx={{ minWidth: 120 }}>
+                <InputLabel>End Year</InputLabel>
+                <Select
+                  value={selectedEndYear}
+                  onChange={(e) => setSelectedEndYear(e.target.value)}
+                  label="End Year"
+                >
+                  {availableYears
+                    .filter(year => year >= parseInt(selectedStartYear || 0))
+                    .map(year => (
+                      <MenuItem key={`end-year-${year}`} value={year.toString()}>
+                        {year}
+                      </MenuItem>
+                    ))}
+                </Select>
+              </FormControl>
+
+              {/* Trimestre final */}
+              <FormControl variant="outlined" size="small" sx={{ minWidth: 180 }}>
+                <InputLabel>End Quarter</InputLabel>
+                <Select
+                  value={selectedEndQuarter}
+                  onChange={(e) => setSelectedEndQuarter(e.target.value)}
+                  label="End Quarter"
+                  disabled={!selectedEndYear}
+                >
+                  {[1, 2, 3, 4]
+                    .filter(q => {
+                      // If it's the same year as the start, only show quarters >= start quarter
+                      if (selectedStartYear === selectedEndYear) {
+                        return q >= parseInt(selectedStartQuarter);
+                      }
+                      return true;
+                    })
+                    .map(quarter => (
+                      <MenuItem key={`end-q${quarter}`} value={quarter.toString()}>
+                        Q{quarter}: {getQuarterRange(quarter).split(' - ')[0].slice(0, 3)} - {getQuarterRange(quarter).split(' - ')[1].slice(0, 3)}
+                      </MenuItem>
+                    ))}
+                </Select>
+              </FormControl>
+              <Chip
+                label={`${filteredTrips.length} trips in period`}
+                color="primary"
+                variant="outlined"
+                sx={{ ml: 'auto' }}
+              />
+            </Box>
+          </Box>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, p: 2, border: '1px dashed', borderColor: 'divider', borderRadius: 1 }}>
+            <Typography variant="subtitle1">Supporting Documentation</Typography>
+            <input
+              accept="application/pdf,image/*"
+              style={{ display: 'none' }}
+              id="declaration-document-upload"
+              type="file"
+              onChange={(e) => {
+                const file = e.target.files[0];
+                if (file) {
+                  setSelectedFile(file);
+                  // Create preview for images
+                  if (file.type.startsWith('image/')) {
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                      setFilePreview(reader.result);
+                    };
+                    reader.readAsDataURL(file);
+                  } else if (file.type === 'application/pdf') {
+                    setFilePreview('PDF');
+                  }
+                }
+              }}
+            />
+            <label htmlFor="declaration-document-upload">
+              <Button
+                variant="outlined"
+                component="span"
+                startIcon={<UploadFileIcon />}
+                sx={{ mb: 2 }}
+              >
+                {selectedFile ? 'Change file' : 'Select file'} (PDF or image)
+              </Button>
+            </label>
+            
+            {/* File Preview */}
+            {selectedFile && (
+              <Box sx={{ mt: 1, mb: 2 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    File: {selectedFile.name}
+                  </Typography>
+                  <IconButton 
+                    size="small" 
+                    color="error"
+                    onClick={() => {
+                      setSelectedFile(null);
+                      setFilePreview('');
+                      // Reset file input
+                      document.getElementById('declaration-document-upload').value = '';
+                    }}
+                    title="Delete file"
+                  >
+                    <DeleteIcon fontSize="small" />
+                  </IconButton>
+                </Box>
+                {filePreview === 'PDF' ? (
+                  <Box sx={{ 
+                    p: 2, 
+                    border: '1px solid', 
+                    borderColor: 'divider', 
+                    borderRadius: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1
+                  }}>
+                    <PictureAsPdfIcon color="error" />
+                    <Typography>PDF Document</Typography>
+                  </Box>
+                ) : filePreview ? (
+                  <Box 
+                    component="img"
+                    src={filePreview}
+                    alt="Preview"
+                    sx={{ 
+                      width: '50px',
+                      height: '50px',
+                      objectFit: 'contain',
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      borderRadius: 1
+                    }}
+                  />
+                ) : null}
+              </Box>
+            )}
+            <Button
+              variant="contained"
+              color="primary"
+              startIcon={<CheckCircleIcon />}
+              onClick={() => {
+                // Handle finalize declaration logic here
+                console.log('Finalizing declaration...');
+                // Add your finalization logic here
+              }}
+              fullWidth
+            >
+              Finalize Declaration
+            </Button>
+          </Box>
+        </CardContent>
+      </Card>
+
       {declaration && (
         <>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
@@ -192,7 +594,7 @@ const DeclarationDetail = () => {
                   onClick={handleSubmit}
                   sx={{ mr: 1 }}
                 >
-                  Enviar
+                  Submit
                 </Button>
               )}
               <Button
@@ -201,7 +603,7 @@ const DeclarationDetail = () => {
                 onClick={handlePrint}
                 sx={{ mr: 1 }}
               >
-                Imprimir
+                Print
               </Button>
               {declaration.status === 'pending' && (
                 <Button
@@ -210,7 +612,7 @@ const DeclarationDetail = () => {
                   onClick={handleEdit}
                   sx={{ mr: 1 }}
                 >
-                  Editar
+                  Edit
                 </Button>
               )}
               {declaration.status === 'pending' && (
@@ -220,185 +622,111 @@ const DeclarationDetail = () => {
                   startIcon={<DeleteIcon />}
                   onClick={handleDelete}
                 >
-                  Eliminar
+                  Delete
                 </Button>
               )}
             </Box>
           </Box>
-          
+
           <Grid container spacing={3}>
-            {/* Resumen de la declaración */}
-            <Grid item xs={12}>
-              <Card>
-                <CardContent>
-                  <Typography variant="h6" gutterBottom>
-                    Resumen de la Declaración
-                  </Typography>
-                  <Divider sx={{ mb: 3 }} />
-                  
-                  <Grid container spacing={2}>
-                    <Grid item xs={12} sm={6} md={3}>
-                      <Typography variant="subtitle1" color="text.secondary">
-                        Trimestre / Año
-                      </Typography>
-                      <Typography variant="body1" gutterBottom>
-                        {declaration.quarter} {declaration.year}
-                      </Typography>
-                    </Grid>
-                    
-                    <Grid item xs={12} sm={6} md={3}>
-                      <Typography variant="subtitle1" color="text.secondary">
-                        Total Millas
-                      </Typography>
-                      <Typography variant="body1" gutterBottom>
-                        {declaration.total_miles.toLocaleString()}
-                      </Typography>
-                    </Grid>
-                    
-                    <Grid item xs={12} sm={6} md={3}>
-                      <Typography variant="subtitle1" color="text.secondary">
-                        Total Galones
-                      </Typography>
-                      <Typography variant="body1" gutterBottom>
-                        {declaration.total_gallons.toLocaleString()}
-                      </Typography>
-                    </Grid>
-                    
-                    <Grid item xs={12} sm={6} md={3}>
-                      <Typography variant="subtitle1" color="text.secondary">
-                        Estado
-                      </Typography>
-                      <Chip 
-                        label={getStatusText(declaration.status)} 
-                        color={getStatusColor(declaration.status)} 
-                        size="small"
-                      />
-                    </Grid>
-                    
-                    <Grid item xs={12} sm={6} md={3}>
-                      <Typography variant="subtitle1" color="text.secondary">
-                        Fecha de Creación
-                      </Typography>
-                      <Typography variant="body1" gutterBottom>
-                        {new Date(declaration.created_at).toLocaleDateString()}
-                      </Typography>
-                    </Grid>
-                    
-                    <Grid item xs={12} sm={6} md={3}>
-                      <Typography variant="subtitle1" color="text.secondary">
-                        Última Actualización
-                      </Typography>
-                      <Typography variant="body1" gutterBottom>
-                        {new Date(declaration.updated_at).toLocaleDateString()}
-                      </Typography>
-                    </Grid>
-                    
-                    <Grid item xs={12} sm={6} md={6}>
-                      <Typography variant="subtitle1" color="text.secondary">
-                        Impuesto Total
-                      </Typography>
-                      <Typography variant="h5" color="primary" gutterBottom>
-                        ${declaration.total_tax.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </Typography>
-                    </Grid>
-                  </Grid>
-                </CardContent>
-              </Card>
-            </Grid>
-            
-            {/* Resumen por estado */}
+            {/* Sección izquierda - Resumen por mes */}
             <Grid item xs={12} md={6}>
               <Card sx={{ height: '100%' }}>
                 <CardContent>
                   <Typography variant="h6" gutterBottom>
-                    Resumen por Estado
+                    Monthly Summary
                   </Typography>
                   <Divider sx={{ mb: 3 }} />
-                  
-                  <TableContainer component={Paper} variant="outlined">
+
+                  <TableContainer component={Paper} variant="outlined" sx={{ width: '100%' }}>
                     <Table size="small">
                       <TableHead>
                         <TableRow>
-                          <TableCell>Estado</TableCell>
-                          <TableCell align="right">Millas</TableCell>
-                          <TableCell align="right">Galones</TableCell>
-                          <TableCell align="right">Tasa</TableCell>
-                          <TableCell align="right">Impuesto</TableCell>
+                          <TableCell>Month</TableCell>
+                          <TableCell align="right">Total Miles</TableCell>
+                          <TableCell align="right">Total Gallons</TableCell>
+                          <TableCell align="right">MPG</TableCell>
                         </TableRow>
                       </TableHead>
                       <TableBody>
-                        {declaration.state_summary.map((state) => (
-                          <TableRow key={state.state}>
+                        {monthlySummary.map((monthData, index) => (
+                          <TableRow key={index}>
                             <TableCell component="th" scope="row">
-                              {state.state}
+                              {`${monthData.monthName} ${monthData.year}`}
                             </TableCell>
-                            <TableCell align="right">{state.miles.toLocaleString()}</TableCell>
-                            <TableCell align="right">{state.gallons.toLocaleString()}</TableCell>
-                            <TableCell align="right">${state.tax_rate.toFixed(2)}</TableCell>
-                            <TableCell align="right">${state.tax_due.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                            <TableCell align="right">{monthData.totalMiles.toLocaleString()}</TableCell>
+                            <TableCell align="right">{monthData.totalGallons.toLocaleString()}</TableCell>
+                            <TableCell align="right">
+                              {(monthData.totalMiles / monthData.totalGallons).toFixed(1)}
+                            </TableCell>
                           </TableRow>
                         ))}
-                        <TableRow>
-                          <TableCell colSpan={4} align="right" sx={{ fontWeight: 'bold' }}>
-                            Total
-                          </TableCell>
-                          <TableCell align="right" sx={{ fontWeight: 'bold' }}>
-                            ${declaration.state_summary.reduce((sum, state) => sum + state.tax_due, 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </TableCell>
-                        </TableRow>
+                        {monthlySummary.length > 0 && (
+                          <TableRow sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
+                            <TableCell component="th" scope="row" sx={{ fontWeight: 'bold' }}>Total</TableCell>
+                            <TableCell align="right" sx={{ fontWeight: 'bold' }}>
+                              {monthlySummary.reduce((sum, m) => sum + m.totalMiles, 0).toLocaleString()}
+                            </TableCell>
+                            <TableCell align="right" sx={{ fontWeight: 'bold' }}>
+                              {monthlySummary.reduce((sum, m) => sum + m.totalGallons, 0).toLocaleString()}
+                            </TableCell>
+                            <TableCell align="right" sx={{ fontWeight: 'bold' }}>
+                              {(
+                                monthlySummary.reduce((sum, m) => sum + m.totalMiles, 0) /
+                                monthlySummary.reduce((sum, m) => sum + m.totalGallons, 0)
+                              ).toFixed(1)}
+                            </TableCell>
+                          </TableRow>
+                        )}
                       </TableBody>
                     </Table>
                   </TableContainer>
                 </CardContent>
               </Card>
             </Grid>
-            
-            {/* Included Consumption */}
+
+            {/* Sección derecha - Resumen por estado */}
             <Grid item xs={12} md={6}>
               <Card sx={{ height: '100%' }}>
                 <CardContent>
-                  <Typography variant="h6" gutterBottom>
-                    Included Consumption
-                  </Typography>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                    <Typography variant="h6">State Distribution</Typography>
+                    <Chip
+                      label={`Total trips: ${filteredTrips.length}`}
+                      color="primary"
+                      variant="outlined"
+                      size="small"
+                    />
+                  </Box>
                   <Divider sx={{ mb: 3 }} />
-                  
-                  <TableContainer component={Paper} variant="outlined">
+                  <TableContainer component={Paper} variant="outlined" sx={{ width: '100%' }}>
                     <Table size="small">
                       <TableHead>
                         <TableRow>
-                          <TableCell>Fecha</TableCell>
-                          <TableCell>Origen</TableCell>
-                          <TableCell>Destino</TableCell>
-                          <TableCell align="right">Millas</TableCell>
-                          <TableCell align="right">Galones</TableCell>
+                          <TableCell>State</TableCell>
+                          <TableCell align="right">Miles</TableCell>
+                          <TableCell align="right">Gallons</TableCell>
                         </TableRow>
                       </TableHead>
                       <TableBody>
-                        {declaration.trips.map((trip) => (
-                          <TableRow 
-                            key={trip.id}
-                            hover
-                            onClick={() => navigate(`/trips/${trip.id}`)}
-                            sx={{ cursor: 'pointer' }}
-                          >
+                        {declaration.state_summary.map((state) => (
+                          <TableRow key={state.state}>
                             <TableCell component="th" scope="row">
-                              {new Date(trip.trip_date).toLocaleDateString()}
+                              {`${state.state} - ${stateCodeToName(state.state)}`}
                             </TableCell>
-                            <TableCell>{trip.origin_state}</TableCell>
-                            <TableCell>{trip.destination_state}</TableCell>
-                            <TableCell align="right">{trip.distance.toLocaleString()}</TableCell>
-                            <TableCell align="right">{trip.fuel_consumed.toLocaleString()}</TableCell>
+                            <TableCell align="right">{state.miles.toLocaleString()}</TableCell>
+                            <TableCell align="right">{state.gallons.toLocaleString()}</TableCell>
                           </TableRow>
                         ))}
                         <TableRow>
-                          <TableCell colSpan={3} align="right" sx={{ fontWeight: 'bold' }}>
+                          <TableCell component="th" scope="row" sx={{ fontWeight: 'bold' }}>
                             Total
                           </TableCell>
                           <TableCell align="right" sx={{ fontWeight: 'bold' }}>
-                            {declaration.trips.reduce((sum, trip) => sum + trip.distance, 0).toLocaleString()}
+                            {declaration.state_summary.reduce((sum, state) => sum + state.miles, 0).toLocaleString()}
                           </TableCell>
                           <TableCell align="right" sx={{ fontWeight: 'bold' }}>
-                            {declaration.trips.reduce((sum, trip) => sum + trip.fuel_consumed, 0).toLocaleString()}
+                            {declaration.state_summary.reduce((sum, state) => sum + state.gallons, 0).toLocaleString()}
                           </TableCell>
                         </TableRow>
                       </TableBody>
@@ -408,13 +736,13 @@ const DeclarationDetail = () => {
               </Card>
             </Grid>
           </Grid>
-          
+
           <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
             <Button
               variant="outlined"
               onClick={() => navigate('/declarations')}
             >
-              Volver a la Lista
+              Back to List
             </Button>
           </Box>
         </>
