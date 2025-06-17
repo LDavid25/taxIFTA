@@ -23,6 +23,7 @@ import ContactPage from './pages/ContactPage';
 
 // Páginas privadas - Dashboard
 import Dashboard from './pages/dashboard/Dashboard';
+import DashboardCliente from './pages/dashboard/DashboardCliente';
 
 // Páginas privadas - Declaraciones
 import DeclarationList from './pages/declarations/DeclarationList';
@@ -45,7 +46,7 @@ import NotFound from './pages/errors/NotFound';
 
 // Rutas protegidas
 const ProtectedRoute = ({ children }) => {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, loading, currentUser } = useAuth();
   
   if (loading) {
     return <div>Cargando...</div>;
@@ -55,19 +56,27 @@ const ProtectedRoute = ({ children }) => {
     return <Navigate to="/login" replace />;
   }
   
+  // Verificar si la ruta actual es /login o / y redirigir según el rol
+  if (window.location.pathname === '/login' || window.location.pathname === '/') {
+    const targetRoute = currentUser?.role === 'admin' ? '/dashboard' : '/dashboard-cliente';
+    return <Navigate to={targetRoute} replace />;
+  }
+  
   return children;
 };
 
 // Rutas públicas (redirige a dashboard si está autenticado)
 const PublicRoute = ({ children }) => {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, loading, currentUser } = useAuth();
   
   if (loading) {
-    return <div>Cargando...</div>;
+    return <div>Loading...</div>;
   }
   
   if (isAuthenticated) {
-    return <Navigate to="/dashboard" replace />;
+    // Redirigir según el rol del usuario
+    const targetRoute = currentUser?.role === 'admin' ? '/dashboard' : '/dashboard-cliente';
+    return <Navigate to={targetRoute} replace />;
   }
   
   return children;
@@ -101,6 +110,7 @@ function App() {
             </ProtectedRoute>
           }>
             <Route path="dashboard" element={<Dashboard />} />
+            <Route path="dashboard-cliente" element={<DashboardCliente />} />
             
             {/* Rutas de declaraciones */}
             <Route path="declarations" element={<DeclarationList />} />

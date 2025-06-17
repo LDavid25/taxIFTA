@@ -43,17 +43,26 @@ const Login = () => {
       password: ''
     },
     validationSchema,
-    onSubmit: async (values) => {
-      setLoading(true);
+    onSubmit: async (values, { setSubmitting }) => {
       try {
-        // Usar el método login del contexto de autenticación
+        console.log('Iniciando envío del formulario con:', values.email);
+        setLoading(true);
+        setAlert({ open: false, message: '', severity: 'info' });
+        
         const result = await authLogin(values.email, values.password);
+        console.log('Resultado de authLogin:', result);
         
         if (result.success) {
-          // Redirigir al dashboard
-          navigate('/dashboard');
+          console.log('Login exitoso, redirigiendo...');
+          console.log('Usuario autenticado:', result.user);
+          console.log('Rol del usuario:', result.user?.role);
+          
+          // Redirigir según el rol del usuario
+          const targetRoute = result.user?.role === 'admin' ? '/dashboard' : '/dashboard-cliente';
+          console.log('Redirigiendo a:', targetRoute);
+          navigate(targetRoute);
         } else {
-          // Mostrar error
+          console.log('Error en login:', result.error);
           setAlert({
             open: true,
             message: result.error || 'Error al iniciar sesión. Verifique sus credenciales.',
@@ -61,6 +70,7 @@ const Login = () => {
           });
         }
       } catch (error) {
+        console.error('Error en onSubmit:', error);
         setAlert({
           open: true,
           message: error.message || 'Error al iniciar sesión. Verifique sus credenciales.',
@@ -68,6 +78,7 @@ const Login = () => {
         });
       } finally {
         setLoading(false);
+        setSubmitting(false);
       }
     }
   });

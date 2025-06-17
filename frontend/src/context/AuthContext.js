@@ -1,73 +1,86 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { useAuthMock } from '../utils/authMock';
+import { useNavigate } from 'react-router-dom';
+import api from '../services/api';
+import * as authService from '../services/authService';
 
-// Crear el contexto
 const AuthContext = createContext();
 
-// Hook personalizado para usar el contexto
 export const useAuth = () => useContext(AuthContext);
 
-// Proveedor del contexto que usa el mock
 export const AuthProvider = ({ children }) => {
-  // Usar el mock de autenticación
-  const {
-    currentUser,
-    login: mockLogin,
-    logout: mockLogout,
-    isAuthenticated,
-    isAdmin,
-    loadUser
-  } = useAuthMock();
-
+  const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const navigate = useNavigate();
+
+  const isAuthenticated = !!currentUser;
+  const isAdmin = currentUser?.role === 'admin';
 
   // Cargar usuario al iniciar
   useEffect(() => {
-    const initializeAuth = async () => {
+    const loadUser = async () => {
       try {
-        setLoading(true);
-        await loadUser();
+        const token = localStorage.getItem('token');
+        if (token) {
+          // Configurar el token en el header por defecto
+          api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+          // Obtener el usuario actual
+          const user = await authService.getCurrentUser();
+          setCurrentUser(user);
+        }
       } catch (err) {
         console.error('Error al cargar el usuario:', err);
-        setError('Error al cargar la sesión del usuario');
+        // Limpiar el token si hay un error
+        localStorage.removeItem('token');
+        delete api.defaults.headers.common['Authorization'];
       } finally {
         setLoading(false);
       }
     };
-
-    initializeAuth();
-  }, [loadUser]);
+  
+    loadUser();
+  }, []);
 
   // Iniciar sesión
   const login = async (email, password) => {
     try {
+      console.log('Iniciando login en AuthContext con:', { email });
       setLoading(true);
       setError(null);
-      const result = await mockLogin(email, password);
-      return result;
+      const response = await authService.login({ email, password });
+      console.log('Respuesta de authService.login:', response);
+      
+      if (response.token && response.user) {
+        console.log('Token y usuario recibidos:', response.user);
+        setCurrentUser(response.user);
+        return { success: true, user: response.user };
+      } else if (response.token) {
+        // Si por alguna razón no viene el usuario, lo obtenemos
+        console.log('Token recibido, obteniendo usuario...');
+        const user = await authService.getCurrentUser();
+        console.log('Usuario obtenido:', user);
+        setCurrentUser(user);
+        return { success: true, user };
+      }
+      console.log('No se recibió token en la respuesta');
+      return { success: false, error: 'No se recibió token de autenticación' };
     } catch (err) {
-      setError(err.message || 'Error al iniciar sesión');
-      throw err;
+      console.error('Error en AuthContext.login:', err);
+      const errorMessage = err.response?.data?.message || err.message || 'Error al iniciar sesión';
+      setError(errorMessage);
+      return { success: false, error: errorMessage };
     } finally {
       setLoading(false);
     }
   };
 
   // Cerrar sesión
-  const logout = async () => {
-    try {
-      setLoading(true);
-      await mockLogout();
-    } catch (err) {
-      console.error('Error al cerrar sesión:', err);
-      setError('Error al cerrar sesión');
-    } finally {
-      setLoading(false);
-    }
+  const logout = () => {
+    authService.logout();
+    setCurrentUser(null);
+    navigate('/login');
   };
 
-  // Valores proporcionados por el contexto
   const value = {
     currentUser,
     login,
@@ -76,9 +89,6 @@ export const AuthProvider = ({ children }) => {
     error,
     isAuthenticated,
     isAdmin,
-    // Métodos adicionales que podrían ser usados por otros componentes
-    updateProfile: async () => ({}),
-    changePassword: async () => ({})
   };
 
   return (
@@ -88,5 +98,4 @@ export const AuthProvider = ({ children }) => {
   );
 };
 
-// Exportar el contexto por defecto
 export default AuthContext;
