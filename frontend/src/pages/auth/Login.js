@@ -17,7 +17,6 @@ import {
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
 import AlertMessage from '../../components/common/AlertMessage';
-import { login } from '../../services/authService';
 import { useAuth } from '../../context/AuthContext';
 
 // Esquema de validación con Yup

@@ -1,9 +1,31 @@
--- Esquema simplificado para el sistema de impuestos IFTA
--- Basado en 001_initial_schema.sql
--- Fecha de creación: 2024-05-30
+-- Esquema completo para el sistema de impuestos IFTA
+-- Incluye todas las tablas, índices, funciones y triggers necesarios
+-- Fecha de creación: 2024-06-22
 
 -- Crear extensión para UUID si no existe
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- Función para obtener el trimestre a partir del mes
+CREATE OR REPLACE FUNCTION get_quarter(month_num INTEGER) 
+RETURNS INTEGER AS $$
+BEGIN
+  RETURN ((month_num - 1) / 3) + 1;
+END;
+$$ LANGUAGE plpgsql IMMUTABLE;
+
+-- Función de ayuda para obtener el nombre del trimestre
+CREATE OR REPLACE FUNCTION get_quarter_name(quarter_num INTEGER)
+RETURNS TEXT AS $$
+BEGIN
+  RETURN CASE 
+    WHEN quarter_num = 1 THEN 'Q1 (Ene-Mar)'
+    WHEN quarter_num = 2 THEN 'Q2 (Abr-Jun)'
+    WHEN quarter_num = 3 THEN 'Q3 (Jul-Sep)'
+    WHEN quarter_num = 4 THEN 'Q4 (Oct-Dic)'
+    ELSE 'Trimestre inválido'
+  END;
+END;
+$$ LANGUAGE plpgsql IMMUTABLE;
 
 -- Tabla de compañías (simplificada)
 CREATE TABLE IF NOT EXISTS companies (
@@ -16,7 +38,6 @@ CREATE TABLE IF NOT EXISTS companies (
   phone VARCHAR(50),
   email VARCHAR(255),
   distribution_emails JSONB CHECK (json_array_length(distribution_emails) BETWEEN 1 AND 10),
-  ifta_account_number VARCHAR(100),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
@@ -41,17 +62,20 @@ CREATE TABLE IF NOT EXISTS ifta_reports (
   vehicle_plate VARCHAR(20) NOT NULL,  -- Matrícula del vehículo como texto simple
   report_year INTEGER NOT NULL,
   report_month INTEGER NOT NULL CHECK (report_month BETWEEN 1 AND 12),
+  quarter INTEGER GENERATED ALWAYS AS (get_quarter(report_month)) STORED,  -- Trimestre calculado automáticamente
   status VARCHAR(20) DEFAULT 'in_progress' CHECK (status IN ('sent', 'rejected', 'in_progress', 'completed')),
   total_miles DECIMAL(12, 2) DEFAULT 0,
   total_gallons DECIMAL(12, 3) DEFAULT 0,
-  total_tax_due DECIMAL(12, 2) DEFAULT 0,
   notes VARCHAR(256),
   created_by UUID REFERENCES users(id) ON DELETE SET NULL,
   submitted_at TIMESTAMP WITH TIME ZONE,
   approved_at TIMESTAMP WITH TIME ZONE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE(company_id, vehicle_plate, report_year, report_month)
+  UNIQUE(company_id, vehicle_plate, report_year, report_month),
+  -- Asegurarse de que el trimestre del reporte coincida con el del grupo trimestral
+  CONSTRAINT fk_quarterly_report FOREIGN KEY (quarterly_report_id) 
+    REFERENCES ifta_quarterly_reports(id) ON DELETE SET NULL
 );
 
 -- Tabla de detalles del reporte por estado
@@ -77,10 +101,19 @@ CREATE TABLE IF NOT EXISTS ifta_quarterly_reports (
   company_id UUID REFERENCES companies(id) ON DELETE CASCADE NOT NULL,
   quarter INTEGER NOT NULL CHECK (quarter BETWEEN 1 AND 4),
   year INTEGER NOT NULL,
+  name TEXT GENERATED ALWAYS AS (get_quarter_name(quarter) || ' ' || year) STORED,
+  status VARCHAR(20) DEFAULT 'draft' CHECK (status IN ('draft', 'in_review', 'approved', 'submitted', 'rejected')),
+  submitted_at TIMESTAMP WITH TIME ZONE,
+  approved_at TIMESTAMP WITH TIME ZONE,
+  notes TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   UNIQUE(company_id, quarter, year)
 );
+
+-- Comentarios para la tabla de reportes trimestrales
+COMMENT ON TABLE ifta_quarterly_reports IS 'Grupos trimestrales obligatorios para los reportes IFTA. Cada reporte debe pertenecer a un grupo que representa un trimestre del año.';
+COMMENT ON COLUMN ifta_quarterly_reports.quarter IS 'Trimestre del año (1-4). 1: Ene-Mar, 2: Abr-Jun, 3: Jul-Sep, 4: Oct-Dic';
 
 -- Añadir columna de referencia al trimestre
 ALTER TABLE ifta_reports 
@@ -103,7 +136,6 @@ CREATE TABLE IF NOT EXISTS ifta_report_attachments (
   file_path TEXT NOT NULL,           -- Ruta donde se almacena el archivo
   file_extension VARCHAR(10),        -- Extensión del archivo (opcional)
   description TEXT,                  -- Descripción opcional del archivo
-  note VARCHAR(100),                 -- Nota adicional (máx. 100 caracteres)
   uploaded_by UUID REFERENCES users(id) ON DELETE SET NULL,  -- Usuario que subió el archivo
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -136,6 +168,33 @@ CREATE INDEX idx_ifta_report_states_report ON ifta_report_states(report_id);
 CREATE INDEX idx_ifta_quarterly_reports_company ON ifta_quarterly_reports(company_id);
 
 
+-- Función para validar que un reporte pertenece al trimestre correcto
+CREATE OR REPLACE FUNCTION validate_report_quarter()
+RETURNS TRIGGER AS $$
+DECLARE
+  group_quarter INTEGER;
+  report_quarter INTEGER;
+  group_year INTEGER;
+BEGIN
+  -- Si no hay un grupo asignado, no hay nada que validar
+  IF NEW.quarterly_report_id IS NULL THEN
+    RETURN NEW;
+  END IF;
+  
+  -- Obtenemos el trimestre y año del grupo
+  SELECT quarter, year INTO group_quarter, group_year 
+  FROM ifta_quarterly_reports 
+  WHERE id = NEW.quarterly_report_id;
+  
+  -- Verificamos que coincidan el trimestre y el año
+  IF group_quarter != NEW.quarter OR group_year != NEW.report_year THEN
+    RAISE EXCEPTION 'El trimestre o año del reporte no coincide con el grupo trimestral asignado';
+  END IF;
+  
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
 -- Función para actualizar automáticamente el campo updated_at
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
@@ -145,6 +204,26 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- Trigger para validar que el reporte pertenece al trimestre correcto
+CREATE TRIGGER validate_report_quarter_trigger
+BEFORE INSERT OR UPDATE OF quarterly_report_id, report_month, report_year ON ifta_reports
+FOR EACH ROW
+EXECUTE FUNCTION validate_report_quarter();
+
+-- Trigger para actualizar automáticamente el nombre del grupo trimestral
+CREATE OR REPLACE FUNCTION update_quarterly_report_name()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.name := get_quarter_name(NEW.quarter) || ' ' || NEW.year::TEXT;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER update_quarterly_report_name_trigger
+BEFORE INSERT OR UPDATE OF quarter, year ON ifta_quarterly_reports
+FOR EACH ROW
+EXECUTE FUNCTION update_quarterly_report_name();
+
 -- Triggers para actualizar automáticamente updated_at
 CREATE TRIGGER update_companies_updated_at
 BEFORE UPDATE ON companies
@@ -153,8 +232,6 @@ FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_users_updated_at
 BEFORE UPDATE ON users
 FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-
 
 -- Usuario administrador por defecto (contraseña: admin123)
 -- Nota: La contraseña debe ser hasheada en la aplicación

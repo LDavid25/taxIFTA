@@ -2,7 +2,7 @@ const jwt = require('jsonwebtoken');
 const { promisify } = require('util');
 const crypto = require('crypto');
 const { StatusCodes } = require('http-status-codes');
-const User = require('../models/user.model');
+const { User } = require('../models');
 const AppError = require('../utils/appError');
 const sendEmail = require('../utils/email');
 
@@ -13,14 +13,21 @@ console.log('JWT_EXPIRES_IN:', process.env.JWT_EXPIRES_IN || 'No configurado');
 console.log('JWT_COOKIE_EXPIRES_IN:', process.env.JWT_COOKIE_EXPIRES_IN || 'No configurado');
 console.log('===========================');
 
-const signToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRES_IN,
-  });
+const signToken = (id, company_id) => {
+  return jwt.sign(
+    { 
+      id,
+      company_id // Incluir el ID de la compañía en el token
+    }, 
+    process.env.JWT_SECRET, 
+    {
+      expiresIn: process.env.JWT_EXPIRES_IN,
+    }
+  );
 };
 
 const createSendToken = (user, statusCode, res) => {
-  const token = signToken(user.id);
+  const token = signToken(user.id, user.company_id);
   const cookieOptions = {
     expires: new Date(
       Date.now() + process.env.JWT_COOKIE_EXPIRES_IN * 24 * 60 * 60 * 1000
@@ -195,7 +202,7 @@ exports.isLoggedIn = async (req, res, next) => {
 
 exports.restrictTo = (...roles) => {
   return (req, res, next) => {
-    // roles ['admin', 'lead-guide']. role='user'
+    // roles ['admin', 'cliente']. role='cliente'
     if (!roles.includes(req.user.role)) {
       return next(
         new AppError('You do not have permission to perform this action', StatusCodes.FORBIDDEN)

@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link as RouterLink } from 'react-router-dom';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useParams, useNavigate, Link as RouterLink, useLocation } from 'react-router-dom';
 import {
   Box,
   Typography,
@@ -9,7 +9,6 @@ import {
   Paper,
   Grid,
   Divider,
-  Chip,
   IconButton,
   Card,
   CardContent,
@@ -23,26 +22,89 @@ import {
   Menu,
   MenuItem,
   ListItemIcon,
-  ListItemText
+  ListItemText,
+  Chip,
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon,
-  Edit as EditIcon,
-  Receipt as ReceiptIcon,
   Print as PrintIcon,
   Download as DownloadIcon,
   Delete as DeleteIcon,
   CloudUpload as CloudUploadIcon,
-  Check as CheckIcon,
-  HourglassEmpty as HourglassEmptyIcon,
   ArrowDropDown as ArrowDropDownIcon,
   Cancel as CancelIcon,
-  Pending as PendingIcon
+  Pending as PendingIcon,
+  Check as CheckIcon,
+  Edit as EditIcon
 } from '@mui/icons-material';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, parse } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import { getConsumptionReportById } from '../../services/consumptionService';
+import { getStatesByReportId } from '../../services/iftaReportState.service';
+import { useSnackbar } from 'notistack';
+import { CircularProgress, Alert } from '@mui/material';
+
+// Mapeo de códigos de estado a nombres completos
+const STATE_NAMES = {
+  'AL': 'Alabama',
+  'AK': 'Alaska',
+  'AZ': 'Arizona',
+  'AR': 'Arkansas',
+  'CA': 'California',
+  'CO': 'Colorado',
+  'CT': 'Connecticut',
+  'DE': 'Delaware',
+  'FL': 'Florida',
+  'GA': 'Georgia',
+  'HI': 'Hawaii',
+  'ID': 'Idaho',
+  'IL': 'Illinois',
+  'IN': 'Indiana',
+  'IA': 'Iowa',
+  'KS': 'Kansas',
+  'KY': 'Kentucky',
+  'LA': 'Louisiana',
+  'ME': 'Maine',
+  'MD': 'Maryland',
+  'MA': 'Massachusetts',
+  'MI': 'Michigan',
+  'MN': 'Minnesota',
+  'MS': 'Mississippi',
+  'MO': 'Missouri',
+  'MT': 'Montana',
+  'NE': 'Nebraska',
+  'NV': 'Nevada',
+  'NH': 'New Hampshire',
+  'NJ': 'New Jersey',
+  'NM': 'New Mexico',
+  'NY': 'New York',
+  'NC': 'North Carolina',
+  'ND': 'North Dakota',
+  'OH': 'Ohio',
+  'OK': 'Oklahoma',
+  'OR': 'Oregon',
+  'PA': 'Pennsylvania',
+  'RI': 'Rhode Island',
+  'SC': 'South Carolina',
+  'SD': 'South Dakota',
+  'TN': 'Tennessee',
+  'TX': 'Texas',
+  'UT': 'Utah',
+  'VT': 'Vermont',
+  'VA': 'Virginia',
+  'WA': 'Washington',
+  'WV': 'West Virginia',
+  'WI': 'Wisconsin',
+  'WY': 'Wyoming',
+  'DC': 'District of Columbia',
+  'PR': 'Puerto Rico',
+  'VI': 'Virgin Islands',
+  'GU': 'Guam',
+  'AS': 'American Samoa',
+  'MP': 'Northern Mariana Islands'
+};
 
 const formatDate = (dateString) => {
   try {
@@ -74,58 +136,259 @@ const getQuarter = (dateString) => {
 const ConsumptionDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [consumption, setConsumption] = useState(null);
-  const [consumptionDetails, setConsumptionDetails] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const location = useLocation();
+  const { enqueueSnackbar } = useSnackbar();
+  
+  // Estados del componente
+  const [report, setReport] = useState(null);
+  const [reportStates, setReportStates] = useState([]);
+  const [statusAnchorEl, setStatusAnchorEl] = useState(null);
+  const [anchorEl, setAnchorEl] = useState(null);
+  const [alert, setAlert] = useState({ open: false, message: '', severity: 'info' });
   const [receiptFile, setReceiptFile] = useState(null);
   const [isMarkedCompleted, setIsMarkedCompleted] = useState(false);
-  const [statusAnchorEl, setStatusAnchorEl] = useState(null);
-  const [alert, setAlert] = useState({
-    open: false,
-    message: '',
-    severity: 'info'
-  });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  
+  // Opciones de estado
+  const statusOptions = [
+    { value: 'pending', label: 'Pendiente', icon: <PendingIcon /> },
+    { value: 'in_progress', label: 'En Progreso', icon: <EditIcon /> },
+    { value: 'sent', label: 'Enviado', icon: <CloudUploadIcon /> },
+    { value: 'completed', label: 'Completado', icon: <CheckIcon /> },
+    { value: 'rejected', label: 'Rechazado', icon: <CancelIcon /> }
+  ];
+  
+  const consumption = report || {}; // Asegurar que siempre sea un objeto
+  
+  // Crear un objeto seguro para consumo que nunca sea undefined
+  const safeConsumption = useMemo(() => ({
+    ...consumption,
+    states: Array.isArray(consumption.states) ? consumption.states : [],
+    notes: consumption.notes || '',
+    id: consumption.id || '',
+    status: consumption.status || 'Draft',
+    statusLabel: consumption.statusLabel || 'Borrador',
+    date: consumption.date || new Date(),
+    created_at: consumption.created_at || new Date().toISOString(),
+    vehicle_plate: consumption.vehicle_plate || 'N/A',
+    totalMiles: consumption.totalMiles || 0,
+    totalGallons: consumption.totalGallons || 0,
+    mpg: consumption.mpg || 0,
+    stateCodes: consumption.stateCodes || ''
+  }), [consumption]);
+  
+  // Preparar los detalles de consumo para mostrar en la tabla
+  const consumptionDetails = useMemo(() => {
+    console.log('Preparando consumptionDetails...');
+    console.log('reportStates:', reportStates);
+    
+    // Si tenemos datos de reportStates, los usamos (ya vienen formateados)
+    if (Array.isArray(reportStates) && reportStates.length > 0) {
+      console.log('Detalles generados desde reportStates:', reportStates);
+      return reportStates;
+    }
+    
+    // Si no hay datos en reportStates, intentamos con los datos del reporte
+    if (Array.isArray(safeConsumption?.states) && safeConsumption.states.length > 0) {
+      const details = safeConsumption.states.map(state => ({
+        stateCode: state.stateCode || state.state_code || '',
+        stateName: state.stateName || state.state_code || state.stateCode || '',
+        miles: parseFloat(state.miles || state.miles_traveled || 0),
+        gallons: parseFloat(state.gallons || 0)
+      }));
+      console.log('Detalles generados desde safeConsumption.states:', details);
+      return details;
+    }
+    
+    console.log('No se encontraron datos para mostrar en la tabla');
+    return [];
+  }, [reportStates, safeConsumption?.states]);
 
+  // Obtener el estado de la ubicación si está disponible
+  const locationState = location.state?.report || null;
+
+  // Función para formatear los detalles del informe
+  const formatReportData = (report) => {
+    if (!report) return null;
+    
+    // Inicializar variables para estados y códigos de estado
+    let statesArray = [];
+    let stateCodes = '';
+    
+    // Manejar diferentes formatos de estados
+    if (Array.isArray(report.states)) {
+      statesArray = [...report.states];
+      stateCodes = report.states.map(s => s.stateCode || s).join(', ');
+    } else if (typeof report.states === 'string') {
+      // Si es un string, asumir que es una lista de códigos de estado separados por comas
+      stateCodes = report.states;
+      const stateList = stateCodes.split(',').map(s => s.trim());
+      const totalMiles = parseFloat(report.milesTraveled) || 0;
+      const totalGallons = parseFloat(report.totalGallons) || 0;
+      
+      statesArray = stateList.filter(Boolean).map(state => ({
+        stateCode: state,
+        stateName: state, // Asumir que el código es también el nombre si no hay otro disponible
+        miles: (totalMiles / stateList.length).toFixed(2),
+        gallons: (totalGallons / stateList.length).toFixed(2)
+      }));
+    }
+    
+    // Usar los totales del informe
+    const totalMiles = parseFloat(report.milesTraveled) || 0;
+    const totalGallons = parseFloat(report.totalGallons) || 0;
+    const mpg = report.mpg || (totalGallons > 0 ? (totalMiles / totalGallons).toFixed(2) : 0);
+    
+    // Formatear fechas
+    const reportDate = report.date || new Date();
+    
+    // Determinar el estado para mostrar
+    const getStatusLabel = (status) => {
+      const statusMap = {
+        'in_progress': 'En progreso',
+        'sent': 'Enviado',
+        'rejected': 'Rechazado',
+        'completed': 'Completado',
+        'pending': 'Pendiente',
+        'Draft': 'Borrador'
+      };
+      return statusMap[status] || status;
+    };
+    
+    return {
+      id: report.id,
+      date: reportDate,
+      vehicle_plate: report.unitNumber || 'N/A',
+      status: report.status || 'Draft',
+      statusLabel: getStatusLabel(report.status || 'Draft'),
+      created_at: report.created_at || new Date().toISOString(),
+      totalMiles,
+      totalGallons,
+      mpg: parseFloat(mpg),
+      states: statesArray,
+      stateCodes: stateCodes,
+      notes: report.notes || '',
+      quarter: report.quarter || null
+    };
+  };
+
+  // Función para cargar los estados del reporte IFTA
+  const fetchReportStates = useCallback(async (reportId) => {
+    try {
+      console.log(`[fetchReportStates] Solicitando estados para el reporte ID: ${reportId}`);
+      const states = await getStatesByReportId(reportId);
+      console.log('[fetchReportStates] Estados recibidos:', states);
+      
+      // Mapear los datos al formato esperado por el componente
+      const formattedStates = states.map(state => ({
+        stateCode: state.state_code,
+        stateName: state.state_code, // Usamos el código como nombre por defecto
+        miles: parseFloat(state.miles || 0),
+        gallons: parseFloat(state.gallons || 0),
+        mpg: parseFloat(state.mpg || 0)
+      }));
+      
+      setReportStates(formattedStates);
+      return formattedStates;
+    } catch (err) {
+      console.error('[fetchReportStates] Error al cargar los estados del reporte:', err);
+      if (err.response) {
+        console.error('Detalles del error:', err.response.data);
+      }
+      setReportStates([]);
+      return [];
+    }
+  }, []);
+
+  // Efecto para cargar los datos del informe
   useEffect(() => {
-    const fetchConsumption = async () => {
+    console.log('[useEffect] Iniciando carga de datos...');
+    
+    const fetchReport = async () => {
       try {
-        // Aquí iría la llamada a la API real
-        // const response = await api.get(`/api/consumption/${id}`);
-        // setConsumption(response.data);
+        console.log('[fetchReport] Iniciando...');
+        setLoading(true);
+        setError(null);
+        setReportStates([]); // Resetear estados al cargar un nuevo reporte
 
-        // Simulamos datos para la demostración
-        setTimeout(() => {
-          setConsumption({
-            id,
-            date: '2023-10-15',
-            unitNumber: 'TRK-001',
-            status: 'Completed',
-            created_at: '2023-10-15T10:30:00Z',
-            updated_at: '2023-10-15T10:30:00Z'
-          });
+        // Si ya tenemos los datos en el estado de ubicación, los usamos
+        if (locationState) {
+          console.log('[fetchReport] Usando datos del estado de ubicación:', locationState);
+          // Asegurarse de que states sea un array
+          const reportWithStates = {
+            ...locationState,
+            states: Array.isArray(locationState.states) ? locationState.states : []
+          };
+          const formattedData = formatReportData(reportWithStates);
+          console.log('[fetchReport] Datos formateados:', formattedData);
+          setReport(formattedData);
           
-          // Simular datos de consumo por estado desde la base de datos
-          setConsumptionDetails([
-            { id: 1, stateCode: 'CA', stateName: 'California', miles: 1250, gallons: 85.50 },
-            { id: 2, stateCode: 'TX', stateName: 'Texas', miles: 980, gallons: 67.30 },
-            { id: 3, stateCode: 'AZ', stateName: 'Arizona', miles: 750, gallons: 51.20 }
-          ]);
+          // Obtener los estados del reporte si existe un ID
+          if (reportWithStates?.id) {
+            console.log(`[fetchReport] Obteniendo estados para el reporte ID: ${reportWithStates.id}`);
+            await fetchReportStates(reportWithStates.id);
+          } else {
+            console.warn('[fetchReport] No se encontró ID en locationState');
+          }
           
           setLoading(false);
-        }, 500);
-      } catch (error) {
-        setAlert({
-          open: true,
-          message: error.message || 'Error loading consumption data',
-          severity: 'error'
+          return;
+        }
+
+        console.log(`[fetchReport] Obteniendo datos del reporte con ID: ${id}`);
+        const response = await getConsumptionReportById(id);
+        console.log('[fetchReport] Respuesta de getConsumptionReportById:', response);
+        
+        const reportData = response.data || response; // Manejar diferentes formatos de respuesta
+        console.log('[fetchReport] Datos del reporte procesados:', reportData);
+        
+        if (!reportData) {
+          const errorMsg = 'No se encontró el informe solicitado';
+          console.error(`[fetchReport] ${errorMsg}`);
+          throw new Error(errorMsg);
+        }
+        
+        // Asegurarse de que states sea un array
+        const reportWithStates = {
+          ...reportData,
+          states: Array.isArray(reportData.states) ? reportData.states : []
+        };
+        
+        const formattedData = formatReportData(reportWithStates);
+        console.log('[fetchReport] Datos formateados:', formattedData);
+        setReport(formattedData);
+        
+        // Obtener los estados del reporte si existe un ID
+        if (reportData?.id) {
+          console.log(`[fetchReport] Obteniendo estados para el reporte ID: ${reportData.id}`);
+          await fetchReportStates(reportData.id);
+        } else {
+          console.warn('[fetchReport] No se encontró ID en reportData');
+        }
+        
+      } catch (err) {
+        const errorMessage = err.response?.data?.message || err.message || 'Error al cargar el informe';
+        console.error('[fetchReport] Error:', errorMessage, err);
+        setError(errorMessage);
+        
+        enqueueSnackbar(errorMessage, { 
+          variant: 'error',
+          autoHideDuration: 5000
         });
+        
+        // Redirigir a la lista de informes después de mostrar el error
+        setTimeout(() => {
+          navigate('/consumption');
+        }, 2000);
+      } finally {
+        console.log('[fetchReport] Finalizando carga de datos');
         setLoading(false);
       }
     };
 
-    fetchConsumption();
-  }, [id]);
+    fetchReport();
+  }, [id, locationState, enqueueSnackbar, navigate, fetchReportStates]);
 
   const handleAlertClose = () => {
     setAlert(prev => ({ ...prev, open: false }));
@@ -148,21 +411,41 @@ const ConsumptionDetail = () => {
     }
   };
 
-  const handleStatusChange = (newStatus) => {
-    console.log('Status changed to:', newStatus);
-    setIsMarkedCompleted(newStatus === 'Completed');
-    setConsumption(prev => ({
-      ...prev,
-      status: newStatus
-    }));
-    // Aquí puedes agregar la lógica para actualizar el estado en el servidor
+  const handleStatusChange = async (newStatus) => {
+    try {
+      console.log('Status changed to:', newStatus);
+      setIsMarkedCompleted(newStatus === 'completed');
+      
+      // Actualizar el estado local
+      setReport(prev => ({
+        ...prev,
+        status: newStatus,
+        statusLabel: statusOptions.find(opt => opt.value === newStatus)?.label || newStatus
+      }));
+      
+      setStatusAnchorEl(null);
+      
+      // Aquí iría la lógica para actualizar el estado en el servidor
+      // Ejemplo:
+      // await updateReportStatus(id, { status: newStatus });
+      
+      enqueueSnackbar('Estado actualizado correctamente', { variant: 'success' });
+    } catch (error) {
+      console.error('Error al actualizar el estado:', error);
+      enqueueSnackbar('Error al actualizar el estado', { variant: 'error' });
+    }
   };
 
-  const statusOptions = [
-    { value: 'Pending', label: 'Pendiente', icon: <PendingIcon fontSize="small" /> },
-    { value: 'Completed', label: 'Completado', icon: <CheckIcon fontSize="small" /> },
-    { value: 'Rejected', label: 'Rechazado', icon: <CancelIcon fontSize="small" /> }
-  ];
+  // Eliminamos la declaración duplicada de statusOptions
+
+  // Manejar menú de estado
+  const handleStatusMenuOpen = (event) => {
+    setStatusAnchorEl(event.currentTarget);
+  };
+
+  const handleStatusMenuClose = () => {
+    setStatusAnchorEl(null);
+  };
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -174,7 +457,7 @@ const ConsumptionDetail = () => {
   };
 
   const handleViewReceipt = () => {
-    console.log('Viewing receipt:', consumption.receiptId);
+    console.log('Viewing receipt:', consumption?.receiptId);
     // Here would be the logic to view the receipt
   };
 
@@ -197,69 +480,101 @@ const ConsumptionDetail = () => {
 
   if (loading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
-        <Typography>Loading consumption details...</Typography>
-      </Box>
+      <Container maxWidth="lg" sx={{ py: 4, minHeight: '60vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
+        <CircularProgress size={60} thickness={4} sx={{ mb: 3 }} />
+        <Typography variant="h6" color="textSecondary">
+          Cargando informe de consumo...
+        </Typography>
+      </Container>
     );
   }
 
-  if (!consumption) {
+  if (error || !consumption) {
     return (
-      <Box textAlign="center" mt={4}>
-        <Typography variant="h6">Consumption record not found</Typography>
+      <Container maxWidth="lg" sx={{ py: 4, minHeight: '60vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
+        <Alert 
+          severity="error" 
+          sx={{ 
+            mb: 3, 
+            maxWidth: '600px',
+            '& .MuiAlert-message': {
+              width: '100%',
+            }
+          }}
+        >
+          <Box>
+            <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+              No se pudo cargar el informe
+            </Typography>
+            <Typography variant="body2">
+              {error || 'El informe solicitado no existe o no tienes permiso para verlo.'}
+            </Typography>
+          </Box>
+        </Alert>
         <Button
           variant="contained"
           color="primary"
           onClick={() => navigate('/consumption')}
+          startIcon={<ArrowBackIcon />}
           sx={{ mt: 2 }}
         >
-          Back to History
+          Volver a la lista de informes
         </Button>
-      </Box>
+      </Container>
     );
   }
 
-  // Asegurarse de que todos los campos necesarios tengan un valor por defecto
-  const safeConsumption = {
-    id: consumption?.id || '',
-    date: consumption?.date || '',
-    unitNumber: consumption?.unitNumber || 'Not specified',
-    status: consumption?.status || 'Unknown',
-    created_at: consumption?.created_at || new Date().toISOString(),
-    updated_at: consumption?.updated_at || new Date().toISOString()
-  };
-
-  // Calcular totales
-  const totalMiles = consumptionDetails.reduce((sum, item) => sum + (parseFloat(item.miles) || 0), 0);
-  const totalGallons = consumptionDetails.reduce((sum, item) => sum + (parseFloat(item.gallons) || 0), 0);
-  const averageMPG = totalGallons > 0 ? (totalMiles / totalGallons).toFixed(2) : 0;
+  // Calcular totales a partir de safeConsumption
+  const totalMiles = parseFloat(safeConsumption.totalMiles) || 0;
+  const totalGallons = parseFloat(safeConsumption.totalGallons) || 0;
+  const averageMPG = safeConsumption.mpg || (totalGallons > 0 ? (totalMiles / totalGallons).toFixed(2) : 0);
+  
+  // Obtener color del estado
+  const statusColor = safeConsumption.status === 'completed' ? 'success' : 
+                     safeConsumption.status === 'rejected' ? 'error' : 
+                     safeConsumption.status === 'Draft' ? 'default' : 'warning';
+  
+  // Formatear fechas
+  const reportDate = safeConsumption.date ? format(new Date(safeConsumption.date), 'MMMM yyyy', { locale: es }) : 'No disponible';
+  const createdAt = safeConsumption.created_at ? format(new Date(safeConsumption.created_at), 'PPpp', { locale: es }) : 'No disponible';
 
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns}>
       <Container maxWidth="lg" sx={{ py: 4 }}>
-        {/* Encabezado */}
+        {/* Header */}
         <Box mb={4}>
           <Button
             startIcon={<ArrowBackIcon />}
             onClick={() => navigate('/consumption')}
             sx={{ mb: 2, textTransform: 'none' }}
           >
-            Back to History
+            Volver al Historial
           </Button>
 
           <Grid container justifyContent="space-between" alignItems="center" mb={2}>
             <Grid item>
               <Breadcrumbs aria-label="breadcrumb">
                 <Link component={RouterLink} to="/dashboard" color="inherit">
-                  Dashboard
+                  Inicio
                 </Link>
                 <Link component={RouterLink} to="/consumption" color="inherit">
-                  Consumption History
+                  Historial de Consumo
                 </Link>
-                <Typography color="text.primary">Consumption Details</Typography>
+                <Typography color="text.primary">Detalles del Informe</Typography>
               </Breadcrumbs>
-              <Typography variant="h4" component="h1" mt={1}>
-                Consumption Record: {safeConsumption.unitNumber} - {formatDate(safeConsumption.date)}
+              <Box display="flex" alignItems="center" mt={1}>
+                <Typography variant="h4" component="h1" sx={{ mr: 2 }}>
+                  Informe de Consumo: {safeConsumption.vehicle_plate}
+                </Typography>
+                <Chip 
+                  label={safeConsumption.statusLabel} 
+                  color={statusColor} 
+                  size="small" 
+                  variant="outlined"
+                />
+              </Box>
+              <Typography variant="subtitle1" color="text.secondary">
+                Período: {reportDate} • Creado: {createdAt}
               </Typography>
             </Grid>
             <Grid item>
@@ -269,58 +584,53 @@ const ConsumptionDetail = () => {
                   startIcon={<PrintIcon />}
                   onClick={handlePrint}
                 >
-                  Print
+                  Imprimir
                 </Button>
                 <Button
                   variant="outlined"
                   startIcon={<DownloadIcon />}
                   onClick={handleDownload}
                 >
-                  Download
+                  Exportar
                 </Button>
               </Box>
             </Grid>
           </Grid>
         </Box>
 
-        {/* Tarjeta principal */}
+        {/* Main Content */}
         <Grid container spacing={3}>
-          {/* Columna izquierda - Detalles */}
+          {/* Left Column - Details */}
           <Grid item xs={12} md={8}>
             <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
               <TableContainer>
                 <Table size="small">
                   <TableBody>
                     <TableRow>
-                      <TableCell component="th" scope="row" sx={{ fontWeight: 'bold', border: 'none', width: '40%' }}>Unit Number</TableCell>
-                      <TableCell sx={{ border: 'none' }}>{safeConsumption.unitNumber}</TableCell>
+                      <TableCell component="th" scope="row" sx={{ fontWeight: 'bold', border: 'none', width: '40%' }}>Número de Unidad</TableCell>
+                      <TableCell sx={{ border: 'none' }}>{safeConsumption.vehicle_plate || 'No disponible'}</TableCell>
                     </TableRow>
                     <TableRow>
-                      <TableCell component="th" scope="row" sx={{ fontWeight: 'bold', border: 'none' }}>Date</TableCell>
+                      <TableCell component="th" scope="row" sx={{ fontWeight: 'bold', border: 'none' }}>Fecha</TableCell>
                       <TableCell sx={{ border: 'none' }}>{formatDate(safeConsumption.date)}</TableCell>
                     </TableRow>
                     <TableRow>
-                      <TableCell component="th" scope="row" sx={{ fontWeight: 'bold', border: 'none' }}>Consumption Month</TableCell>
-                      <TableCell sx={{ border: 'none' }}>{getQuarter(safeConsumption.date)}</TableCell>
+                      <TableCell component="th" scope="row" sx={{ fontWeight: 'bold', border: 'none' }}>Mes de Consumo</TableCell>
+                      <TableCell sx={{ border: 'none' }}>{getQuarter(safeConsumption.date) || 'No disponible'}</TableCell>
                     </TableRow>
                     <TableRow>
-                      <TableCell component="th" scope="row" sx={{ fontWeight: 'bold', border: 'none' }}>Status</TableCell>
+                      <TableCell component="th" scope="row" sx={{ fontWeight: 'bold', border: 'none' }}>Estado</TableCell>
                       <TableCell sx={{ border: 'none' }}>
                         <Box>
                           <Button
                             variant="contained"
                             size="small"
-                            color={getStatusColor(safeConsumption.status || 'Pending')}
+                            color={getStatusColor(safeConsumption.status || 'pending')}
                             endIcon={<ArrowDropDownIcon />}
                             onClick={(e) => setStatusAnchorEl(e.currentTarget)}
-                            sx={{ 
-                              minWidth: 150, 
-                              justifyContent: 'space-between',
-                              textTransform: 'none',
-                              fontWeight: 'bold'
-                            }}
+                            sx={{ fontWeight: 'bold' }}
                           >
-                            {statusOptions.find(opt => opt.value === (safeConsumption.status || 'Pending'))?.label}
+                            {statusOptions.find(opt => opt.value === (safeConsumption.status || 'pending'))?.label}
                           </Button>
                           <Menu
                             anchorEl={statusAnchorEl}
@@ -351,91 +661,79 @@ const ConsumptionDetail = () => {
               </TableContainer>
 
               <Divider sx={{ mb: 3, mt: 3 }} />
-              <Typography variant="h6" fontWeight="bold" mt={4} mb={2}>Consumption Details</Typography>
+              <Typography variant="h6" fontWeight="bold" mt={4} mb={2}>Detalles de Consumo</Typography>
 
               <TableContainer>
                 <Table size="small">
                   <TableHead>
                     <TableRow>
-                      <TableCell sx={{ fontWeight: 'bold' }}>State</TableCell>
-                      <TableCell align="right" sx={{ fontWeight: 'bold' }}>Miles</TableCell>
-                      <TableCell align="right" sx={{ fontWeight: 'bold' }}>Gallons</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold' }}>Estado</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 'bold' }}>Millas</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 'bold' }}>Galones</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {consumptionDetails.map((item) => (
-                      <TableRow key={item.id}>
-                        <TableCell>{`${item.stateCode} - ${item.stateName}`}</TableCell>
-                        <TableCell align="right">{item.miles.toLocaleString()}</TableCell>
-                        <TableCell align="right">{parseFloat(item.gallons).toFixed(2)}</TableCell>
+                    {consumptionDetails && consumptionDetails.length > 0 ? (
+                      <>
+                        {consumptionDetails.map((item, index) => {
+                          // Formatear números con 2 decimales y separadores de miles
+                          const miles = parseFloat(item.miles || 0);
+                          const gallons = parseFloat(item.gallons || 0);
+                          
+                          return (
+                            <TableRow key={`${item.stateCode || 'state'}-${index}`}>
+                              <TableCell>{
+                                (() => {
+                                  const code = (item.stateCode || '').toUpperCase();
+                                  const name = STATE_NAMES[code] || item.stateName || 'Desconocido';
+                                  return code ? `${code} - ${name}` : 'N/A';
+                                })()
+                              }</TableCell>
+                              <TableCell align="right">
+                                {miles.toLocaleString(undefined, { 
+                                  minimumFractionDigits: 2, 
+                                  maximumFractionDigits: 2 
+                                })}
+                              </TableCell>
+                              <TableCell align="right">
+                                {gallons.toLocaleString(undefined, { 
+                                  minimumFractionDigits: 2, 
+                                  maximumFractionDigits: 2 
+                                })}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                        {/* Total Row */}
+                        <TableRow sx={{ '& > *': { borderTop: '2px solid rgba(0, 0, 0, 0.12)', fontWeight: 'bold', backgroundColor: 'rgba(0, 0, 0, 0.02)' } }}>
+                          <TableCell>Total</TableCell>
+                          <TableCell align="right">
+                            {consumptionDetails.reduce((sum, item) => sum + parseFloat(item.miles || 0), 0).toLocaleString(undefined, { 
+                              minimumFractionDigits: 2, 
+                              maximumFractionDigits: 2 
+                            })}
+                          </TableCell>
+                          <TableCell align="right">
+                            {consumptionDetails.reduce((sum, item) => sum + parseFloat(item.gallons || 0), 0).toLocaleString(undefined, { 
+                              minimumFractionDigits: 2, 
+                              maximumFractionDigits: 2 
+                            })}
+                          </TableCell>
+                        </TableRow>
+                      </>
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={3} align="center" sx={{ py: 4 }}>
+                          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', color: 'text.secondary' }}>
+                            <Typography variant="body1">No hay datos de consumo disponibles</Typography>
+                            <Typography variant="body2" sx={{ mt: 1 }}>Los datos aparecerán aquí una vez cargados</Typography>
+                          </Box>
+                        </TableCell>
                       </TableRow>
-                    ))}
-                    {/* Total Row */}
-                    <TableRow sx={{ '& > *': { borderTop: '1px solid rgba(224, 224, 224, 1)', fontWeight: 'bold' } }}>
-                      <TableCell>Total</TableCell>
-                      <TableCell align="right">{totalMiles.toLocaleString()}</TableCell>
-                      <TableCell align="right">{totalGallons.toFixed(2)}</TableCell>
-                    </TableRow>
+                    )}
                   </TableBody>
                 </Table>
               </TableContainer>
-
-              {/* Complete Unit Quarter Information */}
-              <Box mt={6} mb={4}>
-                <Typography variant="h6" fontWeight="bold" mb={2}>
-                  Complete Unit Quarter Information
-                </Typography>
-                <Divider sx={{ mb: 3 }} />
-                <Grid container spacing={2}>
-                  {Array.from({ length: new Date().getMonth() + 1 }, (_, i) => {
-                    const monthDate = new Date();
-                    monthDate.setMonth(i);
-                    const monthName = monthDate.toLocaleString('default', { month: 'long' });
-                    const year = monthDate.getFullYear();
-                    const monthKey = `${year}-${String(i + 1).padStart(2, '0')}`;
-                    const isRegistered = Math.random() > 0.3; // Simulate some months being registered
-                    
-                    return (
-                      <Grid item xs={6} sm={4} md={3} key={monthKey}>
-                        <Paper 
-                          variant="outlined" 
-                          sx={{ 
-                            p: 1.5, 
-                            display: 'flex', 
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            height: '100%',
-                            '&:hover': { boxShadow: 1 }
-                          }}
-                        >
-                          <Typography variant="body2" noWrap sx={{ maxWidth: '60%' }}>
-                            {monthName} {year}
-                          </Typography>
-                          {isRegistered ? (
-                            <Button 
-                              variant="outlined" 
-                              size="small"
-                              onClick={() => navigate(`/consumption/month/${monthKey}`)}
-                              sx={{ minWidth: 'auto', px: 1, py: 0.5, fontSize: '0.75rem' }}
-                            >
-                              View
-                            </Button>
-                          ) : (
-                            <Button 
-                              variant="contained" 
-                              size="small"
-                              onClick={() => navigate(`/consumption/new?month=${monthKey}`)}
-                              sx={{ minWidth: 'auto', px: 1, py: 0.5, fontSize: '0.75rem' }}
-                            >
-                              Add
-                            </Button>
-                          )}
-                        </Paper>
-                      </Grid>
-                    );
-                  })}
-                </Grid>
-              </Box>
 
               <Box mt={3} display="flex" justifyContent="flex-end" gap={2}>
                 <Button
@@ -443,106 +741,52 @@ const ConsumptionDetail = () => {
                   startIcon={<EditIcon />}
                   onClick={handleEdit}
                 >
-                  Edit
+                  Editar
                 </Button>
               </Box>
             </Paper>
           </Grid>
 
-          {/* Columna derecha - Resumen */}
+          {/* Right Column - Summary */}
           <Grid item xs={12} md={4}>
             <Card elevation={2} sx={{ mb: 3 }}>
               <CardContent>
-                <Typography variant="h6" fontWeight="bold" gutterBottom>Efficiency Summary</Typography>
+                <Typography variant="h6" fontWeight="bold" gutterBottom>Resumen de Eficiencia</Typography>
                 <Divider sx={{ mb: 2 }} />
                 <Box mb={3}>
-                  <Typography variant="subtitle2" color="text.secondary">Average MPG</Typography>
+                  <Typography variant="subtitle2" color="text.secondary">MPG Promedio</Typography>
                   <Typography variant="h4" color="primary">
-                    {averageMPG} <Typography component="span" variant="body2" color="text.secondary">mpg</Typography>
+                    {parseFloat(averageMPG).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} 
+                    <Typography component="span" variant="body2" color="text.secondary">mpg</Typography>
                   </Typography>
                 </Box>
                 <Box mb={3}>
-                  <Typography variant="subtitle2" color="text.secondary">Total Miles</Typography>
+                  <Typography variant="subtitle2" color="text.secondary">Millas Totales</Typography>
                   <Typography variant="h5">
-                    {totalMiles.toLocaleString()} <Typography component="span" variant="body2" color="text.secondary">miles</Typography>
+                    {parseFloat(totalMiles).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} 
+                    <Typography component="span" variant="body2" color="text.secondary">millas</Typography>
                   </Typography>
                 </Box>
                 <Box mb={3}>
-                  <Typography variant="subtitle2" color="text.secondary">Total Gallons</Typography>
+                  <Typography variant="subtitle2" color="text.secondary">Galones Totales</Typography>
                   <Typography variant="h5">
-                    {totalGallons.toFixed(2)} <Typography component="span" variant="body2" color="text.secondary">gallons</Typography>
+                    {parseFloat(totalGallons).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} 
+                    <Typography component="span" variant="body2" color="text.secondary">galones</Typography>
                   </Typography>
                 </Box>
               </CardContent>
             </Card>
 
-            {/* Receipt Information */}
+            {/* Notes Section */}
             <Card elevation={2} sx={{ mt: 3 }}>
               <CardContent>
-                <Typography variant="h6" fontWeight="bold" gutterBottom>Receipt Information</Typography>
-                <Divider sx={{ mb: 2 }} />
-                {receiptFile ? (
-                  <Box display="flex" alignItems="center" justifyContent="space-between">
-                    <Typography variant="body2" noWrap sx={{ maxWidth: '60%' }}>
-                      {receiptFile.name}
-                    </Typography>
-                    <Box>
-                      <IconButton size="small" onClick={() => setReceiptFile(null)}>
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
-                      <Button
-                        variant="contained"
-                        size="small"
-                        component="a"
-                        href={URL.createObjectURL(receiptFile)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        sx={{ ml: 1 }}
-                      >
-                        View
-                      </Button>
-                    </Box>
-                  </Box>
-                ) : (
-                  <Button
-                    component="label"
-                    variant="outlined"
-                    fullWidth
-                    startIcon={<CloudUploadIcon />}
-                    sx={{ mt: 1 }}
-                  >
-                    Upload Receipt
-                    <input
-                      type="file"
-                      hidden
-                      accept=".pdf,image/*"
-                      onChange={handleFileUpload}
-                    />
-                  </Button>
-                )}
-                <Box display="flex" justifyContent="space-between" mt={2} mb={2}>
-                  <Typography variant="body2" color="text.secondary">Last updated:</Typography>
-                  <Typography variant="body2">{formatDate(safeConsumption.updated_at)}</Typography>
-                </Box>
-                <Button
-                  fullWidth
-                  variant="contained"
-                  color="primary"
-                  size="large"
-                  disabled={!receiptFile}
-                  startIcon={<CheckIcon />}
-                  onClick={() => navigate('/trips/create')}
-                  sx={{
-                    py: 1.5,
-                    fontWeight: 'bold',
-                    '&.Mui-disabled': {
-                      backgroundColor: 'action.disabledBackground',
-                      color: 'text.disabled'
-                    }
-                  }}
-                >
-                  Finish Editing
-                </Button>
+                <Typography variant="h6" fontWeight="bold" gutterBottom>Notas</Typography>
+                <textarea 
+                  rows={4} 
+                  disabled={true} 
+                  value={safeConsumption.notes || 'Sin notas'} 
+                  style={{ width: '100%', padding: '8px', border: '1px solid #e0e0e0', borderRadius: '4px' }}
+                />
               </CardContent>
             </Card>
           </Grid>

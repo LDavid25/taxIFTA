@@ -27,7 +27,6 @@ import LoadingScreen from '../../components/common/LoadingScreen';
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const { currentUser } = useAuth();
   const [loading, setLoading] = useState(false);
   const [stats, setStats] = useState({
     vehicles: { total: 0, active: 0, inactive: 0, data: [] },

@@ -26,26 +26,40 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    // Si no hay respuesta del servidor (error de red)
+    if (!error.response) {
+      console.log('🌐 Error de red o servidor no disponible, continuando...');
+      return Promise.reject({ ...error, isNetworkError: true });
+    }
+
     const originalRequest = error.config;
+    const isLoginPage = window.location.pathname === '/login';
+    const isAuthRequest = originalRequest?.url?.includes('/auth/');
     
-    // Si el error es 401 y no es una solicitud de login
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      // Si ya estamos en la página de login, no hacer nada
-      if (window.location.pathname === '/login') {
-        return Promise.reject(error);
+    // Solo manejar errores 401 que no sean en la página de login
+    if (error.response.status === 401 && !isLoginPage && !isAuthRequest) {
+      console.log('🔒 Error 401 detectado, verificando si es un error de autenticación...');
+      
+      // Verificar si el error es específicamente de autenticación
+      const isAuthError = error.response.data?.message?.toLowerCase().includes('token') || 
+                         error.response.data?.error?.toLowerCase().includes('token') ||
+                         error.response.data?.message?.toLowerCase().includes('autenticación') ||
+                         error.response.data?.error?.toLowerCase().includes('autenticación');
+      
+      if (isAuthError) {
+        console.log('🔒 Error de autenticación detectado, limpiando sesión...');
+        localStorage.removeItem('token');
+        delete api.defaults.headers.common['Authorization'];
+        
+        if (!isLoginPage) {
+          console.log('🔄 Redirigiendo a la página de login...');
+          window.location.href = '/login?session=expired';
+          return Promise.reject(new Error('Sesión expirada'));
+        }
       }
-      
-      // Marcar la solicitud como ya reintentada
-      originalRequest._retry = true;
-      
-      // Limpiar el token
-      localStorage.removeItem('token');
-      delete api.defaults.headers.common['Authorization'];
-      
-      // Redirigir al login
-      window.location.href = '/login';
     }
     
+    // Para otros errores, simplemente rechazar la promesa
     return Promise.reject(error);
   }
 );

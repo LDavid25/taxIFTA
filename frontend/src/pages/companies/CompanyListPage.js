@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Box, 
-  Button, 
   Card, 
   CardContent, 
   Container, 
@@ -19,52 +18,29 @@ import {
   Tooltip,
   CircularProgress,
   Alert,
-  TablePagination
+  TablePagination,
+  Chip,
+  Button
 } from '@mui/material';
-import { Visibility } from '@mui/icons-material';
+import { Visibility, Add as AddIcon } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
+import { useSnackbar } from 'notistack';
+import { getCompanies } from '../../services/companyService';
 
-// Mock service to get companies
-const mockCompanies = [
-  {
-    id: 1,
-    name: 'Transportes Rápidos S.A.',
-    contactName: 'Juan Pérez',
-    contactEmail: 'juan@transportesrapidos.com',
-    lastAccess: '2025-06-08T14:30:00Z'
-  },
-  {
-    id: 2,
-    name: 'Carga Pesada Internacional',
-    contactName: 'María González',
-    contactEmail: 'maria@cargapesada.com',
-    lastAccess: '2025-06-07T09:15:00Z'
-  },
-  {
-    id: 3,
-    name: 'Logística Express',
-    contactName: 'Carlos Rodríguez',
-    contactEmail: 'carlos@logisticaexpress.com',
-    lastAccess: '2025-06-06T16:45:00Z'
-  },
-  {
-    id: 4,
-    name: 'Envíos Seguros',
-    contactName: 'Ana Martínez',
-    contactEmail: 'ana@envioseguros.com',
-    lastAccess: '2025-06-05T11:20:00Z'
-  },
-  {
-    id: 5,
-    name: 'Transporte y Distribución',
-    contactName: 'Luis Sánchez',
-    contactEmail: 'luis@transporteydistribucion.com',
-    lastAccess: '2025-06-04T13:10:00Z'
-  }
-];
+const formatDate = (dateString) => {
+  if (!dateString) return 'Nunca';
+  const date = new Date(dateString);
+  return date.toLocaleDateString('es-ES', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+};
 
 const CompanyListPage = () => {
-  const { token } = useAuth();
+  const { enqueueSnackbar } = useSnackbar();
   const [companies, setCompanies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -72,31 +48,35 @@ const CompanyListPage = () => {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
-  // Simular carga de datos
+  // Cargar datos de la API
   useEffect(() => {
     const fetchCompanies = async () => {
       try {
-        // En una implementación real, aquí harías una llamada a tu API
-        // const response = await fetch('/api/companies', {
-        //   headers: {
-        //     'Authorization': `Bearer ${token}`
-        // });
-        // const data = await response.json();
-        
-        // Simular tiempo de carga
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        setCompanies(mockCompanies);
-        setLoading(false);
+        setLoading(true);
+        const response = await getCompanies();
+        // Ajustar según la estructura de respuesta del endpoint de prueba
+        const companiesData = Array.isArray(response) ? response : (response.data || []);
+        setCompanies(companiesData);
+        setError('');
       } catch (err) {
         console.error('Error al cargar las compañías:', err);
         setError('Error al cargar las compañías. Por favor, intente de nuevo más tarde.');
+        enqueueSnackbar('Error al cargar las compañías', { variant: 'error' });
+        
+        // Datos de ejemplo en caso de error
+        const sampleData = [
+          { id: 1, name: 'Compañía de Prueba 1', contactName: 'Contacto 1', contactEmail: 'contacto1@ejemplo.com', status: 'active' },
+          { id: 2, name: 'Compañía de Prueba 2', contactName: 'Contacto 2', contactEmail: 'contacto2@ejemplo.com', status: 'inactive' },
+          { id: 3, name: 'Otra Compañía', contactName: 'Contacto 3', contactEmail: 'contacto3@ejemplo.com', status: 'active' },
+        ];
+        setCompanies(sampleData);
+      } finally {
         setLoading(false);
       }
     };
 
     fetchCompanies();
-  }, [token]);
+  }, [enqueueSnackbar]);
 
   // Filter companies by search term
   const filteredCompanies = companies.filter(company =>

@@ -23,8 +23,7 @@ import {
   Menu as MenuIcon,
   ChevronLeft as ChevronLeftIcon,
   Dashboard as DashboardIcon,
-  DirectionsCar as CarIcon,
-  Map as MapIcon,
+
   Description as DescriptionIcon,
   Person as PersonIcon,
   Brightness4 as DarkModeIcon,

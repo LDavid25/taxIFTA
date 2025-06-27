@@ -1,17 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link as RouterLink } from 'react-router-dom';
 import {
   Box,
   Card,
   CardContent,
-  CardActions,
   Typography,
-  Breadcrumbs,
-  Link,
-  Button,
-  Grid,
-  Divider,
-  Chip,
   Table,
   TableBody,
   TableCell,
@@ -19,13 +12,18 @@ import {
   TableHead,
   TableRow,
   Paper,
+  Button,
+  Breadcrumbs,
+  Link,
+  Divider,
+  Grid,
+  Chip,
   FormControl,
   Select,
   MenuItem,
   InputLabel,
   IconButton
 } from '@mui/material';
-import { Link as RouterLink } from 'react-router-dom';
 import { 
   Edit as EditIcon, 
   Delete as DeleteIcon, 
@@ -54,15 +52,17 @@ const DeclarationDetail = () => {
   const [selectedEndYear, setSelectedEndYear] = useState('');
   const [selectedFile, setSelectedFile] = useState(null);
   const [filePreview, setFilePreview] = useState('');
-
+  
   // Obtener lista de años disponibles
   useEffect(() => {
-    if (!declaration) return;
+    if (!declaration || !declaration.trips) return;
 
     const years = new Set();
     declaration.trips.forEach(trip => {
-      const date = new Date(trip.trip_date);
-      years.add(date.getFullYear());
+      if (trip && trip.trip_date) {
+        const date = new Date(trip.trip_date);
+        years.add(date.getFullYear());
+      }
     });
 
     const sortedYears = Array.from(years).sort();
@@ -74,6 +74,52 @@ const DeclarationDetail = () => {
       setSelectedEndYear(sortedYears[sortedYears.length - 1].toString());
     }
   }, [declaration]);
+  
+  // Inicializar la carga de datos
+  useEffect(() => {
+    const fetchDeclaration = async () => {
+      setLoading(true);
+      try {
+        // Simulación de datos
+        setTimeout(() => {
+          const declarationData = {
+            id: parseInt(id),
+            quarter: 'Q1',
+            year: 2025,
+            total_miles: 5200,
+            total_gallons: 520,
+            status: 'approved',
+            created_at: '2025-04-15T10:30:00Z',
+            updated_at: '2025-04-20T14:45:00Z',
+            state_summary: [
+              { state: 'TX', miles: 1500, gallons: 150 },
+              { state: 'CA', miles: 1200, gallons: 120 },
+              { state: 'AZ', miles: 800, gallons: 80 },
+              { state: 'NM', miles: 1700, gallons: 170 }
+            ],
+            trips: [
+              { id: 1, trip_date: '2025-01-15', origin_state: 'TX', destination_state: 'CA', distance: 1200, fuel_consumed: 120 },
+              { id: 2, trip_date: '2025-02-10', origin_state: 'CA', destination_state: 'AZ', distance: 800, fuel_consumed: 80 },
+              { id: 3, trip_date: '2025-03-05', origin_state: 'AZ', destination_state: 'NM', distance: 1700, fuel_consumed: 170 },
+              { id: 4, trip_date: '2025-03-20', origin_state: 'NM', destination_state: 'TX', distance: 1500, fuel_consumed: 150 }
+            ]
+          };
+          setDeclaration(declarationData);
+          setStatus(declarationData.status);
+          setLoading(false);
+        }, 1000);
+      } catch (error) {
+        setAlert({
+          open: true,
+          message: error.message || 'Error loading declaration data',
+          severity: 'error'
+        });
+        setLoading(false);
+      }
+    };
+
+    fetchDeclaration();
+  }, [id]);
 
   // Calcular resumen mensual
   useEffect(() => {

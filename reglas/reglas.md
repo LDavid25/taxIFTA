@@ -118,7 +118,6 @@ Desarrollar un sistema web llamado **“IFTA Easy Tax System”**, orientado a e
 * **vehicles**
 * **trips**
 * **declarations**
-* **tax\_rates**
 * **reports**
 
 ---

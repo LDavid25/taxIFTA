@@ -1,6 +1,6 @@
 const jwt = require('jsonwebtoken');
 const { promisify } = require('util');
-const User = require('../models/user.model');
+const { User } = require('../models');
 const AppError = require('../utils/appError');
 
 // Middleware para proteger rutas
@@ -43,6 +43,8 @@ exports.protect = async (req, res, next) => {
 
     // 5) Otorgar acceso a la ruta protegida
     req.user = currentUser;
+    req.user_id = currentUser.id; // Añadir user_id al request
+    req.company_id = decoded.company_id; // Añadir company_id al request
     res.locals.user = currentUser;
     next();
   } catch (error) {
@@ -53,7 +55,7 @@ exports.protect = async (req, res, next) => {
 // Middleware para restringir el acceso según el rol
 exports.restrictTo = (...roles) => {
   return (req, res, next) => {
-    // roles ['admin', 'user']. role='user'
+    // roles ['admin', 'cliente']. role='cliente'
     if (!roles.includes(req.user.role)) {
       return next(
         new AppError('You do not have permission to perform this action', 403)

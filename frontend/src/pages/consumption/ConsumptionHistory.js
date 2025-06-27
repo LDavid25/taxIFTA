@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Container,
@@ -41,48 +41,74 @@ import {
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { getConsumptionReports } from '../../services/consumptionService';
+import { useSnackbar } from 'notistack';
+import { CircularProgress, Alert } from '@mui/material';
+import { useAuth } from '../../context/AuthContext';
+import { isAdmin } from '../../constants/roles';
+import BusinessIcon from '@mui/icons-material/Business';
 
-// Sample data
-const sampleData = [
-  {
-    id: 1,
-    date: '2023-05-01',
-    unitNumber: 'TRK-001',
-    milesTraveled: 1250,
-    totalGallons: 250.5,
-    status: 'Completed',
-    receiptId: 'rec123',
-    state: 'CA',
-    mpg: 5.0,
-    taxPaid: 125.25
-  },
-  {
-    id: 2,
-    date: '2023-05-15',
-    unitNumber: 'TRK-002',
-    milesTraveled: 980,
-    totalGallons: 196.0,
-    status: 'Pending',
-    receiptId: 'rec124',
-    state: 'TX',
-    mpg: 5.0,
-    taxPaid: 98.00
-  },
-  {
-    id: 3,
-    date: '2023-06-01',
-    unitNumber: 'TRK-001',
-    milesTraveled: 1100,
-    totalGallons: 220.0,
-    status: 'Completed',
-    receiptId: 'rec125',
-    state: 'AZ',
-    mpg: 5.0,
-    taxPaid: 110.00
-  },
-];
+// Mapeo de códigos de estado a nombres completos
+const STATE_NAMES = {
+  'AL': 'Alabama',
+  'AK': 'Alaska',
+  'AZ': 'Arizona',
+  'AR': 'Arkansas',
+  'CA': 'California',
+  'CO': 'Colorado',
+  'CT': 'Connecticut',
+  'DE': 'Delaware',
+  'FL': 'Florida',
+  'GA': 'Georgia',
+  'HI': 'Hawaii',
+  'ID': 'Idaho',
+  'IL': 'Illinois',
+  'IN': 'Indiana',
+  'IA': 'Iowa',
+  'KS': 'Kansas',
+  'KY': 'Kentucky',
+  'LA': 'Louisiana',
+  'ME': 'Maine',
+  'MD': 'Maryland',
+  'MA': 'Massachusetts',
+  'MI': 'Michigan',
+  'MN': 'Minnesota',
+  'MS': 'Mississippi',
+  'MO': 'Missouri',
+  'MT': 'Montana',
+  'NE': 'Nebraska',
+  'NV': 'Nevada',
+  'NH': 'New Hampshire',
+  'NJ': 'New Jersey',
+  'NM': 'New Mexico',
+  'NY': 'New York',
+  'NC': 'North Carolina',
+  'ND': 'North Dakota',
+  'OH': 'Ohio',
+  'OK': 'Oklahoma',
+  'OR': 'Oregon',
+  'PA': 'Pennsylvania',
+  'RI': 'Rhode Island',
+  'SC': 'South Carolina',
+  'SD': 'South Dakota',
+  'TN': 'Tennessee',
+  'TX': 'Texas',
+  'UT': 'Utah',
+  'VT': 'Vermont',
+  'VA': 'Virginia',
+  'WA': 'Washington',
+  'WV': 'West Virginia',
+  'WI': 'Wisconsin',
+  'WY': 'Wyoming',
+  'DC': 'District of Columbia',
+  'PR': 'Puerto Rico',
+  'VI': 'Virgin Islands',
+  'GU': 'Guam',
+  'AS': 'American Samoa',
+  'MP': 'Northern Mariana Islands'
+};
 
 const formatCurrency = (amount) => {
   return new Intl.NumberFormat('en-US', {
@@ -97,16 +123,16 @@ const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
     
     const date = new Date(dateString);
-    if (isNaN(date.getTime())) return 'Fecha inválida';
+    if (isNaN(date.getTime())) return 'N/A';
     
-    const day = date.getDate();
-    const month = date.toLocaleString('es-ES', { month: 'short' });
-    const year = date.getFullYear();
-    
-    return `${day} ${month}. ${year}`;
+    // Formato: MMM yyyy (ej. 'jun 2023')
+    return date.toLocaleString('es-ES', { 
+      month: 'short', 
+      year: 'numeric' 
+    });
   } catch (error) {
     console.error('Error formateando fecha:', error);
-    return 'Fecha inválida';
+    return 'N/A';
   }
 };
 
@@ -145,14 +171,10 @@ const MobileTableRow = ({ row, onViewReceipt }) => {
             </Typography>
           </Box>
           <Box textAlign="right">
-            <Chip
-              label={row.status}
-              color={
-                row.status === 'Paid' ? 'success' :
-                row.status === 'Pending' ? 'warning' : 'default'
-              }
-              size="small"
-              sx={{ minWidth: 80, borderRadius: 1 }}
+            <Chip 
+              label={row.status} 
+              color={row.status === 'completed' ? 'success' : row.status === 'pending' ? 'warning' : 'error'} 
+              size="small" 
             />
             <IconButton
               size="small"
@@ -193,7 +215,7 @@ const MobileTableRow = ({ row, onViewReceipt }) => {
                   variant="outlined"
                   size="small"
                   startIcon={<ReceiptIcon />}
-                  onClick={() => onViewReceipt(row.id)}
+                  onClick={() => onViewReceipt(row.id, row)}
                   fullWidth
                 >
                   Ver Detalles
@@ -210,38 +232,187 @@ const MobileTableRow = ({ row, onViewReceipt }) => {
 const ConsumptionHistory = () => {
   const navigate = useNavigate();
   const theme = useTheme();
+  const { enqueueSnackbar } = useSnackbar();
+  const { currentUser } = useAuth();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+  
+  // Estados para los filtros
   const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [companyFilter, setCompanyFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
+  
+  // Estados para los datos
+  const [reports, setReports] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  
+  // Estado para datos filtrados y paginación
+  const [filteredData, setFilteredData] = useState([]);
+  const [pagination, setPagination] = useState({
+    page: 0,
+    rowsPerPage: 10,
+    total: 0,
+    totalPages: 1
+  });
+  
+
+  
+  // Cargar datos cuando cambian los filtros o la paginación
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const params = {
+          page: pagination.page + 1, // La API usa base 1
+          limit: pagination.rowsPerPage,
+        };
+
+        if (statusFilter !== 'All') {
+          params.status = statusFilter.toLowerCase();
+        }
+        if (startDate) {
+          params.startDate = format(startDate, 'yyyy-MM-dd');
+        }
+        if (endDate) {
+          params.endDate = format(endDate, 'yyyy-MM-dd');
+        }
+        if (searchTerm) {
+          params.search = searchTerm;
+        }
+        if (companyFilter && isAdmin(currentUser)) {
+          params.company = companyFilter;
+        }
+
+        const response = await getConsumptionReports(params);
+        setReports(response.data?.reports || []);
+        
+        // Actualizar paginación
+        setPagination(prev => ({
+          ...prev,
+          total: response.data?.pagination?.total || 0,
+          totalPages: response.data?.pagination?.totalPages || 1
+        }));
+        
+        setError(null);
+      } catch (err) {
+        console.error('Error al cargar los informes:', err);
+        setError('No se pudieron cargar los informes. Intente de nuevo más tarde.');
+        enqueueSnackbar('Error al cargar los informes', { variant: 'error' });
+        setReports([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [pagination.page, pagination.rowsPerPage, statusFilter, startDate, endDate, searchTerm, companyFilter, enqueueSnackbar, currentUser]);
 
   const handleAddConsumption = () => {
     navigate('/consumption/new');
   };
 
   const handleChangePage = (event, newPage) => {
-    setPage(newPage);
+    setPagination(prev => ({ ...prev, page: newPage }));
   };
 
   const handleChangeRowsPerPage = (event) => {
-    setRowsPerPage(parseInt(event.target.value, 10));
-    setPage(0);
+    setPagination(prev => ({
+      ...prev,
+      page: 0,
+      rowsPerPage: parseInt(event.target.value, 10)
+    }));
   };
 
-  const handleViewReceipt = (id) => {
-    navigate(`/consumption/${id}`);
+  const handleViewReceipt = (id, report) => {
+    // Pasar el informe completo como estado de ubicación
+    navigate(`/consumption/${id}`, { state: { report } });
   };
 
-  const filteredData = sampleData.filter((row) => {
-    const matchesSearch = row.unitNumber.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'All' || row.status === statusFilter;
-
-    // Add date range filtering logic here if needed
-    return matchesSearch && matchesStatus;
-  });
+  // Función para formatear los datos del informe para la tabla
+  const formatReportData = (report) => {
+    console.log('Report data:', report); // Log para inspeccionar los datos del informe
+    // Calcular total de millas y galones
+    const totalMiles = report.states?.reduce((sum, state) => sum + (parseFloat(state.miles) || 0), 0) || 0;
+    const totalGallons = report.states?.reduce((sum, state) => sum + (parseFloat(state.gallons) || 0), 0) || 0;
+    const mpg = totalMiles > 0 && totalGallons > 0 ? (totalMiles / totalGallons).toFixed(2) : 0;
+    
+    // Formatear fecha (solo mes y año)
+    const formatDate = (date) => {
+      if (!date) return 'N/A';
+      const d = new Date(date);
+      return d.toLocaleString('es-ES', { month: 'short', year: 'numeric' });
+    };
+    
+    const reportDate = report.report_year && report.report_month 
+      ? new Date(report.report_year, report.report_month - 1, 1)
+      : report.createdAt || new Date();
+    
+    // Obtener y formatear estados únicos con formato 'CÓDIGO - Nombre'
+    const states = [...new Set(report.states?.map(s => {
+      const code = s.state_code?.toUpperCase();
+      const name = STATE_NAMES[code] || 'Desconocido';
+      return code ? `${code} - ${name}` : null;
+    }).filter(Boolean))].join(', ');
+    
+    // Obtener el nombre de la compañía de diferentes posibles ubicaciones en la respuesta
+    const companyName = report.company?.name || 
+                       report.company_name || 
+                       (report.company && typeof report.company === 'string' ? report.company : 'N/A');
+    
+    return {
+      id: report.id,
+      date: formatDate(reportDate),
+      unitNumber: report.vehicle_plate || 'N/A',
+      companyName: companyName,
+      milesTraveled: totalMiles,
+      totalGallons: totalGallons,
+      mpg: parseFloat(mpg) || 0,
+      status: report.status ? report.status.charAt(0).toUpperCase() + report.status.slice(1) : 'Pending',
+      states: states || 'N/A',
+      receiptId: report.id,
+      taxPaid: 0, // Esto debería venir del backend
+      // Datos adicionales para la vista móvil
+      quarter: report.quarterlyReport ? `Q${report.quarterlyReport.quarter} ${report.quarterlyReport.year}` : 'N/A',
+      notes: report.notes || ''
+    };
+  };
+  
+  // Efecto para formatear y filtrar los datos cuando cambian los informes o los filtros
+  useEffect(() => {
+    if (!reports || !Array.isArray(reports)) {
+      setFilteredData([]);
+      return;
+    }
+    
+    try {
+      // Aplicar formato a los informes
+      const formatted = reports.map(formatReportData);
+      
+      // Aplicar filtros
+      const filtered = formatted.filter(row => {
+        const matchesSearch = searchTerm 
+          ? (row.unitNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+             row.states?.toLowerCase().includes(searchTerm.toLowerCase()))
+          : true;
+          
+        const matchesStatus = statusFilter === 'All' || 
+          row.status?.toLowerCase() === statusFilter.toLowerCase();
+          
+        const matchesCompany = !isAdmin(currentUser) || !companyFilter || 
+          (row.companyName && row.companyName.toLowerCase().includes(companyFilter.toLowerCase()));
+          
+        return matchesSearch && matchesStatus && matchesCompany;
+      });
+      
+      setFilteredData(filtered);
+    } catch (error) {
+      console.error('Error al procesar los datos:', error);
+      setFilteredData([]);
+      enqueueSnackbar('Error al procesar los datos', { variant: 'error' });
+    }
+  }, [reports, searchTerm, statusFilter, companyFilter, currentUser, enqueueSnackbar]);
 
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={es}>
@@ -284,7 +455,7 @@ const ConsumptionHistory = () => {
                       size="small"
                       onClick={() => {
                         setStatusFilter(filter);
-                        setPage(0); // Reset to first page when changing status
+                        setPagination(prev => ({ ...prev, page: 0 })); // Reset to first page when changing status
                       }}
                       sx={{
                         textTransform: 'none',
@@ -306,7 +477,7 @@ const ConsumptionHistory = () => {
                   ))}
                 </Stack>
               </Grid>
-              <Grid item xs={6} md={3}>
+              <Grid item xs={6} md={2}>
                 <TextField
                   fullWidth
                   variant="outlined"
@@ -315,7 +486,7 @@ const ConsumptionHistory = () => {
                   value={searchTerm}
                   onChange={(e) => {
                     setSearchTerm(e.target.value);
-                    setPage(0); // Reset to first page when searching
+                    setPagination(prev => ({ ...prev, page: 0 })); // Reset to first page when searching
                   }}
                   InputProps={{
                     startAdornment: (
@@ -326,6 +497,28 @@ const ConsumptionHistory = () => {
                   }}
                 />
               </Grid>
+              {isAdmin(currentUser) && (
+                <Grid item xs={6} md={2}>
+                  <TextField
+                    fullWidth
+                    variant="outlined"
+                    size="small"
+                    placeholder="Filter by company"
+                    value={companyFilter}
+                    onChange={(e) => {
+                      setCompanyFilter(e.target.value);
+                      setPagination(prev => ({ ...prev, page: 0 })); // Reset to first page when filtering
+                    }}
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <BusinessIcon color="action" />
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                </Grid>
+              )}
               <Grid item xs={12} md={3}>
                 <DatePicker
                   label="Start Date"
@@ -359,81 +552,97 @@ const ConsumptionHistory = () => {
 
         {/* Table Section */}
         <Paper elevation={1} sx={{ borderRadius: 2, overflow: 'hidden' }}>
-          {isMobile ? (
-            // Vista móvil - Tarjetas
-            <Box sx={{ p: 2 }}>
-              {filteredData
-                .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                .map((row) => (
-                  <MobileTableRow 
-                    key={row.id} 
-                    row={row} 
-                    onViewReceipt={handleViewReceipt} 
-                  />
-                ))}
+          {loading && reports.length === 0 ? (
+            <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
+              <CircularProgress />
             </Box>
+          ) : error ? (
+            <Alert severity="error" sx={{ m: 2 }}>
+              Error al cargar los informes: {error}
+            </Alert>
           ) : (
-            // Vista escritorio - Tabla
-            <TableContainer>
-              <Table>
-                <TableHead>
-                  <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
-                    <TableCell>Date</TableCell>
-                    <TableCell>Unit #</TableCell>
-                    <TableCell>Quarter</TableCell>
-                    <TableCell align="right">Miles Traveled</TableCell>
-                    <TableCell align="right">Total Gallons</TableCell>
-                    <TableCell align="right">MPG</TableCell>
-                    <TableCell>Status</TableCell>
-                    <TableCell>Actions</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {filteredData
-                    .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                    .map((row) => (
-                      <TableRow key={row.id} hover>
-                        <TableCell>{formatDate(row.date)}</TableCell>
-                        <TableCell>{row.unitNumber}</TableCell>
-                        <TableCell>{getQuarter(row.date)}</TableCell>
-                        <TableCell align="right">{row.milesTraveled.toLocaleString()}</TableCell>
-                        <TableCell align="right">{row.totalGallons.toFixed(2)}</TableCell>
-                        <TableCell align="right">{row.mpg}</TableCell>
-                        <TableCell>
-                          <Chip
-                            label={row.status}
-                            color={
-                              row.status === 'Paid' ? 'success' :
-                                row.status === 'Pending' ? 'warning' : 'default'
-                            }
-                            size="small"
-                            sx={{ minWidth: 80, borderRadius: 1 }}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <IconButton
-                            onClick={() => handleViewReceipt(row.id)}
-                            size="small"
-                            sx={{ color: 'primary.main' }}
-                            aria-label="Ver detalles"
-                          >
-                            <VisibilityIcon />
-                          </IconButton>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
+            isMobile ? (
+              // Vista móvil - Tarjetas
+              <Box sx={{ p: 2 }}>
+                {filteredData
+                  .slice(pagination.page * pagination.rowsPerPage, pagination.page * pagination.rowsPerPage + pagination.rowsPerPage)
+                  .map((row) => (
+                    <MobileTableRow 
+                      key={row.id} 
+                      row={row} 
+                      onViewReceipt={handleViewReceipt} 
+                    />
+                  ))}
+              </Box>
+            ) : (
+              // Vista escritorio - Tabla
+              <TableContainer>
+                <Table>
+                  <TableHead>
+                    <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
+                      <TableCell>Date</TableCell>
+                      <TableCell>Unit #</TableCell>
+                      {isAdmin(currentUser) && <TableCell>Company</TableCell>}
+                      <TableCell>Quarter</TableCell>
+                      <TableCell align="right">Miles Traveled</TableCell>
+                      <TableCell align="right">Total Gallons</TableCell>
+                      <TableCell align="right">MPG</TableCell>
+                      <TableCell>Status</TableCell>
+                      <TableCell>Actions</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {filteredData
+                      .slice(pagination.page * pagination.rowsPerPage, pagination.page * pagination.rowsPerPage + pagination.rowsPerPage)
+                      .map((row) => (
+                        <TableRow key={row.id} hover>
+                          <TableCell>{formatDate(row.date)}</TableCell>
+                          <TableCell>{row.unitNumber}</TableCell>
+                          {isAdmin(currentUser) && <TableCell>{row.companyName || 'N/A'}</TableCell>}
+                          <TableCell>{getQuarter(row.date)}</TableCell>
+                          <TableCell align="right">{row.milesTraveled.toLocaleString(undefined, {maximumFractionDigits: 2})}</TableCell>
+                          <TableCell align="right">{row.totalGallons.toFixed(2)}</TableCell>
+                          <TableCell align="right">{row.mpg}</TableCell>
+                          <TableCell>
+                            <Chip
+                              label={row.status}
+                              color={
+                                row.status === 'Paid' ? 'success' :
+                                  row.status === 'Pending' ? 'warning' : 'default'
+                              }
+                              size="small"
+                              sx={{ minWidth: 80, borderRadius: 1 }}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <IconButton
+                              onClick={() => handleViewReceipt(row.id, row)}
+                              size="small"
+                              sx={{ color: 'primary.main' }}
+                              aria-label="Ver detalles"
+                            >
+                              <VisibilityIcon />
+                            </IconButton>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )
           )}
           <TablePagination
             rowsPerPageOptions={[5, 10, 25]}
             component="div"
-            count={filteredData.length}
-            rowsPerPage={rowsPerPage}
-            page={page}
+            count={pagination.total}
+            rowsPerPage={pagination.rowsPerPage}
+            page={pagination.page}
             onPageChange={handleChangePage}
             onRowsPerPageChange={handleChangeRowsPerPage}
+            labelRowsPerPage="Filas por página:"
+            labelDisplayedRows={({ from, to, count }) => 
+              `${from}-${to} de ${count !== -1 ? count : `más de ${to}`}`
+            }
             sx={{ 
               borderTop: '1px solid rgba(224, 224, 224, 1)',
               '& .MuiTablePagination-toolbar': {

@@ -1,8 +1,7 @@
-const { DataTypes } = require('sequelize');
-const { sequelize } = require('../config/sequelize');
 const bcrypt = require('bcryptjs');
 
-const User = sequelize.define('User', {
+module.exports = (sequelize, DataTypes) => {
+  const User = sequelize.define('User', {
   id: {
     type: DataTypes.UUID,
     defaultValue: DataTypes.UUIDV4,
@@ -33,18 +32,19 @@ const User = sequelize.define('User', {
       len: [8, 100],
     },
   },
-  companyName: {
-    type: DataTypes.STRING,
-    field: 'company_name',
+  company_id: {
+    type: DataTypes.UUID,
     allowNull: false,
-    validate: {
-      notEmpty: true,
-      len: [2, 100],
+    references: {
+      model: 'companies',
+      key: 'id'
     },
+    onUpdate: 'CASCADE',
+    onDelete: 'RESTRICT'
   },
   role: {
-    type: DataTypes.ENUM('admin', 'user'),
-    defaultValue: 'user',
+    type: DataTypes.ENUM('admin', 'cliente'),
+    defaultValue: 'cliente',
   },
   isActive: {
     type: DataTypes.BOOLEAN,
@@ -92,4 +92,34 @@ User.prototype.changedPasswordAfter = function(JWTTimestamp) {
   return false;
 };
 
-module.exports = User;
+  // Instance method to check password
+  User.prototype.correctPassword = async function(candidatePassword, userPassword) {
+    return await bcrypt.compare(candidatePassword, userPassword);
+  };
+
+  // Instance method to check if password was changed after JWT was issued
+  User.prototype.changedPasswordAfter = function(JWTTimestamp) {
+    if (this.passwordChangedAt) {
+      const changedTimestamp = parseInt(this.passwordChangedAt.getTime() / 1000, 10);
+      return JWTTimestamp < changedTimestamp;
+    }
+    return false;
+  };
+
+  // Set up associations
+  User.associate = (models) => {
+    // Define the Company association
+    User.belongsTo(models.Company, {
+      foreignKey: 'company_id',
+      as: 'company'
+    });
+
+    // Define the IftaReport association
+    User.hasMany(models.IftaReport, {
+      foreignKey: 'created_by',
+      as: 'createdReports'
+    });
+  };
+
+  return User;
+};

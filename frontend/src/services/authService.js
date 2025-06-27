@@ -44,10 +44,59 @@ export const login = async (credentials) => {
 // Obtener el usuario actual
 export const getCurrentUser = async () => {
   try {
+    console.log('🔍 Realizando petición a /me...', {
+      headers: api.defaults.headers,
+      url: `${API_URL}/me`,
+      token: localStorage.getItem('token')
+    });
+    
     const response = await api.get(`${API_URL}/me`);
-    return response.data.user || response.data;  // Ajusta según la respuesta de tu backend
+    
+    // La respuesta puede estar en response.data.user o directamente en response.data
+    const responseData = response.data || {};
+    const userData = responseData.data?.user || responseData.user || responseData;
+    
+    if (!userData) {
+      throw new Error('No se recibieron datos de usuario válidos');
+    }
+    
+    // Asegurarse de que el rol esté en minúsculas
+    const normalizedUser = {
+      ...userData,
+      role: (userData.role || '').toLowerCase()
+    };
+    
+    console.log('✅ Respuesta de /me procesada:', {
+      status: response.status,
+      userData: {
+        id: normalizedUser.id,
+        email: normalizedUser.email,
+        role: normalizedUser.role,
+        hasToken: !!localStorage.getItem('token')
+      },
+      rawResponse: response.data
+    });
+    
+    return normalizedUser;
   } catch (error) {
-    throw error.response?.data || { message: 'Error al obtener usuario actual' };
+    console.error('Error en getCurrentUser:', {
+      message: error.message,
+      response: {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        headers: error.response?.headers
+      },
+      config: {
+        url: error.config?.url,
+        method: error.config?.method,
+        headers: error.config?.headers
+      }
+    });
+    throw error.response?.data || { 
+      message: 'Error al obtener usuario actual',
+      originalError: error.message 
+    };
   }
 };
 

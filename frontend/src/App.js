@@ -5,6 +5,9 @@ import { ThemeProvider as MuiThemeProvider } from '@mui/material/styles';
 import { LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { es } from 'date-fns/locale';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+import { SnackbarProvider } from 'notistack';
 
 // Contextos
 import { useAuth } from './context/AuthContext';
@@ -16,7 +19,7 @@ import AuthLayout from './components/layouts/AuthLayout';
 
 // Páginas públicas
 import Login from './pages/auth/Login';
-import Register from './pages/auth/Register';
+
 import ForgotPassword from './pages/auth/ForgotPassword';
 import ResetPassword from './pages/auth/ResetPassword';
 import ContactPage from './pages/ContactPage';
@@ -43,43 +46,90 @@ import CompanyListPage from './pages/companies/CompanyListPage';
 
 // Páginas de error
 import NotFound from './pages/errors/NotFound';
+import Unauthorized from './pages/errors/Unauthorized';
 
-// Rutas protegidas
-const ProtectedRoute = ({ children }) => {
-  const { isAuthenticated, loading, currentUser } = useAuth();
+// Constantes
+import { ROLES } from './constants/roles';
+
+// Importar el componente ProtectedRoute
+import ProtectedRoute from './components/auth/ProtectedRoute';
+
+// Componentes de administración (placeholders por ahora)
+// Los componentes se han comentado ya que no están siendo utilizados actualmente
+// const Users = () => <div>Página de Usuarios</div>;
+// const Reports = () => <div>Página de Reportes</div>;
+// const Settings = () => <div>Configuración</div>;
+
+// Exportar las constantes de roles para uso en otros componentes
+export { ROLES };
+
+// Rutas públicas (solo para usuarios no autenticados)
+const PublicRoute = ({ children }) => {
+  const { isAuthenticated, loading } = useAuth();
   
   if (loading) {
     return <div>Cargando...</div>;
   }
   
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
-  
-  // Verificar si la ruta actual es /login o / y redirigir según el rol
-  if (window.location.pathname === '/login' || window.location.pathname === '/') {
-    const targetRoute = currentUser?.role === 'admin' ? '/dashboard' : '/dashboard-cliente';
-    return <Navigate to={targetRoute} replace />;
+  // Si el usuario ya está autenticado, redirigir según su rol
+  if (isAuthenticated) {
+    return <Navigate to="/" replace />;
   }
   
   return children;
 };
 
-// Rutas públicas (redirige a dashboard si está autenticado)
-const PublicRoute = ({ children }) => {
-  const { isAuthenticated, loading, currentUser } = useAuth();
+// Componente para redirigir según el rol del usuario
+const RoleBasedRedirect = () => {
+  const { currentUser, loading, isAdmin } = useAuth();
   
+  // Mostrar un indicador de carga mientras se verifica la autenticación
   if (loading) {
-    return <div>Loading...</div>;
+    console.log('🔄 RoleBasedRedirect: Cargando datos del usuario...');
+    return <div>Cargando...</div>;
+  }
+
+  // Mostrar información detallada de depuración
+  const roleInfo = {
+    'currentUser': currentUser ? {
+      id: currentUser.id,
+      email: currentUser.email,
+      role: currentUser.role,
+      roleType: typeof currentUser.role
+    } : 'No autenticado',
+    'ROLES': ROLES,
+    'isAdmin': isAdmin,
+    'window.location.pathname': window.location.pathname,
+    'localStorage.token': !!localStorage.getItem('token')
+  };
+  
+  console.log('🔍 RoleBasedRedirect - Estado actual:', roleInfo);
+  
+  // Si no hay usuario, redirigir a login
+  if (!currentUser) {
+    console.log('🔒 No hay usuario autenticado, redirigiendo a /login');
+    return <Navigate to="/login" replace />;
   }
   
-  if (isAuthenticated) {
-    // Redirigir según el rol del usuario
-    const targetRoute = currentUser?.role === 'admin' ? '/dashboard' : '/dashboard-cliente';
-    return <Navigate to={targetRoute} replace />;
+  // Redirigir según el rol del usuario
+  if (isAdmin) {
+    console.log('✅ Usuario es administrador, redirigiendo a /dashboard');
+    console.log('🔍 Detalles del usuario admin:', {
+      role: currentUser.role,
+      roleType: typeof currentUser.role,
+      isAdmin: isAdmin,
+      isStrictEqual: currentUser.role === ROLES.ADMIN,
+      isLooseEqual: currentUser.role == ROLES.ADMIN,
+      lowerCase: currentUser.role?.toLowerCase() === ROLES.ADMIN.toLowerCase()
+    });
+    return <Navigate to="/dashboard" replace />;
   }
   
-  return children;
+  console.log('ℹ️ Redirigiendo a /dashboard-cliente. Razón:', 
+    `Rol actual: "${currentUser.role}" (${typeof currentUser.role}), ` +
+    `ROL_ESPERADO: "${ROLES.ADMIN}" (${typeof ROLES.ADMIN})`
+  );
+  return <Navigate to="/dashboard-cliente" replace />;
 };
 
 function App() {
@@ -88,7 +138,26 @@ function App() {
   return (
     <MuiThemeProvider theme={theme}>
       <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={es}>
+        <SnackbarProvider 
+          maxSnack={3}
+          anchorOrigin={{
+            vertical: 'top',
+            horizontal: 'right',
+          }}
+          autoHideDuration={3000}
+        >
         <CssBaseline />
+        <ToastContainer 
+          position="top-right"
+          autoClose={5000}
+          hideProgressBar={false}
+          newestOnTop={false}
+          closeOnClick
+          rtl={false}
+          pauseOnFocusLoss
+          draggable
+          pauseOnHover
+        />
         <Routes>
           {/* Rutas públicas */}
           <Route path="/" element={
@@ -103,38 +172,71 @@ function App() {
             <Route path="contact" element={<ContactPage />} />
           </Route>
           
-          {/* Rutas protegidas */}
-          <Route path="/" element={
+          {/* Ruta raíz - Redirige según el rol */}
+          <Route index element={
             <ProtectedRoute>
+              <RoleBasedRedirect />
+            </ProtectedRoute>
+          } />
+          
+          {/* Rutas protegidas - Admin */}
+          <Route path="/" element={
+            <ProtectedRoute allowedRoles={[ROLES.ADMIN]}>
               <MainLayout />
             </ProtectedRoute>
           }>
             <Route path="dashboard" element={<Dashboard />} />
-            <Route path="dashboard-cliente" element={<DashboardCliente />} />
+            <Route path="profile" element={<Profile />} />
+            <Route path="companies" element={<CompanyListPage />} />
             
             {/* Rutas de declaraciones */}
-            <Route path="declarations" element={<DeclarationList />} />
-            <Route path="declarations/:id" element={<DeclarationDetail />} />
-            <Route path="declarations/:id/edit" element={<DeclarationEdit />} />
-            
-            {/* Perfil de usuario */}
-            <Route path="profile" element={<Profile />} />
-            
-            {/* Registro de usuario (protegido) */}
-            <Route path="register" element={<Register />} />
+            <Route path="declarations">
+              <Route index element={<DeclarationList />} />
+              <Route path=":id" element={<DeclarationDetail />} />
+              <Route path=":id/edit" element={<DeclarationEdit />} />
+            </Route>
             
             {/* Historial de Consumo */}
-            <Route path="consumption" element={<ConsumptionHistory />} />
-            <Route path="consumption/create" element={<ConsumptionCreate />} />
-            <Route path="consumption/:id" element={<ConsumptionDetail />} />
-            
-            {/* Compañías */}
-            <Route path="companies" element={<CompanyListPage />} />
+            <Route path="consumption">
+              <Route index element={<ConsumptionHistory />} />
+              <Route path="create" element={<ConsumptionCreate />} />
+              <Route path=":id" element={<ConsumptionDetail />} />
+            </Route>
           </Route>
+          
+          {/* Rutas protegidas - Cliente */}
+          <Route path="/" element={
+            <ProtectedRoute allowedRoles={[ROLES.CLIENTE]}>
+              <MainLayout />
+            </ProtectedRoute>
+          }>
+            <Route path="dashboard-cliente" element={<DashboardCliente />} />
+            <Route path="profile" element={<Profile />} />
+            
+            {/* Rutas de declaraciones para clientes */}
+            <Route path="declarations">
+              <Route index element={<DeclarationList />} />
+              <Route path=":id" element={<DeclarationDetail />} />
+            </Route>
+            
+            {/* Historial de Consumo para clientes */}
+            <Route path="consumption">
+              <Route index element={<ConsumptionHistory />} />
+              <Route path=":id" element={<ConsumptionDetail />} />
+            </Route>
+          </Route>
+          
+          {/* Ruta de no autorizado */}
+          <Route path="/unauthorized" element={
+            <MainLayout>
+              <Unauthorized />
+            </MainLayout>
+          } />
           
           {/* Ruta 404 */}
           <Route path="*" element={<NotFound />} />
         </Routes>
+        </SnackbarProvider>
       </LocalizationProvider>
     </MuiThemeProvider>
   );
