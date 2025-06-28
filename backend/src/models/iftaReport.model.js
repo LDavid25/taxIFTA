@@ -22,8 +22,12 @@ module.exports = (sequelize, DataTypes) => {
       }
     },
     status: {
-      type: DataTypes.ENUM('in_progress', 'sent', 'rejected', 'completed'),
-      defaultValue: 'in_progress'
+      type: DataTypes.STRING,
+      allowNull: false,
+      defaultValue: 'in_progress',
+      validate: {
+        isIn: [['in_progress', 'sent', 'rejected', 'completed']]
+      }
     },
     total_miles: {
       type: DataTypes.DECIMAL(12, 2),

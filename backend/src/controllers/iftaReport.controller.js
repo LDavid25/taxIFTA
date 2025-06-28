@@ -191,7 +191,7 @@ const createReport = async (req, res, next) => {
       notes: notes || '', // Usar 'notes' para coincidir con la base de datos
       total_miles: parseFloat(totals.totalMiles) || 0,
       total_gallons: parseFloat(totals.totalGallons) || 0,
-      status: 'draft',  // Changed from 'in_progress' to 'draft' to match the allowed values in the database
+      status: 'in_progress',  // Estado inicial para nuevos reportes
       created_by: user_id,
       quarterly_report_id: quarterlyReport.id  // Always set the quarterly report ID
     };
