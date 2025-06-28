@@ -39,7 +39,7 @@ import {
   Check as CheckIcon,
   Edit as EditIcon
 } from '@mui/icons-material';
-import { useTheme } from '@mui/material/styles';
+import { useTheme as useMuiTheme } from '@mui/material/styles';
 import { format, parseISO, parse } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { LocalizationProvider } from '@mui/x-date-pickers';
@@ -144,6 +144,7 @@ const ConsumptionDetail = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { enqueueSnackbar } = useSnackbar();
+  const muiTheme = useMuiTheme();
   
   // Estados del componente
   const [report, setReport] = useState(null);
@@ -163,9 +164,10 @@ const ConsumptionDetail = () => {
       in_progress: 'warning',
       sent: 'info',
       rejected: 'error',
-      completed: 'success'
+      completed: 'success',
+      default: 'primary'
     };
-    return colors[status] || 'default';
+    return colors[status] || colors['default'];
   };
 
   // Función para traducir el estado a un formato legible
@@ -178,6 +180,26 @@ const ConsumptionDetail = () => {
     };
     return statusMap[status] || status;
   };
+
+  // Opciones de estado para el menú desplegable
+  const consumption = report || {}; // Asegurar que siempre sea un objeto
+  
+  // Crear un objeto seguro para consumo que nunca sea undefined
+  const safeConsumption = useMemo(() => ({
+    ...consumption,
+    states: Array.isArray(consumption.states) ? consumption.states : [],
+    notes: consumption.notes || '',
+    id: consumption.id || '',
+    status: consumption.status || 'in_progress',
+    statusLabel: consumption.statusLabel || 'En Progreso',
+    date: consumption.date || new Date(),
+    created_at: consumption.created_at || new Date().toISOString(),
+    vehicle_plate: consumption.vehicle_plate || 'N/A',
+    totalMiles: consumption.totalMiles || 0,
+    totalGallons: consumption.totalGallons || 0,
+    mpg: consumption.mpg || 0,
+    stateCodes: consumption.stateCodes || ''
+  }), [consumption]);
 
   // Opciones de estado para el menú desplegable
   const statusOptions = [
@@ -206,25 +228,6 @@ const ConsumptionDetail = () => {
       color: 'error'
     }
   ].filter(option => option.value !== safeConsumption?.status); // Excluir el estado actual
-  
-  const consumption = report || {}; // Asegurar que siempre sea un objeto
-  
-  // Crear un objeto seguro para consumo que nunca sea undefined
-  const safeConsumption = useMemo(() => ({
-    ...consumption,
-    states: Array.isArray(consumption.states) ? consumption.states : [],
-    notes: consumption.notes || '',
-    id: consumption.id || '',
-    status: consumption.status || 'in_progress',
-    statusLabel: consumption.statusLabel || 'En Progreso',
-    date: consumption.date || new Date(),
-    created_at: consumption.created_at || new Date().toISOString(),
-    vehicle_plate: consumption.vehicle_plate || 'N/A',
-    totalMiles: consumption.totalMiles || 0,
-    totalGallons: consumption.totalGallons || 0,
-    mpg: consumption.mpg || 0,
-    stateCodes: consumption.stateCodes || ''
-  }), [consumption]);
   
   // Preparar los detalles de consumo para mostrar en la tabla
   const consumptionDetails = useMemo(() => {
@@ -494,6 +497,14 @@ const ConsumptionDetail = () => {
     window.print();
   };
 
+  const handleEdit = () => {
+    if (id) {
+      navigate(`/consumption/edit/${id}`);
+    } else {
+      enqueueSnackbar('No se puede editar el informe sin un ID válido', { variant: 'error' });
+    }
+  };
+
   const handleDownload = () => {
     console.log('Downloading consumption:', id);
     // Here would be the download logic
@@ -695,17 +706,17 @@ const ConsumptionDetail = () => {
                                   disabled={option.value === safeConsumption.status}
                                   sx={{
                                     '&.Mui-selected': {
-                                      backgroundColor: `${theme.palette[optionColor]?.light || theme.palette.grey[200]}`,
+                                      backgroundColor: muiTheme.palette[optionColor]?.light || muiTheme.palette.grey[200],
                                       '&:hover': {
-                                        backgroundColor: `${theme.palette[optionColor]?.main || theme.palette.grey[300]}`,
-                                        color: theme.palette.getContrastText(
-                                          theme.palette[optionColor]?.main || theme.palette.grey[300]
+                                        backgroundColor: muiTheme.palette[optionColor]?.main || muiTheme.palette.grey[300],
+                                        color: muiTheme.palette.getContrastText(
+                                          muiTheme.palette[optionColor]?.main || muiTheme.palette.grey[300]
                                         )
                                       }
                                     },
                                     '&.Mui-disabled': {
                                       opacity: 1,
-                                      color: theme.palette.text.primary,
+                                      color: muiTheme.palette.text.primary,
                                       backgroundColor: 'transparent',
                                       fontWeight: 'bold'
                                     },
@@ -718,7 +729,7 @@ const ConsumptionDetail = () => {
                                     alignItems: 'center', 
                                     width: '100%',
                                     color: option.value === safeConsumption.status ? 
-                                      theme.palette[optionColor]?.dark : 'inherit'
+                                      muiTheme.palette[optionColor]?.dark : 'inherit'
                                   }}>
                                     <Box sx={{ 
                                       display: 'inline-flex',
