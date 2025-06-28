@@ -152,7 +152,7 @@ app.use((err, req, res, next) => {
 });
 
 // 4) START SERVER
-const port = process.env.PORT || 3001;
+const port = process.env.PORT || 3002; // Cambiado a 3002 para evitar conflictos
 
 // Inicializar directorios de almacenamiento
 const initializeStorage = async () => {

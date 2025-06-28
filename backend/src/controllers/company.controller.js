@@ -1,6 +1,5 @@
-const { Company } = require('../models');
+const { Company, User } = require('../models');
 const CustomError = require('../utils/CustomError');
-const httpStatus = require('http-status');
 
 /**
  * Get all companies
@@ -8,13 +7,39 @@ const httpStatus = require('http-status');
  */
 const getCompanies = async () => {
   try {
-    const companies = await Company.findAll({
-      order: [['name', 'ASC']],
+    console.log('🔍 Iniciando consulta de usuarios con sus compañías...');
+    
+    // Consulta directa con join entre usuarios y compañías
+    const usersWithCompanies = await User.findAll({
+      attributes: ['id', 'name', 'email', 'role', 'is_active'],
+      include: [{
+        model: Company,
+        as: 'company',
+        attributes: ['id', 'name', 'contact_email', 'phone', 'is_active']
+      }],
+      order: [['name', 'ASC']]
     });
-    return companies;
+    
+    console.log(`✅ Se encontraron ${usersWithCompanies.length} usuarios con sus compañías`);
+    return usersWithCompanies;
   } catch (error) {
-    console.error('Error getting companies:', error);
-    throw new CustomError(httpStatus.INTERNAL_SERVER_ERROR, 'Error al obtener las compañías');
+    console.error('❌ Error en getCompanies():');
+    console.error('Tipo de error:', error.name);
+    console.error('Mensaje:', error.message);
+    console.error('Stack completo:', error.stack);
+    
+    if (error.original) {
+      console.error('Error original:', error.original);
+    }
+    console.error('Mensaje:', error.message);
+    console.error('Stack:', error.stack);
+    
+    // Verificar si es un error de conexión a la base de datos
+    if (error.original) {
+      console.error('Error original:', error.original);
+    }
+    
+    throw new CustomError(500, 'Error al obtener las compañías: ' + error.message);
   }
 };
 
@@ -26,7 +51,7 @@ const getCompanies = async () => {
 const getCompanyById = async (id) => {
   const company = await Company.findByPk(id);
   if (!company) {
-    throw new CustomError(httpStatus.NOT_FOUND, 'Compañía no encontrada');
+    throw new CustomError(404, 'Compañía no encontrada');
   }
   return company;
 };
@@ -77,10 +102,43 @@ const deleteCompany = async (id) => {
   return company;
 };
 
+/**
+ * Update company status by id
+ * @param {string} id
+ * @param {boolean} isActive
+ * @returns {Promise<{company: Company, message: string}>}
+ */
+const updateCompanyStatus = async (id, isActive) => {
+  try {
+    const company = await Company.findByPk(id);
+    if (!company) {
+      throw new CustomError('Compañía no encontrada', 404);
+    }
+
+    company.is_active = isActive;
+    await company.save();
+
+    // Actualizar el estado de los usuarios asociados
+    await User.update(
+      { is_active: isActive },
+      { where: { companyId: id } }
+    );
+
+    return {
+      company,
+      message: `Compañía ${isActive ? 'activada' : 'desactivada'} exitosamente`
+    };
+  } catch (error) {
+    console.error('Error updating company status:', error);
+    throw new CustomError(`Error al actualizar el estado de la compañía: ${error.message}`, 500);
+  }
+};
+
 module.exports = {
   getCompanies,
   getCompanyById,
   createCompany,
   updateCompany,
   deleteCompany,
+  updateCompanyStatus,
 };

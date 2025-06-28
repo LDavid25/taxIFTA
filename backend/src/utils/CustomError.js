@@ -1,5 +1,3 @@
-const httpStatus = require('http-status');
-
 class CustomError extends Error {
   constructor(statusCode, message, isOperational = true, stack = '') {
     super(message);

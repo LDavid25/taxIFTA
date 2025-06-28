@@ -1,5 +1,3 @@
-const httpStatus = require('http-status');
-
 class ApiError extends Error {
   /**
    * Crea un nuevo error de API

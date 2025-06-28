@@ -11,27 +11,16 @@ module.exports = (sequelize, DataTypes) => {
     unique: true
   },
   address: {
-    type: DataTypes.STRING,
-    allowNull: true
-  },
-  city: {
-    type: DataTypes.STRING,
-    allowNull: true
-  },
-  state: {
-    type: DataTypes.STRING(2),
-    allowNull: true
-  },
-  zip_code: {
-    type: DataTypes.STRING(10),
+    type: DataTypes.JSONB,
     allowNull: true
   },
   phone: {
     type: DataTypes.STRING(20),
     allowNull: true
   },
-  email: {
+  contact_email: {
     type: DataTypes.STRING,
+    field: 'contact_email',
     allowNull: true,
     validate: {
       isEmail: true
