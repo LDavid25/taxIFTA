@@ -32,9 +32,6 @@ module.exports = (sequelize, DataTypes) => {
     },
     description: {
       type: DataTypes.TEXT
-    },
-    note: {
-      type: DataTypes.STRING(100)
     }
   }, {
     tableName: 'ifta_report_attachments',

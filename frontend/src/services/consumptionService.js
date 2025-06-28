@@ -151,6 +151,30 @@ export const updateConsumptionReport = async (id, reportData) => {
   }
 };
 
+// Actualizar el estado de un informe de consumo
+export const updateConsumptionReportStatus = async (id, status) => {
+  try {
+    const response = await api.patch(
+      `${API_URL}/${id}/status`,
+      { status },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+    
+    return response.data;
+  } catch (error) {
+    console.error('Error updating report status:', error);
+    throw error.response?.data || { 
+      status: 'error',
+      message: error.message || 'Error al actualizar el estado del informe',
+      details: error.response?.data?.message
+    };
+  }
+};
+
 // Eliminar un informe de consumo
 export const deleteConsumptionReport = async (id) => {
   try {

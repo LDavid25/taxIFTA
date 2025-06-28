@@ -159,13 +159,6 @@ const MainLayout = () => {
             IFTA Easy Tax System
           </Typography>
           
-          {/* Botón de cambio de tema */}
-          <Tooltip title={mode === 'light' ? 'Modo oscuro' : 'Modo claro'}>
-            <IconButton color="inherit" onClick={toggleTheme}>
-              {mode === 'light' ? <DarkModeIcon /> : <LightModeIcon />}
-            </IconButton>
-          </Tooltip>
-          
           {/* Avatar y menú de usuario */}
           <Tooltip title="Configuración de cuenta">
             <IconButton
@@ -281,17 +274,7 @@ const MainLayout = () => {
             <ListItemIcon><PersonIcon /></ListItemIcon>
             <ListItemText primary="Mi Perfil" />
           </ListItem>
-          {currentUser?.role === 'admin' && (
-            <ListItem 
-              button 
-              component={Link} 
-              to="/settings"
-              onClick={isMobile ? handleDrawerClose : undefined}
-            >
-              <ListItemIcon><SettingsIcon /></ListItemIcon>
-              <ListItemText primary="Configuración" />
-            </ListItem>
-          )}
+          
         </List>
       </Drawer>
       

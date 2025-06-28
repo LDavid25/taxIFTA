@@ -28,11 +28,26 @@ const getOrCreateQuarterlyReport = async (companyId, year, quarter, transaction)
         company_id: companyId,
         year: parseInt(year),
         quarter: parseInt(quarter),
-        status: 'draft'
+        status: 'in_progress'  // Default status for new quarterly reports
       }, { transaction });
       
       console.log('Created new quarterly report:', quarterlyReport.id);
     } else {
+      // Migrate old status values to new ones if needed
+      const oldStatuses = ['draft', 'in_review', 'approved', 'submitted'];
+      if (oldStatuses.includes(quarterlyReport.status)) {
+        const statusMap = {
+          'draft': 'in_progress',
+          'in_review': 'sent',
+          'approved': 'completed',
+          'submitted': 'sent'
+        };
+        
+        quarterlyReport.status = statusMap[quarterlyReport.status] || 'in_progress';
+        await quarterlyReport.save({ transaction });
+        console.log(`Migrated quarterly report ${quarterlyReport.id} status to ${quarterlyReport.status}`);
+      }
+      
       console.log('Found existing quarterly report:', quarterlyReport.id);
     }
 
@@ -173,7 +188,7 @@ const createReport = async (req, res, next) => {
       vehicle_plate: vehicle_plate,
       report_year: parseInt(report_year),
       report_month: parseInt(report_month),
-      notes: notes || '',
+      notes: notes || '', // Usar 'notes' para coincidir con la base de datos
       total_miles: parseFloat(totals.totalMiles) || 0,
       total_gallons: parseFloat(totals.totalGallons) || 0,
       status: 'draft',  // Changed from 'in_progress' to 'draft' to match the allowed values in the database
@@ -326,7 +341,7 @@ const getReportById = async (req, res, next) => {
 const getCompanyReports = async (req, res, next) => {
   try {
     const { company_id } = req;
-    const { year, month, status, page = 1, limit = 10 } = req.query;
+    const { year, month, status, page = 1, limit = 10, includeInactive = 'false' } = req.query;
 
     const where = { company_id };
     if (year) where.report_year = year;
@@ -334,48 +349,55 @@ const getCompanyReports = async (req, res, next) => {
     if (status) where.status = status;
 
     const offset = (page - 1) * limit;
+    const parsedLimit = parseInt(limit);
+    const parsedOffset = parseInt(offset);
+
+    // Configuración base de los includes
+    const includeOptions = [
+      { 
+        model: IftaReportState, 
+        as: 'states' 
+      },
+      { 
+        model: IftaQuarterlyReport, 
+        as: 'quarterlyReport',
+        include: [
+          {
+            model: db.Company,
+            as: 'company',
+            attributes: ['id', 'name', 'is_active'],
+            where: includeInactive === 'false' ? { is_active: true } : undefined
+          }
+        ]
+      },
+      {
+        model: db.Company,
+        as: 'company',
+        attributes: ['id', 'name', 'is_active'],
+        where: includeInactive === 'false' ? { is_active: true } : undefined,
+        required: false
+      },
+      {
+        model: db.User,
+        as: 'createdBy',
+        attributes: ['id', 'name', 'email'],
+        include: [
+          {
+            model: db.Company,
+            as: 'company',
+            attributes: ['id', 'name'],
+            required: false
+          }
+        ]
+      }
+    ];
 
     const { count, rows: reports } = await IftaReport.findAndCountAll({
       where,
-      include: [
-        { 
-          model: IftaReportState, 
-          as: 'states' 
-        },
-        { 
-          model: IftaQuarterlyReport, 
-          as: 'quarterlyReport',
-          include: [
-            {
-              model: db.Company,
-              as: 'company',
-              attributes: ['id', 'name']
-            }
-          ]
-        },
-        {
-          model: db.Company,
-          as: 'company',
-          attributes: ['id', 'name'],
-          required: false
-        },
-        {
-          model: db.User,
-          as: 'createdBy',
-          attributes: ['id', 'name', 'email'],
-          include: [
-            {
-              model: db.Company,
-              as: 'company',
-              attributes: ['id', 'name'],
-              required: false
-            }
-          ]
-        }
-      ],
-      limit: parseInt(limit),
-      offset: parseInt(offset),
-      order: [['created_at', 'DESC']],
+      include: includeOptions,
+      limit: parsedLimit,
+      offset: parsedOffset,
+      order: [['created_at', 'DESC']]
     });
     
     // Obtener todos los company_ids únicos de los reportes
@@ -475,7 +497,7 @@ const updateReport = async (req, res, next) => {
     if (vehicle_plate) reportData.vehicle_plate = vehicle_plate;
     if (report_year) reportData.report_year = report_year;
     if (report_month) reportData.report_month = report_month;
-    if (notes !== undefined) reportData.notes = notes;
+    if (notes !== undefined) reportData.notes = notes; // Usar 'notes' para coincidir con la base de datos
 
     // Si se actualizan los estados, recalcular totales
     if (states && states.length > 0) {
@@ -606,11 +628,87 @@ const deleteReport = async (req, res, next) => {
   }
 };
 
+/**
+ * Updates the status of a report
+ */
+const updateReportStatus = async (req, res, next) => {
+  const transaction = await IftaReport.sequelize.transaction();
+  let report;
+  
+  try {
+    const { id } = req.params;
+    const { company_id } = req;
+    const { status } = req.body;
+
+    // Validate status
+    const validStatuses = ['in_progress', 'sent', 'rejected', 'completed'];
+    if (!validStatuses.includes(status)) {
+      return next(new AppError('Estado no válido', 400));
+    }
+
+    // Find the report with related data before the update
+    report = await IftaReport.findByPk(id, {
+      where: { company_id },
+      include: [
+        { model: IftaReportState, as: 'states' },
+        { model: IftaReportAttachment, as: 'attachments' },
+        { model: IftaQuarterlyReport, as: 'quarterlyReport' },
+      ],
+      transaction,
+    });
+
+    if (!report) {
+      await transaction.rollback();
+      return next(new AppError('No se encontró el reporte', 404));
+    }
+
+    // Prepare update data
+    const updateData = { status };
+    
+    // Set timestamps based on status
+    if (status === 'sent') {
+      updateData.submitted_at = new Date();
+    } else if (status === 'completed') {
+      updateData.approved_at = new Date();
+    }
+
+    // Update the report
+    await report.update(updateData, { transaction });
+    
+    // Commit the transaction
+    await transaction.commit();
+
+    // Reload the report with updated data
+    await report.reload({
+      include: [
+        { model: IftaReportState, as: 'states' },
+        { model: IftaReportAttachment, as: 'attachments' },
+        { model: IftaQuarterlyReport, as: 'quarterlyReport' },
+      ]
+    });
+
+    res.status(200).json({
+      status: 'success',
+      data: {
+        report,
+      },
+    });
+  } catch (error) {
+    console.error('Error in updateReportStatus:', error);
+    if (transaction && !transaction.finished) {
+      await transaction.rollback();
+    }
+    next(error);
+  }
+};
+
 module.exports = {
   createReport,
   getReportById,
   getCompanyReports,
   updateReport,
+  updateReportStatus,
   deleteReport,
-  checkExistingReport
+  checkExistingReport,
+  getOrCreateQuarterlyReport
 };

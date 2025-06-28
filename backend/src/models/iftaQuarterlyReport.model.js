@@ -18,8 +18,9 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: false
     },
     status: {
-      type: DataTypes.ENUM('draft', 'in_review', 'approved', 'submitted', 'rejected'),
-      defaultValue: 'draft'
+      type: DataTypes.ENUM('in_progress', 'sent', 'rejected', 'completed'),
+      defaultValue: 'in_progress',
+      comment: 'Estado del reporte: in_progress, sent, rejected, completed'
     },
     submitted_at: {
       type: DataTypes.DATE

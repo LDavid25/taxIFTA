@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate, Link as RouterLink, useLocation } from 'react-router-dom';
+import { useSnackbar } from 'notistack';
+import { updateReportStatus } from '../../services/iftaReportService';
 import {
   Box,
   Typography,
@@ -37,13 +39,17 @@ import {
   Check as CheckIcon,
   Edit as EditIcon
 } from '@mui/icons-material';
+import { useTheme } from '@mui/material/styles';
 import { format, parseISO, parse } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-import { getConsumptionReportById } from '../../services/consumptionService';
+import { 
+  getConsumptionReportById, 
+  updateConsumptionReport,
+  updateConsumptionReportStatus 
+} from '../../services/consumptionService';
 import { getStatesByReportId } from '../../services/iftaReportState.service';
-import { useSnackbar } from 'notistack';
 import { CircularProgress, Alert } from '@mui/material';
 
 // Mapeo de códigos de estado a nombres completos
@@ -149,15 +155,57 @@ const ConsumptionDetail = () => {
   const [isMarkedCompleted, setIsMarkedCompleted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
   
-  // Opciones de estado
+  // Función para obtener el color según el estado
+  const getStatusColor = (status) => {
+    const colors = {
+      in_progress: 'warning',
+      sent: 'info',
+      rejected: 'error',
+      completed: 'success'
+    };
+    return colors[status] || 'default';
+  };
+
+  // Función para traducir el estado a un formato legible
+  const translateStatus = (status) => {
+    const statusMap = {
+      in_progress: 'En progreso',
+      sent: 'Enviado',
+      rejected: 'Rechazado',
+      completed: 'Completado'
+    };
+    return statusMap[status] || status;
+  };
+
+  // Opciones de estado para el menú desplegable
   const statusOptions = [
-    { value: 'pending', label: 'Pendiente', icon: <PendingIcon /> },
-    { value: 'in_progress', label: 'En Progreso', icon: <EditIcon /> },
-    { value: 'sent', label: 'Enviado', icon: <CloudUploadIcon /> },
-    { value: 'completed', label: 'Completado', icon: <CheckIcon /> },
-    { value: 'rejected', label: 'Rechazado', icon: <CancelIcon /> }
-  ];
+    { 
+      value: 'in_progress', 
+      label: 'En Progreso', 
+      icon: <EditIcon />,
+      color: 'warning'
+    },
+    { 
+      value: 'sent', 
+      label: 'Enviado', 
+      icon: <CloudUploadIcon />,
+      color: 'info'
+    },
+    { 
+      value: 'completed', 
+      label: 'Completado', 
+      icon: <CheckIcon />,
+      color: 'success'
+    },
+    { 
+      value: 'rejected', 
+      label: 'Rechazado', 
+      icon: <CancelIcon />,
+      color: 'error'
+    }
+  ].filter(option => option.value !== safeConsumption?.status); // Excluir el estado actual
   
   const consumption = report || {}; // Asegurar que siempre sea un objeto
   
@@ -167,8 +215,8 @@ const ConsumptionDetail = () => {
     states: Array.isArray(consumption.states) ? consumption.states : [],
     notes: consumption.notes || '',
     id: consumption.id || '',
-    status: consumption.status || 'Draft',
-    statusLabel: consumption.statusLabel || 'Borrador',
+    status: consumption.status || 'in_progress',
+    statusLabel: consumption.statusLabel || 'En Progreso',
     date: consumption.date || new Date(),
     created_at: consumption.created_at || new Date().toISOString(),
     vehicle_plate: consumption.vehicle_plate || 'N/A',
@@ -219,49 +267,50 @@ const ConsumptionDetail = () => {
     // Manejar diferentes formatos de estados
     if (Array.isArray(report.states)) {
       statesArray = [...report.states];
-      stateCodes = report.states.map(s => s.stateCode || s).join(', ');
+      stateCodes = report.states.map(s => s.stateCode || s.state_code || s).join(', ');
     } else if (typeof report.states === 'string') {
       // Si es un string, asumir que es una lista de códigos de estado separados por comas
       stateCodes = report.states;
       const stateList = stateCodes.split(',').map(s => s.trim());
-      const totalMiles = parseFloat(report.milesTraveled) || 0;
-      const totalGallons = parseFloat(report.totalGallons) || 0;
+      const totalMiles = parseFloat(report.milesTraveled || report.total_miles) || 0;
+      const totalGallons = parseFloat(report.totalGallons || report.total_gallons) || 0;
       
       statesArray = stateList.filter(Boolean).map(state => ({
         stateCode: state,
-        stateName: state, // Asumir que el código es también el nombre si no hay otro disponible
+        stateName: STATE_NAMES[state] || state,
         miles: (totalMiles / stateList.length).toFixed(2),
         gallons: (totalGallons / stateList.length).toFixed(2)
       }));
     }
     
     // Usar los totales del informe
-    const totalMiles = parseFloat(report.milesTraveled) || 0;
-    const totalGallons = parseFloat(report.totalGallons) || 0;
+    const totalMiles = parseFloat(report.milesTraveled || report.total_miles) || 0;
+    const totalGallons = parseFloat(report.totalGallons || report.total_gallons) || 0;
     const mpg = report.mpg || (totalGallons > 0 ? (totalMiles / totalGallons).toFixed(2) : 0);
     
     // Formatear fechas
-    const reportDate = report.date || new Date();
+    const reportDate = report.date || report.report_date || new Date();
     
     // Determinar el estado para mostrar
     const getStatusLabel = (status) => {
       const statusMap = {
-        'in_progress': 'En progreso',
+        'draft': 'Borrador',
+        'in_progress': 'En Progreso',
         'sent': 'Enviado',
         'rejected': 'Rechazado',
         'completed': 'Completado',
         'pending': 'Pendiente',
         'Draft': 'Borrador'
       };
-      return statusMap[status] || status;
+      return statusMap[status] || status || 'En Progreso';
     };
     
     return {
       id: report.id,
       date: reportDate,
       vehicle_plate: report.unitNumber || 'N/A',
-      status: report.status || 'Draft',
-      statusLabel: getStatusLabel(report.status || 'Draft'),
+      status: report.status || 'in_progress',
+      statusLabel: getStatusLabel(report.status || 'in_progress'),
       created_at: report.created_at || new Date().toISOString(),
       totalMiles,
       totalGallons,
@@ -394,66 +443,46 @@ const ConsumptionDetail = () => {
     setAlert(prev => ({ ...prev, open: false }));
   };
 
-
-  const handleEdit = () => {
-    // Lógica para editar
-    console.log('Edit consumption:', consumption.id);
-  };
-
-  const handleFileUpload = (event) => {
-    const file = event.target.files[0];
-    if (file) {
-      setReceiptFile(file);
-      console.log('Receipt file selected:', file.name);
-      // Aquí puedes agregar la lógica para subir el archivo al servidor
-      // Una vez que el archivo se suba correctamente, puedes actualizar el estado
-      // setConsumption(prev => ({ ...prev, status: 'Pending' }));
-    }
-  };
-
   const handleStatusChange = async (newStatus) => {
+    if (!id) {
+      console.error('No se encontró el ID del reporte');
+      return;
+    }
+
     try {
-      console.log('Status changed to:', newStatus);
-      setIsMarkedCompleted(newStatus === 'completed');
+      setUpdatingStatus(true);
+      
+      // Actualizar el estado en el backend
+      const updatedReport = await updateReportStatus(id, newStatus);
       
       // Actualizar el estado local
-      setReport(prev => ({
+      setSafeConsumption(prev => ({
         ...prev,
         status: newStatus,
-        statusLabel: statusOptions.find(opt => opt.value === newStatus)?.label || newStatus
+        updated_at: updatedReport.updated_at || new Date().toISOString()
       }));
       
-      setStatusAnchorEl(null);
-      
-      // Aquí iría la lógica para actualizar el estado en el servidor
-      // Ejemplo:
-      // await updateReportStatus(id, { status: newStatus });
-      
+      // Mostrar notificación de éxito
       enqueueSnackbar('Estado actualizado correctamente', { variant: 'success' });
+      
     } catch (error) {
       console.error('Error al actualizar el estado:', error);
-      enqueueSnackbar('Error al actualizar el estado', { variant: 'error' });
+      enqueueSnackbar(
+        error.response?.data?.message || 'Error al actualizar el estado', 
+        { variant: 'error' }
+      );
+    } finally {
+      setUpdatingStatus(false);
+      setStatusAnchorEl(null);
     }
   };
 
-  // Eliminamos la declaración duplicada de statusOptions
-
-  // Manejar menú de estado
   const handleStatusMenuOpen = (event) => {
     setStatusAnchorEl(event.currentTarget);
   };
 
   const handleStatusMenuClose = () => {
     setStatusAnchorEl(null);
-  };
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'Completed': return 'success';
-      case 'Rejected': return 'error';
-      case 'Pending':
-      default: return 'warning';
-    }
   };
 
   const handleViewReceipt = () => {
@@ -530,9 +559,7 @@ const ConsumptionDetail = () => {
   const averageMPG = safeConsumption.mpg || (totalGallons > 0 ? (totalMiles / totalGallons).toFixed(2) : 0);
   
   // Obtener color del estado
-  const statusColor = safeConsumption.status === 'completed' ? 'success' : 
-                     safeConsumption.status === 'rejected' ? 'error' : 
-                     safeConsumption.status === 'Draft' ? 'default' : 'warning';
+  const statusColor = getStatusColor(safeConsumption.status);
   
   // Formatear fechas
   const reportDate = safeConsumption.date ? format(new Date(safeConsumption.date), 'MMMM yyyy', { locale: es }) : 'No disponible';
@@ -567,10 +594,14 @@ const ConsumptionDetail = () => {
                   Informe de Consumo: {safeConsumption.vehicle_plate}
                 </Typography>
                 <Chip 
-                  label={safeConsumption.statusLabel} 
-                  color={statusColor} 
+                  label={translateStatus(safeConsumption.status) || 'Desconocido'}
+                  color={getStatusColor(safeConsumption.status)} 
                   size="small" 
                   variant="outlined"
+                  sx={{ 
+                    textTransform: 'capitalize',
+                    fontWeight: 'medium'
+                  }}
                 />
               </Box>
               <Typography variant="subtitle1" color="text.secondary">
@@ -625,33 +656,89 @@ const ConsumptionDetail = () => {
                           <Button
                             variant="contained"
                             size="small"
-                            color={getStatusColor(safeConsumption.status || 'pending')}
-                            endIcon={<ArrowDropDownIcon />}
-                            onClick={(e) => setStatusAnchorEl(e.currentTarget)}
-                            sx={{ fontWeight: 'bold' }}
+                            color={getStatusColor(safeConsumption.status || 'in_progress')}
+                            endIcon={updatingStatus ? <CircularProgress size={16} color="inherit" /> : <ArrowDropDownIcon />}
+                            onClick={handleStatusMenuOpen}
+                            disabled={updatingStatus}
+                            sx={{ 
+                              fontWeight: 'bold', 
+                              textTransform: 'none',
+                              minWidth: '160px',
+                              justifyContent: 'space-between',
+                              '& .MuiButton-endIcon': {
+                                ml: 1
+                              }
+                            }}
                           >
-                            {statusOptions.find(opt => opt.value === (safeConsumption.status || 'pending'))?.label}
+                            {translateStatus(safeConsumption.status) || 'Seleccionar estado'}
                           </Button>
                           <Menu
                             anchorEl={statusAnchorEl}
                             open={Boolean(statusAnchorEl)}
                             onClose={() => setStatusAnchorEl(null)}
+                            anchorOrigin={{
+                              vertical: 'bottom',
+                              horizontal: 'left',
+                            }}
+                            transformOrigin={{
+                              vertical: 'top',
+                              horizontal: 'left',
+                            }}
                           >
-                            {statusOptions.map((option) => (
-                              <MenuItem
-                                key={option.value}
-                                onClick={() => {
-                                  handleStatusChange(option.value);
-                                  setStatusAnchorEl(null);
-                                }}
-                                selected={option.value === safeConsumption.status}
-                              >
-                                <ListItemIcon sx={{ color: getStatusColor(option.value) }}>
-                                  {option.icon}
-                                </ListItemIcon>
-                                <ListItemText>{option.label}</ListItemText>
-                              </MenuItem>
-                            ))}
+                            {statusOptions.map((option) => {
+                              const optionColor = getStatusColor(option.value);
+                              return (
+                                <MenuItem
+                                  key={option.value}
+                                  onClick={() => handleStatusChange(option.value)}
+                                  selected={option.value === safeConsumption.status}
+                                  disabled={option.value === safeConsumption.status}
+                                  sx={{
+                                    '&.Mui-selected': {
+                                      backgroundColor: `${theme.palette[optionColor]?.light || theme.palette.grey[200]}`,
+                                      '&:hover': {
+                                        backgroundColor: `${theme.palette[optionColor]?.main || theme.palette.grey[300]}`,
+                                        color: theme.palette.getContrastText(
+                                          theme.palette[optionColor]?.main || theme.palette.grey[300]
+                                        )
+                                      }
+                                    },
+                                    '&.Mui-disabled': {
+                                      opacity: 1,
+                                      color: theme.palette.text.primary,
+                                      backgroundColor: 'transparent',
+                                      fontWeight: 'bold'
+                                    },
+                                    minWidth: '180px',
+                                    py: 1.5
+                                  }}
+                                >
+                                  <Box sx={{ 
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    width: '100%',
+                                    color: option.value === safeConsumption.status ? 
+                                      theme.palette[optionColor]?.dark : 'inherit'
+                                  }}>
+                                    <Box sx={{ 
+                                      display: 'inline-flex',
+                                      mr: 1.5,
+                                      color: 'inherit'
+                                    }}>
+                                      {option.icon}
+                                    </Box>
+                                    <Box sx={{ flexGrow: 1 }}>
+                                      <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
+                                        {option.label}
+                                      </Typography>
+                                    </Box>
+                                    {option.value === safeConsumption.status && (
+                                      <CheckIcon fontSize="small" sx={{ ml: 1, color: 'inherit' }} />
+                                    )}
+                                  </Box>
+                                </MenuItem>
+                              );
+                            })}
                           </Menu>
                         </Box>
                       </TableCell>

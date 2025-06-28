@@ -138,15 +138,18 @@ function App() {
   return (
     <MuiThemeProvider theme={theme}>
       <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={es}>
+        {/* Contenedor de notificaciones principales (abajo a la derecha) */}
         <SnackbarProvider 
           maxSnack={3}
           anchorOrigin={{
-            vertical: 'top',
+            vertical: 'bottom',
             horizontal: 'right',
           }}
           autoHideDuration={3000}
         >
         <CssBaseline />
+        
+        {/* Contenedor de notificaciones secundarias (arriba a la derecha) */}
         <ToastContainer 
           position="top-right"
           autoClose={5000}
@@ -157,6 +160,7 @@ function App() {
           pauseOnFocusLoss
           draggable
           pauseOnHover
+          toastStyle={{ marginTop: '20px' }}
         />
         <Routes>
           {/* Rutas públicas */}

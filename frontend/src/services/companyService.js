@@ -35,27 +35,20 @@ const normalizeCompany = (company) => ({
   updatedAt: company.updatedAt || new Date().toISOString()
 });
 
-// Obtener todas las compañías desde la base de datos
+// Obtener todos los usuarios con sus compañías asociadas
 export const getCompanies = async () => {
   try {
+    console.log('🔍 Solicitando usuarios con sus compañías...');
     const response = await api.get(`${API_URL}/companies`);
     
-    // Verificar la respuesta y normalizar los datos
+    console.log('✅ Respuesta de la API recibida');
+    
+    // Verificar si la respuesta tiene datos
     if (response && response.data) {
-      // Si la respuesta tiene un formato { data: [...] }
-      if (response.data.data && Array.isArray(response.data.data)) {
-        return {
-          status: 'success',
-          data: response.data.data.map(normalizeCompany)
-        };
-      }
-      // Si la respuesta es directamente un array
-      else if (Array.isArray(response.data)) {
-        return {
-          status: 'success',
-          data: response.data.map(normalizeCompany)
-        };
-      }
+      return {
+        status: 'success',
+        data: response.data
+      };
     }
     
     // Si no hay datos o la respuesta no es la esperada
@@ -66,12 +59,22 @@ export const getCompanies = async () => {
     };
     
   } catch (error) {
-    console.error('Error al obtener las compañías:', error);
+    console.error('❌ Error al obtener las compañías:', {
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status,
+      config: {
+        url: error.config?.url,
+        method: error.config?.method,
+        headers: error.config?.headers
+      }
+    });
     
-    // En caso de error, devolver un array vacío
+    // En caso de error, devolver información detallada
     return {
       status: 'error',
-      message: 'No se pudieron cargar las compañías',
+      message: error.response?.data?.message || 'No se pudieron cargar las compañías',
+      statusCode: error.response?.status,
       data: []
     };
   }
@@ -118,5 +121,18 @@ export const deleteCompany = async (id) => {
   } catch (error) {
     console.error(`Error al eliminar la compañía con ID ${id}:`, error);
     throw error.response?.data || { message: 'Error al eliminar la compañía' };
+  }
+};
+
+// Actualizar el estado de una compañía
+export const updateCompanyStatus = async (id, isActive) => {
+  try {
+    const response = await api.patch(`${API_URL}/companies/${id}/status`, { 
+      is_active: isActive 
+    });
+    return response.data;
+  } catch (error) {
+    console.error(`Error al actualizar el estado de la compañía con ID ${id}:`, error);
+    throw error.response?.data || { message: 'Error al actualizar el estado de la compañía' };
   }
 };

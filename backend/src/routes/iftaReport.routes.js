@@ -33,4 +33,10 @@ router
   )
   .delete(iftaReportController.deleteReport); // Eliminar un reporte
 
+// Ruta para actualizar el estado de un reporte
+router.patch(
+  '/:id/status',
+  iftaReportController.updateReportStatus // Actualizar estado de un reporte
+);
+
 module.exports = router;
