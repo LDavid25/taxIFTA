@@ -24,9 +24,16 @@ export const login = async (credentials) => {
     
     if (response.data.token) {
       // Guardar el token en localStorage
-      localStorage.setItem('token', response.data.token);
+      const token = response.data.token;
+      localStorage.setItem('token', token);
+      
       // Configurar el token en el header por defecto
-      api.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
+      api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      console.log('Token configurado en los headers de axios');
+      
+      // Verificar que el token se guardó correctamente
+      const savedToken = localStorage.getItem('token');
+      console.log('Token guardado en localStorage:', savedToken ? 'OK' : 'FALLO');
       
       // Devolver tanto el token como los datos del usuario
       return {

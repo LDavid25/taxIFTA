@@ -11,13 +11,29 @@ const api = axios.create({
 // Interceptor para agregar el token a las peticiones
 api.interceptors.request.use(
   (config) => {
+    // No agregar token a las rutas públicas
+    const publicRoutes = ['/v1/auth/login', '/v1/auth/register'];
+    if (publicRoutes.some(route => config.url.includes(route))) {
+      return config;
+    }
+    
+    // Obtener el token del localStorage
     const token = localStorage.getItem('token');
+    console.log('Interceptor - Token obtenido del localStorage:', token ? 'Presente' : 'Ausente');
+    
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+      console.log('Interceptor - Token agregado a los headers:', config.url);
+    } else {
+      console.warn('Interceptor - No se encontró token para la ruta:', config.url);
+      // Redirigir al login si no hay token (opcional)
+      // window.location.href = '/login';
     }
+    
     return config;
   },
   (error) => {
+    console.error('Error en el interceptor de solicitud:', error);
     return Promise.reject(error);
   }
 );

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link as RouterLink } from 'react-router-dom';
 import {
   Box,
+  Button,
   Card,
   CardContent,
   Typography,
@@ -12,75 +13,197 @@ import {
   TableHead,
   TableRow,
   Paper,
-  Button,
   Breadcrumbs,
   Link,
-  Divider,
-  Grid,
   Chip,
+  Grid,
+  IconButton,
+  Tooltip,
   FormControl,
-  Select,
-  MenuItem,
   InputLabel,
-  IconButton
+  Select,
+  MenuItem
 } from '@mui/material';
 import { 
-  Edit as EditIcon, 
-  Delete as DeleteIcon, 
-  Print as PrintIcon, 
-  Send as SendIcon,
+  ArrowBack as ArrowBackIcon,
+  PictureAsPdf as PdfIcon,
+  Print as PrintIcon,
+  Delete as DeleteIcon,
   UploadFile as UploadFileIcon,
+  PictureAsPdf as PictureAsPdfIcon,
   CheckCircle as CheckCircleIcon,
-  PictureAsPdf as PictureAsPdfIcon
+  Send as SendIcon,
+  Edit as EditIcon
 } from '@mui/icons-material';
+import { Divider } from '@mui/material';
+import { getIndividualReports } from '../../services/quarterlyReportService';
 import AlertMessage from '../../components/common/AlertMessage';
 import LoadingScreen from '../../components/common/LoadingScreen';
-import { getDeclarationById } from '../../services/declarationService';
 
+// Helper functions
+const getStatusColor = (status) => {
+  switch (status) {
+    case 'approved': return 'success';
+    case 'pending': return 'warning';
+    case 'submitted': return 'info';
+    case 'rejected': return 'error';
+    default: return 'default';
+  }
+};
+
+const getStatusText = (status) => {
+  switch (status) {
+    case 'approved': return 'Aprobado';
+    case 'pending': return 'Pendiente';
+    case 'submitted': return 'Enviado';
+    case 'rejected': return 'Rechazado';
+    default: return status;
+  }
+};
+
+const formatDate = (dateString) => {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  return date.toLocaleDateString();
+};
+
+const getQuarterRange = (quarter) => {
+  const ranges = {
+    'Q1': 'Enero 1 - Marzo 31',
+    'Q2': 'Abril 1 - Junio 30',
+    'Q3': 'Julio 1 - Septiembre 30',
+    'Q4': 'Octubre 1 - Diciembre 31'
+  };
+  return ranges[quarter] || '';
+};
+
+// Main component
 const DeclarationDetail = () => {
-  const { id } = useParams();
+  // Hooks at the top level
+  const { companyId, quarter, year, id } = useParams();
   const navigate = useNavigate();
+  
+  // State declarations
   const [loading, setLoading] = useState(true);
-  const [declaration, setDeclaration] = useState(null);
+  const [reports, setReports] = useState([]);
+  const [companyInfo, setCompanyInfo] = useState(null);
   const [alert, setAlert] = useState({ open: false, message: '', severity: 'info' });
-  const [status, setStatus] = useState('');
+  const [summary, setSummary] = useState({
+    total_miles: 0,
+    total_gallons: 0,
+    report_count: 0,
+    status: 'pending'
+  });
+  const [stateSummary, setStateSummary] = useState([]);
+  const [declaration, setDeclaration] = useState(null);
+  const [status, setStatus] = useState('pending');
+  
+  // UI State
+  const [file, setFile] = useState(null);
+  const [filePreview, setFilePreview] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [selectedStatus, setSelectedStatus] = useState('all');
+  const [selectedFile, setSelectedFile] = useState(null);
+  
+  // Quarter selection state
   const [selectedStartQuarter, setSelectedStartQuarter] = useState('1');
   const [selectedEndQuarter, setSelectedEndQuarter] = useState('4');
-  const [monthlySummary, setMonthlySummary] = useState([]);
-  const [availableYears, setAvailableYears] = useState([]);
-  const [selectedStartYear, setSelectedStartYear] = useState('');
-  const [selectedEndYear, setSelectedEndYear] = useState('');
-  const [selectedFile, setSelectedFile] = useState(null);
-  const [filePreview, setFilePreview] = useState('');
   
-  // Obtener lista de años disponibles
-  useEffect(() => {
-    if (!declaration || !declaration.trips) return;
-
-    const years = new Set();
-    declaration.trips.forEach(trip => {
-      if (trip && trip.trip_date) {
-        const date = new Date(trip.trip_date);
-        years.add(date.getFullYear());
-      }
-    });
-
-    const sortedYears = Array.from(years).sort();
-    setAvailableYears(sortedYears);
-
-    // Establecer años predeterminados (más antiguo y más reciente)
-    if (sortedYears.length > 0) {
-      setSelectedStartYear(sortedYears[0].toString());
-      setSelectedEndYear(sortedYears[sortedYears.length - 1].toString());
-    }
-  }, [declaration]);
+  // Year selection
+  const currentYear = new Date().getFullYear();
+  const [selectedStartYear, setSelectedStartYear] = useState(currentYear.toString());
+  const [selectedEndYear, setSelectedEndYear] = useState(currentYear.toString());
+  const availableYears = Array.from({ length: 10 }, (_, i) => currentYear - 5 + i);
   
-  // Inicializar la carga de datos
+  // Calculate filtered trips (simplified example)
+  const filteredTrips = declaration?.trips || [];
+  
+  // Calculate monthly summary (simplified example)
+  const monthlySummary = declaration?.monthlySummary || [];
+  
+  // Move all useEffects to the top, right after state declarations
+  // Cargar reportes individuales para la compañía, trimestre y año seleccionados
   useEffect(() => {
-    const fetchDeclaration = async () => {
+    const fetchIndividualReports = async () => {
+      if (!companyId || !quarter || !year) return;
+      
       setLoading(true);
       try {
-        // Simulación de datos
+        const reportsData = await getIndividualReports(companyId, quarter, year);
+        setReports(reportsData.reports || []);
+        
+        // Calcular resumen
+        const totalMiles = reportsData.reports.reduce((sum, report) => sum + (parseFloat(report.total_miles) || 0), 0);
+        const totalGallons = reportsData.reports.reduce((sum, report) => sum + (parseFloat(report.total_gallons) || 0), 0);
+        
+        setSummary({
+          total_miles: totalMiles,
+          total_gallons: totalGallons,
+          report_count: reportsData.reports.length,
+          status: reportsData.status || 'pending'
+        });
+        
+        // Extraer información de la compañía del primer reporte (si existe)
+        if (reportsData.reports.length > 0) {
+          setCompanyInfo({
+            id: reportsData.reports[0].company_id,
+            name: reportsData.reports[0].company_name
+          });
+        }
+        
+        // Calcular resumen por estado (ejemplo, ajustar según la estructura real de los datos)
+        const stateSummaryMap = new Map();
+        
+        reportsData.reports.forEach(report => {
+          if (report.state_summary && Array.isArray(report.state_summary)) {
+            report.state_summary.forEach(stateData => {
+              if (stateSummaryMap.has(stateData.state)) {
+                const existing = stateSummaryMap.get(stateData.state);
+                stateSummaryMap.set(stateData.state, {
+                  state: stateData.state,
+                  miles: (existing.miles || 0) + (parseFloat(stateData.miles) || 0),
+                  gallons: (existing.gallons || 0) + (parseFloat(stateData.gallons) || 0)
+                });
+              } else {
+                stateSummaryMap.set(stateData.state, {
+                  state: stateData.state,
+                  miles: parseFloat(stateData.miles) || 0,
+                  gallons: parseFloat(stateData.gallons) || 0
+                });
+              }
+            });
+          }
+        });
+        
+        setStateSummary(Array.from(stateSummaryMap.values()));
+      } catch (error) {
+        console.error('Error fetching individual reports:', error);
+        setAlert({
+          open: true,
+          message: 'Error al cargar los reportes individuales',
+          severity: 'error'
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchIndividualReports();
+  }, [companyId, quarter, year]);
+  
+  // Cargar datos de la declaración
+  useEffect(() => {
+    const fetchDeclaration = async () => {
+      if (!id) return;
+      
+      setLoading(true);
+      try {
+        // En una implementación real, esto obtendría datos de la API
+        // const response = await getDeclarationById(id);
+        // setDeclaration(response.data);
+
+        // Simulamos datos para la demostración
         setTimeout(() => {
           const declarationData = {
             id: parseInt(id),
@@ -121,95 +244,182 @@ const DeclarationDetail = () => {
     fetchDeclaration();
   }, [id]);
 
-  // Calcular resumen mensual
-  useEffect(() => {
-    if (!declaration || !selectedStartYear || !selectedEndYear) return;
+  if (loading) {
+    return <LoadingScreen message="Cargando reporte trimestral..." />;
+  }
 
-    const tripsByMonth = {};
+  return (
+    <Box>
+      <AlertMessage
+        open={alert.open}
+        onClose={() => setAlert({ ...alert, open: false })}
+        severity={alert.severity}
+        message={alert.message}
+        autoHideDuration={6000}
+      />
 
-    declaration.trips.forEach(trip => {
-      const date = new Date(trip.trip_date);
-      const month = date.getMonth() + 1;
-      const year = date.getFullYear();
-      const quarter = Math.ceil(month / 3);
+      <Box sx={{ mb: 3, display: 'flex', alignItems: 'center' }}>
+        <IconButton onClick={() => navigate(-1)} sx={{ mr: 2 }}>
+          <ArrowBackIcon />
+        </IconButton>
+        <Breadcrumbs aria-label="breadcrumb">
+          <Link component={RouterLink} to="/declarations" color="inherit">
+            Reportes Trimestrales
+          </Link>
+          <Typography color="text.primary">
+            {companyInfo?.name || 'Reporte'} - {quarter} {year}
+          </Typography>
+        </Breadcrumbs>
+      </Box>
 
-      // Filtrar por rango de años
-      if (year < parseInt(selectedStartYear) || year > parseInt(selectedEndYear)) return;
+      {/* Resumen del reporte */}
+      <Card sx={{ mb: 3 }}>
+        <CardContent>
+          <Grid container spacing={3}>
+            <Grid item xs={12} md={4}>
+              <Typography variant="subtitle2" color="textSecondary">Compañía</Typography>
+              <Typography variant="h6">{companyInfo?.name || 'N/A'}</Typography>
+            </Grid>
+            <Grid item xs={12} md={2}>
+              <Typography variant="subtitle2" color="textSecondary">Trimestre</Typography>
+              <Typography variant="h6">{quarter} {year}</Typography>
+            </Grid>
+            <Grid item xs={12} md={2}>
+              <Typography variant="subtitle2" color="textSecondary">Estado</Typography>
+              <Chip 
+                label={getStatusText(summary.status)} 
+                color={getStatusColor(summary.status)} 
+                size="small"
+                sx={{ mt: 0.5 }}
+              />
+            </Grid>
+            <Grid item xs={12} md={2}>
+              <Typography variant="subtitle2" color="textSecondary">Total de Millas</Typography>
+              <Typography variant="h6">{summary.total_miles.toLocaleString()}</Typography>
+            </Grid>
+            <Grid item xs={12} md={2}>
+              <Typography variant="subtitle2" color="textSecondary">Total de Galones</Typography>
+              <Typography variant="h6">{summary.total_gallons.toLocaleString()}</Typography>
+            </Grid>
+          </Grid>
+        </CardContent>
+      </Card>
 
-      // Filtrar por trimestres seleccionados
-      if (year === parseInt(selectedStartYear) && year === parseInt(selectedEndYear)) {
-        // Mismo año, verificar rango de trimestres
-        if (quarter < parseInt(selectedStartQuarter) || quarter > parseInt(selectedEndQuarter)) return;
-      } else if (year === parseInt(selectedStartYear)) {
-        // Año inicial, verificar solo trimestre mínimo
-        if (quarter < parseInt(selectedStartQuarter)) return;
-      } else if (year === parseInt(selectedEndYear)) {
-        // Final year, check only maximum quarter
-        if (quarter > parseInt(selectedEndQuarter)) return;
-      }
+      {/* Resumen por estado */}
+      <Card sx={{ mb: 3 }}>
+        <CardContent>
+          <Typography variant="h6" gutterBottom>Resumen por Estado</Typography>
+          <TableContainer component={Paper}>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell>Estado</TableCell>
+                  <TableCell align="right">Millas</TableCell>
+                  <TableCell align="right">Galones</TableCell>
+                  <TableCell align="right">MPG</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {stateSummary.map((state) => (
+                  <TableRow key={state.state}>
+                    <TableCell>{state.state}</TableCell>
+                    <TableCell align="right">{state.miles.toLocaleString()}</TableCell>
+                    <TableCell align="right">{state.gallons.toLocaleString()}</TableCell>
+                    <TableCell align="right">
+                      {(state.miles / (state.gallons || 1)).toFixed(2)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {stateSummary.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={4} align="center">
+                      No hay datos de estados disponibles
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </CardContent>
+      </Card>
 
-      const monthKey = `${year}-${month.toString().padStart(2, '0')}`;
-
-      if (!tripsByMonth[monthKey]) {
-        tripsByMonth[monthKey] = {
-          month: month,
-          year: year,
-          quarter: quarter,
-          monthName: date.toLocaleString('default', { month: 'long' }),
-          totalMiles: 0,
-          totalGallons: 0
-        };
-      }
-
-      tripsByMonth[monthKey].totalMiles += trip.distance;
-      tripsByMonth[monthKey].totalGallons += trip.fuel_consumed;
-    });
-
-    setMonthlySummary(Object.values(tripsByMonth));
-  }, [declaration, selectedStartYear, selectedEndYear, selectedStartQuarter, selectedEndQuarter]);
-
-  // Filtrar viajes por rango de fechas seleccionado
-  const filteredTrips = declaration?.trips.filter(trip => {
-    if (!selectedStartYear || !selectedEndYear) return false;
-
-    const date = new Date(trip.trip_date);
-    const month = date.getMonth() + 1;
-    const year = date.getFullYear();
-    const quarter = Math.ceil(month / 3);
-
-    // Filtrar por rango de años
-    if (year < parseInt(selectedStartYear) || year > parseInt(selectedEndYear)) return false;
-
-    // Filtrar por trimestres seleccionados
-    if (year === parseInt(selectedStartYear) && year === parseInt(selectedEndYear)) {
-      // Mismo año, verificar rango de trimestres
-      if (quarter < parseInt(selectedStartQuarter) || quarter > parseInt(selectedEndQuarter)) return false;
-    } else if (year === parseInt(selectedStartYear)) {
-      // Año inicial, verificar solo trimestre mínimo
-      if (quarter < parseInt(selectedStartQuarter)) return false;
-    } else if (year === parseInt(selectedEndYear)) {
-      // Año final, verificar solo trimestre máximo
-      if (quarter > parseInt(selectedEndQuarter)) return false;
-    }
-
-    return true;
-  }) || [];
-
-  // Obtener trimestre de un mes
-  const getQuarter = (month) => {
-    return Math.ceil(month / 3);
-  };
-
-  // Obtener rango de meses de un trimestre
-  const getQuarterRange = (quarter) => {
-    const months = [
-      'Enero - Marzo',
-      'Abril - Junio',
-      'Julio - Septiembre',
-      'Octubre - Diciembre'
-    ];
-    return months[quarter - 1] || '';
-  };
+      {/* Reportes individuales */}
+      <Card>
+        <CardContent>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Typography variant="h6">Reportes Individuales</Typography>
+            <Box>
+              <Tooltip title="Descargar PDF">
+                <IconButton color="primary" sx={{ mr: 1 }}>
+                  <PdfIcon />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Imprimir">
+                <IconButton color="primary" onClick={() => window.print()}>
+                  <PrintIcon />
+                </IconButton>
+              </Tooltip>
+            </Box>
+          </Box>
+          
+          <TableContainer component={Paper}>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell>Vehículo</TableCell>
+                  <TableCell>Mes</TableCell>
+                  <TableCell align="right">Millas</TableCell>
+                  <TableCell align="right">Galones</TableCell>
+                  <TableCell align="right">MPG</TableCell>
+                  <TableCell>Estado</TableCell>
+                  <TableCell>Última Actualización</TableCell>
+                  <TableCell>Acciones</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {reports.map((report) => (
+                  <TableRow key={report.id} hover>
+                    <TableCell>{report.vehicle_plate || 'N/A'}</TableCell>
+                    <TableCell>{report.report_month || 'N/A'}</TableCell>
+                    <TableCell align="right">{(report.total_miles || 0).toLocaleString()}</TableCell>
+                    <TableCell align="right">{(report.total_gallons || 0).toLocaleString()}</TableCell>
+                    <TableCell align="right">
+                      {((report.total_miles || 0) / ((report.total_gallons || 0) || 1)).toFixed(2)}
+                    </TableCell>
+                    <TableCell>
+                      <Chip 
+                        label={getStatusText(report.status)} 
+                        size="small" 
+                        color={getStatusColor(report.status)}
+                        sx={{ minWidth: 80 }}
+                      />
+                    </TableCell>
+                    <TableCell>{formatDate(report.updated_at)}</TableCell>
+                    <TableCell>
+                      <Button 
+                        size="small" 
+                        color="primary"
+                        onClick={() => navigate(`/reports/${report.id}`)}
+                      >
+                        Ver Detalles
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {reports.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={8} align="center">
+                      No hay reportes individuales para este período
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </CardContent>
+      </Card>
+    </Box>
+  );
 
   // Map state codes to full names
   const stateCodeToName = (code) => {
@@ -268,87 +478,21 @@ const DeclarationDetail = () => {
     return states[code] || code;
   };
 
-  // Cargar datos de la declaración
-  useEffect(() => {
-    const fetchDeclaration = async () => {
-      setLoading(true);
-      try {
-        // En una implementación real, esto obtendría datos de la API
-        // const response = await getDeclarationById(id);
-        // setDeclaration(response.data);
-
-        // Simulamos datos para la demostración
-        setTimeout(() => {
-          const declarationData = {
-            id: parseInt(id),
-            quarter: 'Q1',
-            year: 2025,
-            total_miles: 5200,
-            total_gallons: 520,
-            status: 'approved',
-            created_at: '2025-04-15T10:30:00Z',
-            updated_at: '2025-04-20T14:45:00Z',
-            state_summary: [
-              { state: 'TX', miles: 1500, gallons: 150 },
-              { state: 'CA', miles: 1200, gallons: 120 },
-              { state: 'AZ', miles: 800, gallons: 80 },
-              { state: 'NM', miles: 1700, gallons: 170 }
-            ],
-            trips: [
-              { id: 1, trip_date: '2025-01-15', origin_state: 'TX', destination_state: 'CA', distance: 1200, fuel_consumed: 120 },
-              { id: 2, trip_date: '2025-02-10', origin_state: 'CA', destination_state: 'AZ', distance: 800, fuel_consumed: 80 },
-              { id: 3, trip_date: '2025-03-05', origin_state: 'AZ', destination_state: 'NM', distance: 1700, fuel_consumed: 170 },
-              { id: 4, trip_date: '2025-03-20', origin_state: 'NM', destination_state: 'TX', distance: 1500, fuel_consumed: 150 }
-            ]
-          };
-          setDeclaration(declarationData);
-          setStatus(declarationData.status);
-          setLoading(false);
-        }, 1000);
-      } catch (error) {
-        setAlert({
-          open: true,
-          message: error.message || 'Error loading declaration data',
-          severity: 'error'
-        });
-        setLoading(false);
-      }
-    };
-
-    fetchDeclaration();
-  }, [id]);
-
-  // Manejar cierre de la alerta
-  const handleAlertClose = () => {
-    setAlert({ ...alert, open: false });
-  };
-
-  // Manejar edición de la declaración
-  const handleEdit = () => {
-    navigate(`/declarations/${id}/edit`);
-  };
-
-  // Manejar eliminación de la declaración
+  // Event handlers
+  const handleAlertClose = () => setAlert({ ...alert, open: false });
+  
+  const handleEdit = () => navigate(`/declarations/${id}/edit`);
+  
   const handleDelete = () => {
-    // En una implementación real, esto mostraría un diálogo de confirmación
-    // y luego eliminaría la declaración
     setAlert({
       open: true,
       message: 'This functionality will be implemented in the future',
       severity: 'info'
     });
   };
-
-  // Manejar impresión de la declaración
-  const handlePrint = () => {
-    setAlert({
-      open: true,
-      message: 'Print functionality in development',
-      severity: 'info'
-    });
-  };
-
-  // Manejar envío de la declaración
+  
+  const handlePrint = () => window.print();
+  
   const handleSubmit = () => {
     setAlert({
       open: true,
@@ -367,38 +511,6 @@ const DeclarationDetail = () => {
       status: newStatus,
       updated_at: new Date().toISOString()
     }));
-  };
-
-  // Obtener color según el estado de la declaración
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'approved':
-        return 'success';
-      case 'pending':
-        return 'warning';
-      case 'submitted':
-        return 'info';
-      case 'rejected':
-        return 'error';
-      default:
-        return 'default';
-    }
-  };
-
-  // Obtener texto según el estado de la declaración
-  const getStatusText = (status) => {
-    switch (status) {
-      case 'approved':
-        return 'Approved';
-      case 'pending':
-        return 'Pending';
-      case 'submitted':
-        return 'Submitted';
-      case 'rejected':
-        return 'Rejected';
-      default:
-        return status;
-    }
   };
 
   if (loading) {
