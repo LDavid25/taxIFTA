@@ -4,35 +4,40 @@ import {
   Box,
   Button,
   Card,
-  CardContent,
-  Typography,
-  Divider,
-  Chip,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  Grid,
-  CardHeader,
-  Avatar,
   CardActions,
+  CardContent,
+  CardHeader,
   Container,
-  Table,
-  TableBody,
-  TableCell,
+  FormControl,
+  Grid,
+  Paper,
+  TextField,
+  Typography,
+  CircularProgress,
+  Alert,
+  Autocomplete,
+  MenuItem,
+  Select,
+  InputLabel,
+  FormHelperText,
+  Pagination,
+  Stack,
   TableContainer,
   TableHead,
   TableRow,
-  Paper,
   IconButton,
   Tooltip,
-  Alert,
+  MuiAlert,
   Snackbar,
-  TextField,
-  Autocomplete
+  Avatar,
+  Divider,
+  Chip,
+  Table,
+  TableBody,
+  TableCell
 } from '@mui/material';
 import { Business as BusinessIcon, FileDownload as FileDownloadIcon, Add as AddIcon, Visibility as VisibilityIcon, Edit as EditIcon, Delete as DeleteIcon, CloudDownload as CloudDownloadIcon } from '@mui/icons-material';
-import { getGroupedQuarterlyReports, exportToExcel } from '../../services/quarterlyReportService';
+import { getGroupedQuarterlyReports, exportToExcel, getIndividualReports } from '../../services/quarterlyReportService';
 import api from '../../services/api';
 import AlertMessage from '../../components/common/AlertMessage';
 import LoadingScreen from '../../components/common/LoadingScreen';
@@ -46,6 +51,11 @@ const DeclarationList = () => {
   const [quarterFilter, setQuarterFilter] = useState('all');
   const [yearFilter, setYearFilter] = useState('all');
   const [companyFilter, setCompanyFilter] = useState('all');
+  const [individualReports, setIndividualReports] = useState({});
+  const [filteredReports, setFilteredReports] = useState([]);
+  // Estado para la paginación
+  const [page, setPage] = useState(1);
+  const itemsPerPage = 10; // 3 filas x 2 columnas = 6 items por página
 
   // Verificar autenticación antes de cargar los reportes
   useEffect(() => {
@@ -93,11 +103,35 @@ const DeclarationList = () => {
         
         console.log('=== Reportes recibidos correctamente ===');
         console.log('Cantidad de reportes:', reports.length);
-        console.log('Primeros 2 reportes:', reports.slice(0, 2));
+        console.log('Estructura del primer reporte:', JSON.stringify(reports[0], null, 2));
+        console.log('Todas las claves del primer reporte:', Object.keys(reports[0] || {}));
         
-        // Actualizar el estado con los reportes
+        // Cargar reportes individuales para los reportes válidos
+        const validReportsPromises = reports
+          .filter(report => report.valid_report_count > 0)
+          .map(async (report) => {
+            try {
+              const key = `${report.company_id}_${report.quarter}_${report.year}`;
+              const response = await getIndividualReports(report.company_id, report.quarter, report.year);
+              return { key, reports: response };
+            } catch (error) {
+              console.error('Error cargando reportes individuales:', error);
+              return null;
+            }
+          });
+        
+        const loadedReports = await Promise.all(validReportsPromises);
+        const newIndividualReports = {};
+        loadedReports.forEach(item => {
+          if (item) {
+            newIndividualReports[item.key] = item.reports;
+          }
+        });
+        setIndividualReports(prev => ({ ...prev, ...newIndividualReports }));
+        
+        // Actualizar estados
         setGroupedReports(reports);
-        
+
         // Mostrar mensaje si no hay reportes
         if (reports.length === 0) {
           setAlert({
@@ -147,7 +181,8 @@ const DeclarationList = () => {
       const filters = {
         status: statusFilter === 'all' ? undefined : statusFilter,
         quarter: quarterFilter === 'all' ? undefined : quarterFilter,
-        year: yearFilter === 'all' ? undefined : yearFilter
+        year: yearFilter === 'all' ? undefined : yearFilter,
+        companyId: companyFilter === 'all' ? undefined : companyFilter
       };
       
       const blob = await exportToExcel(filters);
@@ -172,6 +207,7 @@ const DeclarationList = () => {
         severity: 'success'
       });
     } catch (error) {
+      console.error('Error al exportar a Excel:', error);
       setAlert({
         open: true,
         message: 'Error al exportar a Excel',
@@ -209,18 +245,17 @@ const DeclarationList = () => {
     }
   };
 
-  // Obtener años únicos para el filtro
-  const getUniqueYears = () => {
-    const years = new Set();
-    groupedReports.forEach(report => years.add(report.year));
-    return Array.from(years).sort((a, b) => b - a);
-  };
-
   // Obtener trimestres únicos para el filtro
   const getUniqueQuarters = () => {
     const quarters = new Set();
     groupedReports.forEach(report => quarters.add(report.quarter));
     return Array.from(quarters).sort();
+  };
+
+  // Obtener años únicos para el filtro
+  const getUniqueYears = () => {
+    const years = [...new Set(groupedReports.map(report => report.year).filter(Boolean))].sort((a, b) => b - a);
+    return years;
   };
 
   // Obtener compañías únicas para el filtro
@@ -229,11 +264,11 @@ const DeclarationList = () => {
     const companyMap = new Map();
     
     groupedReports.forEach(report => {
-      if (!companyMap.has(report.company_id)) {
-        companyMap.set(report.company_id, report.company_name);
+      if (report.company_id && !companyMap.has(report.company_id)) {
+        companyMap.set(report.company_id, report.company_name || `Compañía ${report.company_id}`);
         companies.push({
           id: report.company_id,
-          name: report.company_name
+          name: companyMap.get(report.company_id)
         });
       }
     });
@@ -247,68 +282,99 @@ const DeclarationList = () => {
   // Encontrar la compañía seleccionada
   const selectedCompany = companyOptions.find(company => company.id.toString() === companyFilter) || null;
 
-  // Filtrar reportes
-  const filteredReports = groupedReports.filter(report => {
-    try {
-      const statusMatch = statusFilter === 'all' || report.status === statusFilter;
-      const quarterMatch = quarterFilter === 'all' || report.quarter.toString() === quarterFilter.toString();
+  // Cargar reportes individuales para cada grupo
+  useEffect(() => {
+    if (groupedReports.length > 0) {
+      const loadIndividualReports = async () => {
+        console.log('=== Iniciando carga de reportes individuales ===');
+        console.log('Total de grupos a procesar:', groupedReports.length);
+        const reportsMap = {};
+        
+        // Procesar cada grupo para cargar sus reportes individuales
+        for (const group of groupedReports) {
+          const key = `${group.company_id}_${group.quarter}_${group.year}`;
+          
+          if (!individualReports[key]) {
+            try {
+              console.log(`Cargando reportes individuales para grupo: ${key}`);
+              const response = await getIndividualReports(
+                group.company_id,
+                group.quarter,
+                group.year
+              );
+              
+              // Verificar si la respuesta tiene la estructura esperada
+              const reports = response.data?.reports || [];
+              console.log(`Se encontraron ${reports.length} reportes para el grupo ${key}`);
+              
+              // Actualizar el mapa de reportes individuales
+              reportsMap[key] = reports;
+            } catch (error) {
+              console.error(`Error al cargar reportes individuales para ${key}:`, error);
+              reportsMap[key] = [];
+            }
+          } else {
+            // Usar los reportes ya cargados
+            reportsMap[key] = individualReports[key];
+          }
+        }
+        
+        // Actualizar el estado con los reportes individuales
+        setIndividualReports(prev => ({
+          ...prev,
+          ...reportsMap
+        }));
+      };
       
-      // Asegurarse de que el año sea un número para la comparación
-      const reportYear = typeof report.year === 'string' ? parseInt(report.year, 10) : report.year;
-      const selectedYear = yearFilter === 'all' ? 'all' : parseInt(yearFilter, 10);
-      const yearMatch = selectedYear === 'all' || reportYear === selectedYear;
+      // Deshabilitar temporalmente la carga de reportes individuales
+      // loadIndividualReports();
+      console.log('Carga de reportes individuales deshabilitada temporalmente');
+    }
+  }, [groupedReports]);
+
+  // Filtros para los reportes
+  useEffect(() => {
+    if (groupedReports && groupedReports.length > 0) {
+      console.log('Aplicando filtros...');
+      console.log('Total de reportes agrupados:', groupedReports.length);
       
-      const companyMatch = companyFilter === 'all' || report.company_id.toString() === companyFilter.toString();
-      
-      console.log('Filtros aplicados:', {
-        reportId: report.id,
-        reportYear: report.year,
-        selectedYear,
-        yearMatch,
-        quarter: report.quarter,
-        quarterFilter,
-        quarterMatch,
-        status: report.status,
-        statusFilter,
-        statusMatch,
-        companyId: report.company_id,
-        companyFilter,
-        companyMatch,
-        passesAll: statusMatch && quarterMatch && yearMatch && companyMatch
+      const filtered = groupedReports.filter(report => {
+        // Aplicar filtros
+        const statusMatch = statusFilter === 'all' || report.status === statusFilter;
+        const quarterMatch = quarterFilter === 'all' || report.quarter.toString() === quarterFilter.toString();
+        const yearMatch = yearFilter === 'all' || report.year.toString() === yearFilter.toString();
+        const companyMatch = companyFilter === 'all' || report.company_id.toString() === companyFilter.toString();
+        
+        const matches = statusMatch && quarterMatch && yearMatch && companyMatch;
+        return matches;
       });
       
-      return statusMatch && quarterMatch && yearMatch && companyMatch;
-    } catch (error) {
-      console.error('Error al filtrar reporte:', error, report);
-      return false;
+      console.log(`Filtros aplicados: status=${statusFilter}, quarter=${quarterFilter}, year=${yearFilter}, company=${companyFilter}`);
+      console.log(`Reportes después de filtrar: ${filtered.length} de ${groupedReports.length}`);
+      
+      // Resetear a la primera página cuando cambian los filtros
+      setPage(1);
+      setFilteredReports(filtered);
     }
-  });
-
-  if (loading) {
-    return <LoadingScreen message="Cargando reportes trimestrales..." />;
-  }
+  }, [groupedReports, statusFilter, quarterFilter, yearFilter, companyFilter]);
 
   return (
-    <Box>
-      <AlertMessage
-        open={alert.open}
-        onClose={handleAlertClose}
-        severity={alert.severity}
-        message={alert.message}
-        autoHideDuration={6000}
-      />
-      
-      <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Typography variant="h5">Reportes Trimestrales</Typography>
-        <Button
-          variant="outlined"
-          color="primary"
-          startIcon={<FileDownloadIcon />}
-          onClick={handleExportToExcel}
-          disabled={loading || filteredReports.length === 0}
-        >
-          Exportar a Excel
-        </Button>
+    <Container maxWidth="lg" sx={{ py: 4 }}>
+      <Box sx={{ mb: 3 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+          <Typography variant="h5">Reportes Trimestrales</Typography>
+          <Button
+            variant="outlined"
+            color="primary"
+            startIcon={<FileDownloadIcon />}
+            onClick={handleExportToExcel}
+            disabled={loading || filteredReports.length === 0}
+          >
+            Exportar a Excel
+          </Button>
+        </Box>
+        
+        {/* Se eliminaron los contadores de Grupos de Reportes y Reportes Individuales */}
       </Box>
 
       {/* Filtros */}
@@ -391,79 +457,94 @@ const DeclarationList = () => {
       </Card>
 
       {/* Lista de reportes */}
-      {filteredReports.length === 0 ? (
-        <Card>
-          <CardContent>
-            <Typography variant="body1" align="center" color="textSecondary">
-              No se encontraron reportes que coincidan con los filtros seleccionados.
-            </Typography>
-          </CardContent>
-        </Card>
+      {loading ? (
+        <Box display="flex" justifyContent="center" my={4}>
+          <CircularProgress />
+        </Box>
+      ) : filteredReports.length === 0 ? (
+        <Paper sx={{ p: 3, textAlign: 'center' }}>
+          <Typography variant="h6" color="textSecondary">
+            No se encontraron reportes que coincidan con los filtros
+          </Typography>
+        </Paper>
       ) : (
-        <Grid container spacing={3}>
-          {filteredReports.map((report) => (
-            <Grid item xs={12} key={`${report.company_id}-${report.quarter}-${report.year}`}>
-              <Card>
-                <CardHeader
-                  avatar={
-                    <Avatar sx={{ bgcolor: 'primary.main' }}>
-                      <BusinessIcon />
-                    </Avatar>
-                  }
-                  title={`${report.company_name}`}
-                  subheader={`${report.quarter} ${report.year}`}
-                  action={
-                    <Chip
-                      label={getStatusText(report.status)}
-                      color={getStatusColor(report.status)}
-                      size="small"
-                      sx={{ mt: 1, mr: 1 }}
+        <>
+          <Grid container spacing={3}>
+            {filteredReports
+              .slice((page - 1) * itemsPerPage, page * itemsPerPage)
+              .map((report) => (
+                <Grid item xs={12} sm={6} key={`${report.company_id}-${report.quarter}-${report.year}`}>
+                  <Card>
+                    <CardHeader
+                      avatar={
+                        <Avatar sx={{ bgcolor: 'primary.main' }}>
+                          <BusinessIcon />
+                        </Avatar>
+                      }
+                      title={`${report.company_name}`}
+                      subheader={`Q${report.quarter} ${report.year}`}
+                      action={
+                        <Chip
+                          label={getStatusText(report.status)}
+                          color={getStatusColor(report.status)}
+                          size="small"
+                          sx={{ mt: 1, mr: 1 }}
+                        />
+                      }
                     />
-                  }
+                    <CardContent>
+                      <Grid container spacing={2}>
+                        <Grid item xs={8}>
+                          <Typography variant="body1">
+                            {report.company_name} - Q{report.quarter} {report.year}
+                          </Typography>
+                        </Grid>
+                        <Grid item xs={4} sx={{ textAlign: 'right' }}>
+                          <Typography variant="body2" color="textSecondary" component="span">
+                            Reportes: 
+                          </Typography>
+                          <Typography variant="h6" component="span">
+                            {statusFilter === 'all' 
+                              ? report.valid_report_count 
+                              : individualReports[`${report.company_id}_${report.quarter}_${report.year}`]?.filter(
+                                  r => r.status === statusFilter
+                                ).length || 0}
+                          </Typography>
+                        </Grid>
+                      </Grid>
+                    </CardContent>
+                    <CardActions sx={{ justifyContent: 'flex-end', p: 2, pt: 0 }}>
+                      <Button
+                        size="small"
+                        color="primary"
+                        onClick={() => handleView(report.company_id, report.quarter, report.year)}
+                      >
+                        Ver Detalles
+                      </Button>
+                    </CardActions>
+                  </Card>
+                </Grid>
+              ))}
+          </Grid>
+          
+          {/* Paginación */}
+          {filteredReports.length > itemsPerPage && (
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4, mb: 2, width: '100%' }}>
+              <Stack spacing={2}>
+                <Pagination 
+                  count={Math.ceil(filteredReports.length / itemsPerPage)} 
+                  page={page} 
+                  onChange={(event, value) => setPage(value)}
+                  color="primary"
+                  showFirstButton
+                  showLastButton
                 />
-                <CardContent>
-                  <Grid container spacing={2}>
-                    <Grid item xs={12} sm={4}>
-                      <Typography variant="body2" color="textSecondary">
-                        Total de Millas
-                      </Typography>
-                      <Typography variant="h6">
-                        {report.total_miles ? report.total_miles.toLocaleString() : 'N/A'}
-                      </Typography>
-                    </Grid>
-                    <Grid item xs={12} sm={4}>
-                      <Typography variant="body2" color="textSecondary">
-                        Total de Galones
-                      </Typography>
-                      <Typography variant="h6">
-                        {report.total_gallons ? report.total_gallons.toLocaleString() : 'N/A'}
-                      </Typography>
-                    </Grid>
-                    <Grid item xs={12} sm={4}>
-                      <Typography variant="body2" color="textSecondary">
-                        Reportes Incluidos
-                      </Typography>
-                      <Typography variant="h6">
-                        {report.report_count}
-                      </Typography>
-                    </Grid>
-                  </Grid>
-                </CardContent>
-                <CardActions sx={{ justifyContent: 'flex-end', p: 2, pt: 0 }}>
-                  <Button
-                    size="small"
-                    color="primary"
-                    onClick={() => handleView(report.company_id, report.quarter, report.year)}
-                  >
-                    Ver Detalles
-                  </Button>
-                </CardActions>
-              </Card>
-            </Grid>
-          ))}
-        </Grid>
+              </Stack>
+            </Box>
+          )}
+        </>
       )}
-    </Box>
+    </Container>
   );
 };
 

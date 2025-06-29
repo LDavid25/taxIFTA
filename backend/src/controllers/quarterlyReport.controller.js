@@ -21,7 +21,18 @@ exports.getGroupedQuarterlyReports = async (req, res, next) => {
       iqr.updated_at,
       iqr.submitted_at,
       iqr.approved_at,
-      (SELECT COUNT(*) FROM ifta_reports ir WHERE ir.quarterly_report_id = iqr.id) AS report_count
+      (SELECT COUNT(*) FROM ifta_reports ir WHERE ir.quarterly_report_id = iqr.id) AS report_count,
+      ARRAY(
+        SELECT ir.id 
+        FROM ifta_reports ir 
+        WHERE ir.quarterly_report_id = iqr.id 
+        AND ir.status IN ('sent', 'in_progress')
+      ) AS valid_report_ids,
+      (SELECT COUNT(*) 
+       FROM ifta_reports ir 
+       WHERE ir.quarterly_report_id = iqr.id 
+       AND ir.status IN ('sent', 'in_progress')
+      ) AS valid_report_count
     FROM 
       ifta_quarterly_reports iqr
     JOIN 
