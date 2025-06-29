@@ -632,6 +632,13 @@ const deleteReport = async (req, res, next) => {
  * Updates the status of a report
  */
 const updateReportStatus = async (req, res, next) => {
+  console.log('=== INICIO DE ACTUALIZACIÓN DE ESTADO ===');
+  console.log('URL:', req.originalUrl);
+  console.log('Método:', req.method);
+  console.log('Headers:', JSON.stringify(req.headers, null, 2));
+  console.log('Params:', req.params);
+  console.log('Body:', req.body);
+  
   const transaction = await IftaReport.sequelize.transaction();
   let report;
   
@@ -639,14 +646,23 @@ const updateReportStatus = async (req, res, next) => {
     const { id } = req.params;
     const { company_id } = req;
     const { status } = req.body;
+    
+    console.log('ID del reporte:', id);
+    console.log('ID de la compañía:', company_id);
+    console.log('Nuevo estado solicitado:', status);
 
     // Validate status
     const validStatuses = ['in_progress', 'sent', 'rejected', 'completed'];
+    console.log('Validando estado:', { status, validStatuses });
+    
     if (!validStatuses.includes(status)) {
+      console.error('Estado no válido:', status);
+      await transaction.rollback();
       return next(new AppError('Estado no válido', 400));
     }
 
     // Find the report with related data before the update
+    console.log('Buscando reporte con ID:', id, 'para la compañía:', company_id);
     report = await IftaReport.findByPk(id, {
       where: { company_id },
       include: [
@@ -658,9 +674,17 @@ const updateReportStatus = async (req, res, next) => {
     });
 
     if (!report) {
+      console.error('No se encontró el reporte con ID:', id);
       await transaction.rollback();
       return next(new AppError('No se encontró el reporte', 404));
     }
+    
+    console.log('Reporte encontrado:', {
+      id: report.id,
+      status: report.status,
+      company_id: report.company_id,
+      vehicle_plate: report.vehicle_plate
+    });
 
     // Prepare update data
     const updateData = { status };
@@ -672,13 +696,19 @@ const updateReportStatus = async (req, res, next) => {
       updateData.approved_at = new Date();
     }
 
+    console.log('Actualizando reporte con datos:', updateData);
+    
     // Update the report
     await report.update(updateData, { transaction });
     
+    console.log('Reporte actualizado correctamente, confirmando transacción...');
+    
     // Commit the transaction
     await transaction.commit();
+    console.log('Transacción confirmada');
 
     // Reload the report with updated data
+    console.log('Recargando datos del reporte...');
     await report.reload({
       include: [
         { model: IftaReportState, as: 'states' },
@@ -687,18 +717,47 @@ const updateReportStatus = async (req, res, next) => {
       ]
     });
 
-    res.status(200).json({
+    console.log('Datos del reporte recargados:', {
+      id: report.id,
+      status: report.status,
+      updated_at: report.updated_at
+    });
+
+    // Convertir a objeto plano para asegurar que no haya instancias de Sequelize
+    const reportPlain = report.get({ plain: true });
+    
+    const responseData = {
       status: 'success',
       data: {
-        report,
+        report: reportPlain,
       },
-    });
+    };
+    
+    console.log('Enviando respuesta:', JSON.stringify(responseData, null, 2));
+    res.status(200).json(responseData);
   } catch (error) {
     console.error('Error in updateReportStatus:', error);
     if (transaction && !transaction.finished) {
+      console.log('Haciendo rollback de la transacción...');
       await transaction.rollback();
     }
-    next(error);
+    
+    // Verificar si es un error de validación de Sequelize
+    if (error.name === 'SequelizeValidationError' || error.name === 'SequelizeUniqueConstraintError') {
+      const messages = error.errors.map(err => err.message);
+      console.error('Error de validación:', messages);
+      return next(new AppError(`Error de validación: ${messages.join(', ')}`, 400));
+    }
+    
+    // Verificar si es un error de autenticación
+    if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
+      console.error('Error de autenticación:', error.message);
+      return next(new AppError('Token inválido o expirado', 401));
+    }
+    
+    // Para otros errores, enviar un mensaje genérico
+    console.error('Error en updateReportStatus:', error.message);
+    next(new AppError('Error al actualizar el estado del reporte', 500));
   }
 };
 

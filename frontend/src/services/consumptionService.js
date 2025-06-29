@@ -1,5 +1,6 @@
 import api from './api';
 
+// Usar la ruta completa con /v1 como prefijo
 const API_URL = '/v1/ifta-reports';
 
 // Crear un nuevo informe de consumo
@@ -152,11 +153,17 @@ export const updateConsumptionReport = async (id, reportData) => {
 };
 
 // Actualizar el estado de un informe de consumo
-export const updateConsumptionReportStatus = async (id, status) => {
+export const updateConsumptionReportStatus = async (id, statusData) => {
   try {
+    // Usar la ruta completa con el ID y /status
+    const url = `${API_URL}/${id}/status`;
+    
+    console.log('Sending PATCH request to:', url);
+    console.log('Request data:', statusData);
+    
     const response = await api.patch(
-      `${API_URL}/${id}/status`,
-      { status },
+      url,
+      statusData,
       {
         headers: {
           'Content-Type': 'application/json',
@@ -164,7 +171,22 @@ export const updateConsumptionReportStatus = async (id, status) => {
       }
     );
     
-    return response.data;
+    console.log('Response from server:', response);
+    
+    if (!response.data) {
+      throw new Error('La respuesta del servidor está vacía');
+    }
+    
+    // El backend devuelve { status: 'success', data: { report: {...} } }
+    if (response.data.status === 'success' && response.data.data && response.data.data.report) {
+      // Devolver el reporte actualizado
+      return {
+        status: 'success',
+        data: response.data.data.report
+      };
+    } else {
+      throw new Error(response.data.message || 'Error al actualizar el estado');
+    }
   } catch (error) {
     console.error('Error updating report status:', error);
     throw error.response?.data || { 

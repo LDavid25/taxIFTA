@@ -7,7 +7,7 @@ import api from './api';
  */
 export const getReportById = async (id) => {
   try {
-    const response = await api.get(`/api/ifta-reports/${id}`); 
+    const response = await api.get(`/v1/ifta-reports/${id}`); 
     return response.data.data;
   } catch (error) {
     console.error('Error al obtener el reporte:', error);
@@ -23,10 +23,13 @@ export const getReportById = async (id) => {
  */
 export const updateReportStatus = async (id, status) => {
   try {
-    const response = await api.patch(`/api/ifta-reports/${id}/status`, { status });
-    return response.data.data;
+    const response = await api.patch(`/v1/ifta-reports/${id}/status`, { status });
+    return response.data;
   } catch (error) {
     console.error('Error al actualizar el estado del reporte:', error);
+    if (error.response) {
+      console.error('Detalles del error:', error.response.data);
+    }
     throw error;
   }
 };

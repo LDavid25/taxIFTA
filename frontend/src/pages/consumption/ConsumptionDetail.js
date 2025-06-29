@@ -173,12 +173,14 @@ const ConsumptionDetail = () => {
   // Función para traducir el estado a un formato legible
   const translateStatus = (status) => {
     const statusMap = {
-      in_progress: 'En progreso',
-      sent: 'Enviado',
-      rejected: 'Rechazado',
-      completed: 'Completado'
+      in_progress: 'In Progress',
+      sent: 'Sent',
+      rejected: 'Rejected',
+      completed: 'Completed'
     };
-    return statusMap[status] || status;
+    return statusMap[status] || status.split('_').map(word => 
+      word.charAt(0).toUpperCase() + word.slice(1)
+    ).join(' ');
   };
 
   // Opciones de estado para el menú desplegable
@@ -205,25 +207,25 @@ const ConsumptionDetail = () => {
   const statusOptions = [
     { 
       value: 'in_progress', 
-      label: 'En Progreso', 
+      label: 'In Progress', 
       icon: <EditIcon />,
       color: 'warning'
     },
     { 
       value: 'sent', 
-      label: 'Enviado', 
+      label: 'Sent', 
       icon: <CloudUploadIcon />,
       color: 'info'
     },
     { 
       value: 'completed', 
-      label: 'Completado', 
+      label: 'Completed', 
       icon: <CheckIcon />,
       color: 'success'
     },
     { 
       value: 'rejected', 
-      label: 'Rechazado', 
+      label: 'Rejected', 
       icon: <CancelIcon />,
       color: 'error'
     }
@@ -449,34 +451,80 @@ const ConsumptionDetail = () => {
   const handleStatusChange = async (newStatus) => {
     if (!id) {
       console.error('No se encontró el ID del reporte');
+      enqueueSnackbar('Error: No se pudo identificar el reporte', { 
+        variant: 'error',
+        autoHideDuration: 3000
+      });
       return;
     }
 
+    console.log(`[handleStatusChange] Iniciando cambio de estado a: ${newStatus}`);
+    setUpdatingStatus(true);
+    
     try {
-      setUpdatingStatus(true);
+      // Llamar al servicio para actualizar el estado
+      console.log('[handleStatusChange] Llamando a updateReportStatus con:', { 
+        id, 
+        status: newStatus 
+      });
       
-      // Actualizar el estado en el backend
-      const updatedReport = await updateReportStatus(id, newStatus);
+      const response = await updateReportStatus(id, newStatus);
+      console.log('[handleStatusChange] Respuesta del servidor:', response);
       
-      // Actualizar el estado local
-      setSafeConsumption(prev => ({
+      if (!response || !response.status) {
+        throw new Error('Respuesta del servidor inválida');
+      }
+      
+      // Actualizar el estado local con los datos del servidor
+      const updatedReport = response.data?.report || response.data;
+      if (!updatedReport) {
+        throw new Error('No se recibieron datos actualizados del servidor');
+      }
+      
+      console.log('[handleStatusChange] Datos actualizados recibidos:', updatedReport);
+      
+      // Actualizar el estado del reporte
+      setReport(prev => ({
         ...prev,
-        status: newStatus,
-        updated_at: updatedReport.updated_at || new Date().toISOString()
+        status: updatedReport.status || newStatus,
+        updated_at: updatedReport.updated_at || new Date().toISOString(),
+        // Mantener otros datos importantes
+        ...(updatedReport.vehicle_plate && { vehicle_plate: updatedReport.vehicle_plate }),
+        ...(updatedReport.report_year && { report_year: updatedReport.report_year }),
+        ...(updatedReport.report_month && { report_month: updatedReport.report_month })
       }));
       
+      console.log('[handleStatusChange] Estado actualizado en el frontend:', updatedReport.status || newStatus);
+      
+      // Cerrar el menú de estado
+      setStatusAnchorEl(null);
+      
       // Mostrar notificación de éxito
-      enqueueSnackbar('Estado actualizado correctamente', { variant: 'success' });
+      enqueueSnackbar('Estado actualizado correctamente', { 
+        variant: 'success',
+        autoHideDuration: 3000
+      });
+      
+      return true;
       
     } catch (error) {
-      console.error('Error al actualizar el estado:', error);
-      enqueueSnackbar(
-        error.response?.data?.message || 'Error al actualizar el estado', 
-        { variant: 'error' }
-      );
+      console.error('[handleStatusChange] Error al actualizar el estado:', error);
+      
+      // Mostrar mensaje de error detallado
+      const errorMessage = error.response?.data?.message || 
+                         error.message || 
+                         'Error desconocido al actualizar el estado';
+      
+      enqueueSnackbar(`Error: ${errorMessage}`, { 
+        variant: 'error',
+        autoHideDuration: 5000
+      });
+      
+      return false;
+      
     } finally {
+      // Asegurarse de limpiar el estado de carga
       setUpdatingStatus(false);
-      setStatusAnchorEl(null);
     }
   };
 
@@ -605,13 +653,17 @@ const ConsumptionDetail = () => {
                   Informe de Consumo: {safeConsumption.vehicle_plate}
                 </Typography>
                 <Chip 
-                  label={translateStatus(safeConsumption.status) || 'Desconocido'}
+                  key={`status-${safeConsumption.status}`} // Force re-render on status change
+                  label={translateStatus(safeConsumption.status) || 'Unknown'}
                   color={getStatusColor(safeConsumption.status)} 
                   size="small" 
                   variant="outlined"
                   sx={{ 
-                    textTransform: 'capitalize',
-                    fontWeight: 'medium'
+                    textTransform: 'none',
+                    fontWeight: 'medium',
+                    '& .MuiChip-label': {
+                      textTransform: 'none'
+                    }
                   }}
                 />
               </Box>

@@ -13,7 +13,7 @@ import { SnackbarProvider } from 'notistack';
 import { useAuth } from './context/AuthContext';
 import { useTheme } from './context/ThemeContext';
 import { CompanyProvider } from './context/CompanyContext';
-import { VehicleProvider } from './context/VehicleContext';
+
 
 // Layouts
 import MainLayout from './components/layouts/MainLayout';
@@ -164,86 +164,84 @@ function App() {
           toastStyle={{ marginTop: '20px' }}
         />
         <CompanyProvider>
-          <VehicleProvider>
-            <Routes>
-              {/* Rutas públicas */}
-              <Route path="/" element={
-                <PublicRoute>
-                  <AuthLayout />
-                </PublicRoute>
-              }>
-                <Route index element={<Login />} />
-                <Route path="login" element={<Login />} />
-                <Route path="forgot-password" element={<ForgotPassword />} />
-                <Route path="reset-password" element={<ResetPassword />} />
-                <Route path="contact" element={<ContactPage />} />
+          <Routes>
+            {/* Rutas públicas */}
+            <Route path="/" element={
+              <PublicRoute>
+                <AuthLayout />
+              </PublicRoute>
+            }>
+              <Route index element={<Login />} />
+              <Route path="login" element={<Login />} />
+              <Route path="forgot-password" element={<ForgotPassword />} />
+              <Route path="reset-password" element={<ResetPassword />} />
+              <Route path="contact" element={<ContactPage />} />
+            </Route>
+            
+            {/* Ruta raíz - Redirige según el rol */}
+            <Route index element={
+              <ProtectedRoute>
+                <RoleBasedRedirect />
+              </ProtectedRoute>
+            } />
+            
+            {/* Rutas protegidas - Admin */}
+            <Route path="/" element={
+              <ProtectedRoute allowedRoles={[ROLES.ADMIN]}>
+                <MainLayout />
+              </ProtectedRoute>
+            }>
+              <Route path="dashboard" element={<Dashboard />} />
+              <Route path="profile" element={<Profile />} />
+              <Route path="companies" element={<CompanyListPage />} />
+              
+              {/* Rutas de declaraciones */}
+              <Route path="declarations">
+                <Route index element={<DeclarationList />} />
+                <Route path=":id" element={<DeclarationDetail />} />
+                <Route path=":id/edit" element={<DeclarationEdit />} />
               </Route>
               
-              {/* Ruta raíz - Redirige según el rol */}
-              <Route index element={
-                <ProtectedRoute>
-                  <RoleBasedRedirect />
-                </ProtectedRoute>
-              } />
+              {/* Historial de Consumo */}
+              <Route path="consumption">
+                <Route index element={<ConsumptionHistory />} />
+                <Route path="create" element={<ConsumptionCreate />} />
+                <Route path=":id" element={<ConsumptionDetail />} />
+              </Route>
+            </Route>
+            
+            {/* Rutas protegidas - Cliente */}
+            <Route path="/" element={
+              <ProtectedRoute allowedRoles={[ROLES.CLIENTE]}>
+                <MainLayout />
+              </ProtectedRoute>
+            }>
+              <Route path="dashboard-cliente" element={<DashboardCliente />} />
+              <Route path="profile" element={<Profile />} />
               
-              {/* Rutas protegidas - Admin */}
-              <Route path="/" element={
-                <ProtectedRoute allowedRoles={[ROLES.ADMIN]}>
-                  <MainLayout />
-                </ProtectedRoute>
-              }>
-                <Route path="dashboard" element={<Dashboard />} />
-                <Route path="profile" element={<Profile />} />
-                <Route path="companies" element={<CompanyListPage />} />
-                
-                {/* Rutas de declaraciones */}
-                <Route path="declarations">
-                  <Route index element={<DeclarationList />} />
-                  <Route path=":id" element={<DeclarationDetail />} />
-                  <Route path=":id/edit" element={<DeclarationEdit />} />
-                </Route>
-                
-                {/* Historial de Consumo */}
-                <Route path="consumption">
-                  <Route index element={<ConsumptionHistory />} />
-                  <Route path="create" element={<ConsumptionCreate />} />
-                  <Route path=":id" element={<ConsumptionDetail />} />
-                </Route>
+              {/* Rutas de declaraciones para clientes */}
+              <Route path="declarations">
+                <Route index element={<DeclarationList />} />
+                <Route path=":id" element={<DeclarationDetail />} />
               </Route>
               
-              {/* Rutas protegidas - Cliente */}
-              <Route path="/" element={
-                <ProtectedRoute allowedRoles={[ROLES.CLIENTE]}>
-                  <MainLayout />
-                </ProtectedRoute>
-              }>
-                <Route path="dashboard-cliente" element={<DashboardCliente />} />
-                <Route path="profile" element={<Profile />} />
-                
-                {/* Rutas de declaraciones para clientes */}
-                <Route path="declarations">
-                  <Route index element={<DeclarationList />} />
-                  <Route path=":id" element={<DeclarationDetail />} />
-                </Route>
-                
-                {/* Historial de Consumo para clientes */}
-                <Route path="consumption">
-                  <Route index element={<ConsumptionHistory />} />
-                  <Route path=":id" element={<ConsumptionDetail />} />
-                </Route>
+              {/* Historial de Consumo para clientes */}
+              <Route path="consumption">
+                <Route index element={<ConsumptionHistory />} />
+                <Route path=":id" element={<ConsumptionDetail />} />
               </Route>
-              
-              {/* Ruta de no autorizado */}
-              <Route path="/unauthorized" element={
-                <MainLayout>
-                  <Unauthorized />
-                </MainLayout>
-              } />
-              
-              {/* Ruta 404 */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </VehicleProvider>
+            </Route>
+            
+            {/* Ruta de no autorizado */}
+            <Route path="/unauthorized" element={
+              <MainLayout>
+                <Unauthorized />
+              </MainLayout>
+            } />
+            
+            {/* Ruta 404 */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
         </CompanyProvider>
         </SnackbarProvider>
       </LocalizationProvider>
