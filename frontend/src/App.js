@@ -198,6 +198,7 @@ function App() {
               {/* Rutas de declaraciones */}
               <Route path="declarations">
                 <Route index element={<DeclarationList />} />
+                <Route path="company/:companyId/quarter/:quarter/year/:year" element={<DeclarationDetail />} />
                 <Route path=":id" element={<DeclarationDetail />} />
                 <Route path=":id/edit" element={<DeclarationEdit />} />
               </Route>

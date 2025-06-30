@@ -42,7 +42,16 @@ router.use(authController.protect);
 router.get('/grouped', quarterlyReportController.getGroupedQuarterlyReports);
 
 // Obtener reportes individuales de un grupo específico
-router.get('/company/:companyId/quarter/:quarter/year/:year', quarterlyReportController.getIndividualReports);
+router.get('/company/:companyId/quarter/:quarter/year/:year', (req, res, next) => {
+  console.log('Solicitud recibida para obtener reportes individuales:', {
+    params: req.params,
+    query: req.query,
+    headers: req.headers
+  });
+  
+  // Pasar el control al controlador
+  quarterlyReportController.getIndividualReports(req, res, next);
+});
 
 // Obtener un reporte trimestral específico por su ID
 router.get('/:id', quarterlyReportController.getQuarterlyReport);

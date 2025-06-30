@@ -63,7 +63,7 @@ const DeclarationList = () => {
       try {
         // Verificar si hay un token en localStorage
         const token = localStorage.getItem('token');
-        console.log('Token en localStorage:', token ? 'Presente' : 'Ausente');
+        // console.log('Token en localStorage:', token ? 'Presente' : 'Ausente');
         
         if (!token) {
           throw new Error('No estás autenticado. Por favor, inicia sesión.');
@@ -86,7 +86,7 @@ const DeclarationList = () => {
     };
     
     const fetchGroupedReports = async () => {
-      console.log('=== Iniciando carga de reportes agrupados ===');
+      // console.log('=== Iniciando carga de reportes agrupados ===');
       setLoading(true);
       
       try {
@@ -98,13 +98,13 @@ const DeclarationList = () => {
         });
         
         // Obtener los reportes del servicio
-        console.log('Obteniendo reportes...');
+        // // console.log('Obteniendo reportes...');
         const reports = await getGroupedQuarterlyReports();
         
-        console.log('=== Reportes recibidos correctamente ===');
-        console.log('Cantidad de reportes:', reports.length);
-        console.log('Estructura del primer reporte:', JSON.stringify(reports[0], null, 2));
-        console.log('Todas las claves del primer reporte:', Object.keys(reports[0] || {}));
+        // // console.log('=== Reportes recibidos correctamente ===');
+        // // console.log('Cantidad de reportes:', reports.length);
+        // // console.log('Estructura del primer reporte:', JSON.stringify(reports[0], null, 2));
+        // // console.log('Todas las claves del primer reporte:', Object.keys(reports[0] || {}));
         
         // Cargar reportes individuales para los reportes válidos
         const validReportsPromises = reports
@@ -157,7 +157,7 @@ const DeclarationList = () => {
         setGroupedReports([]);
       } finally {
         setLoading(false);
-        console.log('=== Finalizada carga de reportes ===');
+        // // console.log('=== Finalizada carga de reportes ===');
       }
     };
 
@@ -165,7 +165,7 @@ const DeclarationList = () => {
     
     // Limpiar al desmontar el componente
     return () => {
-      console.log('Componente DeclarationList desmontado');
+      // // console.log('Componente DeclarationList desmontado');
     };
   }, []);
 
@@ -286,8 +286,8 @@ const DeclarationList = () => {
   useEffect(() => {
     if (groupedReports.length > 0) {
       const loadIndividualReports = async () => {
-        console.log('=== Iniciando carga de reportes individuales ===');
-        console.log('Total de grupos a procesar:', groupedReports.length);
+        // console.log('=== Iniciando carga de reportes individuales ===');
+        // console.log('Total de grupos a procesar:', groupedReports.length);
         const reportsMap = {};
         
         // Procesar cada grupo para cargar sus reportes individuales
@@ -296,7 +296,7 @@ const DeclarationList = () => {
           
           if (!individualReports[key]) {
             try {
-              console.log(`Cargando reportes individuales para grupo: ${key}`);
+              // console.log(`Cargando reportes individuales para grupo: ${key}`);
               const response = await getIndividualReports(
                 group.company_id,
                 group.quarter,
@@ -305,7 +305,7 @@ const DeclarationList = () => {
               
               // Verificar si la respuesta tiene la estructura esperada
               const reports = response.data?.reports || [];
-              console.log(`Se encontraron ${reports.length} reportes para el grupo ${key}`);
+              // console.log(`Se encontraron ${reports.length} reportes para el grupo ${key}`);
               
               // Actualizar el mapa de reportes individuales
               reportsMap[key] = reports;
@@ -328,15 +328,15 @@ const DeclarationList = () => {
       
       // Deshabilitar temporalmente la carga de reportes individuales
       // loadIndividualReports();
-      console.log('Carga de reportes individuales deshabilitada temporalmente');
+      // console.log('Carga de reportes individuales deshabilitada temporalmente');
     }
   }, [groupedReports]);
 
   // Filtros para los reportes
   useEffect(() => {
     if (groupedReports && groupedReports.length > 0) {
-      console.log('Aplicando filtros...');
-      console.log('Total de reportes agrupados:', groupedReports.length);
+      // console.log('Aplicando filtros...');
+      // console.log('Total de reportes agrupados:', groupedReports.length);
       
       const filtered = groupedReports.filter(report => {
         // Aplicar filtros
@@ -349,8 +349,8 @@ const DeclarationList = () => {
         return matches;
       });
       
-      console.log(`Filtros aplicados: status=${statusFilter}, quarter=${quarterFilter}, year=${yearFilter}, company=${companyFilter}`);
-      console.log(`Reportes después de filtrar: ${filtered.length} de ${groupedReports.length}`);
+      // console.log(`Filtros aplicados: status=${statusFilter}, quarter=${quarterFilter}, year=${yearFilter}, company=${companyFilter}`);
+      // console.log(`Reportes después de filtrar: ${filtered.length} de ${groupedReports.length}`);
       
       // Resetear a la primera página cuando cambian los filtros
       setPage(1);

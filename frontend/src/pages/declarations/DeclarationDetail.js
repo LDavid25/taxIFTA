@@ -1,10 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link as RouterLink } from 'react-router-dom';
+import { eachMonthOfInterval, format } from 'date-fns';
 import {
   Box,
   Button,
   Card,
   CardContent,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
   Typography,
   Table,
   TableBody,
@@ -18,11 +23,7 @@ import {
   Chip,
   Grid,
   IconButton,
-  Tooltip,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem
+  Tooltip
 } from '@mui/material';
 import { 
   ArrowBack as ArrowBackIcon,
@@ -33,7 +34,9 @@ import {
   PictureAsPdf as PictureAsPdfIcon,
   CheckCircle as CheckCircleIcon,
   Send as SendIcon,
-  Edit as EditIcon
+  Edit as EditIcon,
+  Description as ExcelIcon,
+  Add as AddIcon
 } from '@mui/icons-material';
 import { Divider } from '@mui/material';
 import { getIndividualReports } from '../../services/quarterlyReportService';
@@ -95,7 +98,7 @@ const DeclarationDetail = () => {
     status: 'pending'
   });
   const [stateSummary, setStateSummary] = useState([]);
-  const [declaration, setDeclaration] = useState(null);
+  const [declaration, setDeclaration] = useState({ trips: [] });
   const [status, setStatus] = useState('pending');
   
   // UI State
@@ -106,7 +109,66 @@ const DeclarationDetail = () => {
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [selectedFile, setSelectedFile] = useState(null);
   
-  // Quarter selection state
+  // Filter states
+  const [selectedQuarter, setSelectedQuarter] = useState(quarter || '1');
+  const [selectedMonth, setSelectedMonth] = useState('all');
+  const [filteredTrips, setFilteredTrips] = useState([]);
+  
+  // Available months based on selected quarter
+  const getAvailableMonths = () => {
+    const months = [
+      { value: '1', label: 'Enero' },
+      { value: '2', label: 'Febrero' },
+      { value: '3', label: 'Marzo' },
+      { value: '4', label: 'Abril' },
+      { value: '5', label: 'Mayo' },
+      { value: '6', label: 'Junio' },
+      { value: '7', label: 'Julio' },
+      { value: '8', label: 'Agosto' },
+      { value: '9', label: 'Septiembre' },
+      { value: '10', label: 'Octubre' },
+      { value: '11', label: 'Noviembre' },
+      { value: '12', label: 'Diciembre' }
+    ];
+    
+    // Filter months based on selected quarter
+    if (selectedQuarter === '1') return months.slice(0, 3);
+    if (selectedQuarter === '2') return months.slice(3, 6);
+    if (selectedQuarter === '3') return months.slice(6, 9);
+    if (selectedQuarter === '4') return months.slice(9, 12);
+    return months;
+  };
+  
+  // Filter trips based on selected quarter and month
+  useEffect(() => {
+    // Asegurarse de que siempre haya un array, incluso si declaration o declaration.trips son undefined
+    const trips = Array.isArray(declaration?.trips) ? declaration.trips : [];
+    let filtered = [...trips];
+    
+    // Filter by quarter
+    filtered = filtered.filter(trip => {
+      const tripDate = new Date(trip.trip_date);
+      const tripMonth = tripDate.getMonth() + 1; // 1-12
+      
+      if (selectedQuarter === '1') return tripMonth >= 1 && tripMonth <= 3;
+      if (selectedQuarter === '2') return tripMonth >= 4 && tripMonth <= 6;
+      if (selectedQuarter === '3') return tripMonth >= 7 && tripMonth <= 9;
+      if (selectedQuarter === '4') return tripMonth >= 10 && tripMonth <= 12;
+      return true;
+    });
+    
+    // Filter by month if not 'all'
+    if (selectedMonth !== 'all') {
+      filtered = filtered.filter(trip => {
+        const tripDate = new Date(trip.trip_date);
+        return (tripDate.getMonth() + 1).toString() === selectedMonth;
+      });
+    }
+    
+    setFilteredTrips(filtered);
+  }, [declaration, selectedQuarter, selectedMonth]);
+  
+  // Quarter selection state for date range
   const [selectedStartQuarter, setSelectedStartQuarter] = useState('1');
   const [selectedEndQuarter, setSelectedEndQuarter] = useState('4');
   
@@ -116,11 +178,8 @@ const DeclarationDetail = () => {
   const [selectedEndYear, setSelectedEndYear] = useState(currentYear.toString());
   const availableYears = Array.from({ length: 10 }, (_, i) => currentYear - 5 + i);
   
-  // Calculate filtered trips (simplified example)
-  const filteredTrips = declaration?.trips || [];
-  
   // Calculate monthly summary (simplified example)
-  const monthlySummary = declaration?.monthlySummary || [];
+  const monthlySummary = Array.isArray(declaration?.monthlySummary) ? declaration.monthlySummary : [];
   
   // Move all useEffects to the top, right after state declarations
   // Cargar reportes individuales para la compañía, trimestre y año seleccionados
@@ -130,63 +189,193 @@ const DeclarationDetail = () => {
       
       setLoading(true);
       try {
-        const reportsData = await getIndividualReports(companyId, quarter, year);
-        setReports(reportsData.reports || []);
+        const response = await getIndividualReports(companyId, quarter, year);
+        const responseData = response.data || {};
         
-        // Calcular resumen
-        const totalMiles = reportsData.reports.reduce((sum, report) => sum + (parseFloat(report.total_miles) || 0), 0);
-        const totalGallons = reportsData.reports.reduce((sum, report) => sum + (parseFloat(report.total_gallons) || 0), 0);
+        // Extraer los reports del objeto de respuesta
+        const reportsData = responseData.reports || [];
+        
+        // Procesar los datos para agrupar por vehículo y mes
+        const processedData = processReportData(reportsData);
+        setReports(processedData.vehicles || []);
+        
+        // Calcular resumen general
+        const totalMiles = processedData.vehicles.reduce((sum, vehicle) => sum + (parseFloat(vehicle.total_miles) || 0), 0);
+        const totalGallons = processedData.vehicles.reduce((sum, vehicle) => sum + (parseFloat(vehicle.total_gallons) || 0), 0);
         
         setSummary({
           total_miles: totalMiles,
           total_gallons: totalGallons,
-          report_count: reportsData.reports.length,
-          status: reportsData.status || 'pending'
+          report_count: processedData.vehicles.length,
+          status: 'completed' // Asumimos que los datos ya están completos
         });
         
-        // Extraer información de la compañía del primer reporte (si existe)
-        if (reportsData.reports.length > 0) {
-          setCompanyInfo({
-            id: reportsData.reports[0].company_id,
-            name: reportsData.reports[0].company_name
-          });
-        }
-        
-        // Calcular resumen por estado (ejemplo, ajustar según la estructura real de los datos)
+        // Procesar resumen por estado
         const stateSummaryMap = new Map();
         
-        reportsData.reports.forEach(report => {
-          if (report.state_summary && Array.isArray(report.state_summary)) {
-            report.state_summary.forEach(stateData => {
-              if (stateSummaryMap.has(stateData.state)) {
-                const existing = stateSummaryMap.get(stateData.state);
-                stateSummaryMap.set(stateData.state, {
-                  state: stateData.state,
-                  miles: (existing.miles || 0) + (parseFloat(stateData.miles) || 0),
-                  gallons: (existing.gallons || 0) + (parseFloat(stateData.gallons) || 0)
-                });
-              } else {
-                stateSummaryMap.set(stateData.state, {
-                  state: stateData.state,
-                  miles: parseFloat(stateData.miles) || 0,
-                  gallons: parseFloat(stateData.gallons) || 0
-                });
-              }
-            });
-          }
-        });
+        if (processedData.stateSummary && Array.isArray(processedData.stateSummary)) {
+          processedData.stateSummary.forEach(stateData => {
+            if (stateSummaryMap.has(stateData.state_code)) {
+              const existing = stateSummaryMap.get(stateData.state_code);
+              stateSummaryMap.set(stateData.state_code, {
+                state: stateData.state_code,
+                miles: (existing.miles || 0) + (parseFloat(stateData.miles) || 0),
+                gallons: (existing.gallons || 0) + (parseFloat(stateData.gallons) || 0)
+              });
+            } else {
+              stateSummaryMap.set(stateData.state_code, {
+                state: stateData.state_code,
+                miles: parseFloat(stateData.miles) || 0,
+                gallons: parseFloat(stateData.gallons) || 0
+              });
+            }
+          });
+        }
         
         setStateSummary(Array.from(stateSummaryMap.values()));
       } catch (error) {
         console.error('Error fetching individual reports:', error);
         setAlert({
           open: true,
-          message: 'Error al cargar los reportes individuales',
+          message: error.message || 'Error al cargar los reportes individuales',
           severity: 'error'
         });
       } finally {
         setLoading(false);
       }
+    };
+    
+    // Función para procesar los datos del backend
+    const processReportData = (reports) => {
+      const vehiclesMap = new Map();
+      const monthlyTotals = {};
+      const stateSummary = [];
+      
+      // Inicializar totales mensuales
+      const quarterMonths = getQuarterMonths(parseInt(quarter), parseInt(year));
+      quarterMonths.forEach(month => {
+        monthlyTotals[month] = {
+          total_miles: 0,
+          total_gallons: 0,
+          states: new Set()
+        };
+      });
+      
+      // Procesar cada reporte
+      if (!Array.isArray(reports)) {
+        console.error('Expected reports to be an array, received:', reports);
+        return {
+          vehicles: [],
+          monthlyTotals: {},
+          stateSummary: [],
+          lastUpdated: new Date().toISOString()
+        };
+      }
+      
+      reports.forEach(report => {
+        const { vehicle_plate, report_month, state_data = [] } = report;
+        const monthKey = format(new Date(report_month), 'yyyy-MM');
+        
+        // Inicializar vehículo si no existe
+        if (!vehiclesMap.has(vehicle_plate)) {
+          vehiclesMap.set(vehicle_plate, {
+            plate: vehicle_plate,
+            total_miles: 0,
+            total_gallons: 0,
+            months: {},
+            states: new Set()
+          });
+        }
+        
+        const vehicle = vehiclesMap.get(vehicle_plate);
+        
+        // Inicializar mes si no existe
+        if (!vehicle.months[monthKey]) {
+          vehicle.months[monthKey] = {
+            total_miles: 0,
+            total_gallons: 0,
+            states: []
+          };
+        }
+        
+        // Procesar estados
+        if (Array.isArray(state_data)) {
+          state_data.forEach(state => {
+            // Agregar estado al resumen general
+            stateSummary.push({
+              state_code: state.state_code,
+              miles: parseFloat(state.miles) || 0,
+              gallons: parseFloat(state.gallons) || 0,
+              month: monthKey
+            });
+            
+            // Agregar estado al vehículo
+            vehicle.states.add(state.state_code);
+            vehicle.months[monthKey].states.push({
+              state_code: state.state_code,
+              miles: parseFloat(state.miles) || 0,
+              gallons: parseFloat(state.gallons) || 0
+            });
+            
+            // Actualizar totales
+            const miles = parseFloat(state.miles) || 0;
+            const gallons = parseFloat(state.gallons) || 0;
+            
+            vehicle.months[monthKey].total_miles += miles;
+            vehicle.months[monthKey].total_gallons += gallons;
+            vehicle.total_miles += miles;
+            vehicle.total_gallons += gallons;
+            
+            // Actualizar totales mensuales
+            if (monthlyTotals[monthKey]) {
+              monthlyTotals[monthKey].total_miles += miles;
+              monthlyTotals[monthKey].total_gallons += gallons;
+              monthlyTotals[monthKey].states.add(state.state_code);
+            }
+          });
+        }
+      });
+      
+      // Convertir Map a array y ordenar por placa
+      const vehicles = Array.from(vehiclesMap.values()).sort((a, b) => 
+        a.plate.localeCompare(b.plate)
+      );
+      
+      // Convertir Sets a arrays para los estados
+      vehicles.forEach(vehicle => {
+        vehicle.states = Array.from(vehicle.states);
+      });
+      
+      Object.keys(monthlyTotals).forEach(month => {
+        monthlyTotals[month].states = Array.from(monthlyTotals[month].states);
+      });
+      
+      return {
+        vehicles,
+        monthlyTotals,
+        stateSummary,
+        lastUpdated: new Date().toISOString()
+      };
+    };
+    
+    // Función auxiliar para obtener los meses de un trimestre
+    const getQuarterMonths = (q, y) => {
+      let startMonth = 0;
+      switch (q) {
+        case 1: startMonth = 0; break;  // Q1: Ene-Mar
+        case 2: startMonth = 3; break;  // Q2: Abr-Jun
+        case 3: startMonth = 6; break;  // Q3: Jul-Sep
+        case 4: startMonth = 9; break;  // Q4: Oct-Dic
+        default: startMonth = 0;
+      }
+      
+      const startDate = new Date(y, startMonth, 1);
+      const endDate = new Date(y, startMonth + 3, 0);
+      
+      return eachMonthOfInterval({
+        start: startDate,
+        end: endDate
+      }).map(date => format(date, 'yyyy-MM'));
     };
     
     fetchIndividualReports();
@@ -346,30 +535,83 @@ const DeclarationDetail = () => {
       {/* Reportes individuales */}
       <Card>
         <CardContent>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-            <Typography variant="h6">Reportes Individuales</Typography>
-            <Box>
-              <Tooltip title="Descargar PDF">
-                <IconButton color="primary" sx={{ mr: 1 }}>
-                  <PdfIcon />
-                </IconButton>
-              </Tooltip>
-              <Tooltip title="Imprimir">
-                <IconButton color="primary" onClick={() => window.print()}>
-                  <PrintIcon />
-                </IconButton>
-              </Tooltip>
-            </Box>
-          </Box>
-          
+          {declaration && (
+            <>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, flexWrap: 'wrap', gap: 2 }}>
+                <Box>
+                  <Typography variant="h5" sx={{ mb: 1 }}>
+                    Declaración IFTA: {declaration.quarter} {declaration.year}
+                  </Typography>
+                  <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                    <FormControl size="small" variant="outlined" sx={{ minWidth: 150 }}>
+                      <InputLabel>Trimestre</InputLabel>
+                      <Select
+                        value={selectedQuarter}
+                        onChange={(e) => {
+                          setSelectedQuarter(e.target.value);
+                          setSelectedMonth('all'); // Reset month when quarter changes
+                        }}
+                        label="Trimestre"
+                      >
+                        <MenuItem value="1">Q1 (Ene - Mar)</MenuItem>
+                        <MenuItem value="2">Q2 (Abr - Jun)</MenuItem>
+                        <MenuItem value="3">Q3 (Jul - Sep)</MenuItem>
+                        <MenuItem value="4">Q4 (Oct - Dic)</MenuItem>
+                      </Select>
+                    </FormControl>
+                    
+                    <FormControl size="small" variant="outlined" sx={{ minWidth: 150 }}>
+                      <InputLabel>Mes</InputLabel>
+                      <Select
+                        value={selectedMonth}
+                        onChange={(e) => setSelectedMonth(e.target.value)}
+                        label="Mes"
+                      >
+                        <MenuItem value="all">Todos los meses</MenuItem>
+                        {getAvailableMonths().map(month => (
+                          <MenuItem key={month.value} value={month.value}>
+                            {month.label}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                    
+                    <Chip
+                      label={`${filteredTrips.length} viajes`}
+                      color="primary"
+                      variant="outlined"
+                    />
+                  </Box>
+                </Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Tooltip title="Descargar PDF">
+                    <IconButton color="primary">
+                      <PdfIcon />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title="Descargar Excel">
+                    <IconButton color="primary">
+                      <ExcelIcon />
+                    </IconButton>
+                  </Tooltip>
+
+                </Box>
+              </Box>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent>
           <TableContainer component={Paper}>
             <Table size="small">
               <TableHead>
                 <TableRow>
                   <TableCell>Vehículo</TableCell>
                   <TableCell>Mes</TableCell>
-                  <TableCell align="right">Millas</TableCell>
-                  <TableCell align="right">Galones</TableCell>
+                  <TableCell align="right">Millas Totales</TableCell>
+                  <TableCell align="right">Galones Totales</TableCell>
                   <TableCell align="right">MPG</TableCell>
                   <TableCell>Estado</TableCell>
                   <TableCell>Última Actualización</TableCell>
@@ -378,13 +620,15 @@ const DeclarationDetail = () => {
               </TableHead>
               <TableBody>
                 {reports.map((report) => (
-                  <TableRow key={report.id} hover>
-                    <TableCell>{report.vehicle_plate || 'N/A'}</TableCell>
+                  <TableRow key={report.id}>
+                    <TableCell>{report.vehicle?.unit_number || report.vehicle_plate || 'N/A'}</TableCell>
                     <TableCell>{report.report_month || 'N/A'}</TableCell>
-                    <TableCell align="right">{(report.total_miles || 0).toLocaleString()}</TableCell>
-                    <TableCell align="right">{(report.total_gallons || 0).toLocaleString()}</TableCell>
+                    <TableCell align="right">{report.total_miles.toLocaleString()}</TableCell>
+                    <TableCell align="right">{report.total_gallons.toFixed(2)}</TableCell>
                     <TableCell align="right">
-                      {((report.total_miles || 0) / ((report.total_gallons || 0) || 1)).toFixed(2)}
+                      {report.total_miles > 0 && report.total_gallons > 0 
+                        ? (report.total_miles / report.total_gallons).toFixed(2)
+                        : 'N/A'}
                     </TableCell>
                     <TableCell>
                       <Chip 
@@ -408,7 +652,7 @@ const DeclarationDetail = () => {
                 ))}
                 {reports.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={8} align="center">
+                    <TableCell colSpan={7} align="center">
                       No hay reportes individuales para este período
                     </TableCell>
                   </TableRow>
@@ -514,288 +758,251 @@ const DeclarationDetail = () => {
   };
 
   if (loading) {
-    return <LoadingScreen message="Loading declaration data..." />;
+    return <LoadingScreen message="Cargando datos de la declaración..." />;
   }
 
   return (
-    <Box>
-      <AlertMessage
-        open={alert.open}
-        onClose={handleAlertClose}
-        severity={alert.severity}
-        message={alert.message}
-        autoHideDuration={6000}
-      />
+    <Box sx={{ p: 3 }}>
+      <Box>
+        <AlertMessage
+          open={alert.open}
+          onClose={handleAlertClose}
+          severity={alert.severity}
+          message={alert.message}
+          autoHideDuration={6000}
+        />
 
-      <Breadcrumbs aria-label="breadcrumb" sx={{ mb: 3 }}>
-        <Link component={RouterLink} to="/dashboard" color="inherit">
-          Dashboard
-        </Link>
-        <Link component={RouterLink} to="/declarations" color="inherit">
-          Declarations
-        </Link>
-        <Typography color="text.primary">Declaration Details</Typography>
-      </Breadcrumbs>
+        <Breadcrumbs aria-label="breadcrumb" sx={{ mb: 3 }}>
+          <Link component={RouterLink} to="/dashboard" color="inherit">
+            Dashboard
+          </Link>
+          <Link component={RouterLink} to="/declarations" color="inherit">
+            Declaraciones
+          </Link>
+          <Typography color="text.primary">Detalles de Declaración</Typography>
+        </Breadcrumbs>
 
+        <Box>
+          {/* Filter by date range */}
+          <Card sx={{ mb: 3 }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <Typography variant="h6">Filter by Date Range</Typography>
+                
+                <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 3 }}>
+                  {/* Start Date Selection */}
+                  <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    <Typography variant="subtitle2">From:</Typography>
+                    <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                      <FormControl variant="outlined" size="small" sx={{ minWidth: 120 }}>
+                        <InputLabel>Start Year</InputLabel>
+                        <Select
+                          value={selectedStartYear}
+                          onChange={(e) => setSelectedStartYear(e.target.value)}
+                          label="Start Year"
+                        >
+                          {availableYears.map(year => (
+                            <MenuItem key={`start-year-${year}`} value={year.toString()}>
+                              {year}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
 
-      {/* Filter by date range */}
-      <Card sx={{ mb: 3 }}>
-        <CardContent sx={{ display: 'flex', flexDirection: 'row', gap: 2 }}>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <Typography variant="h6">Filter by Date Range</Typography>
-
-            {/* Fila de selectores de fecha inicial */}
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'center' }}>
-              <Typography variant="subtitle2">From:</Typography>
-
-              {/* Año inicial */}
-              <FormControl variant="outlined" size="small" sx={{ minWidth: 120 }}>
-                <InputLabel>Start Year</InputLabel>
-                <Select
-                  value={selectedStartYear}
-                  onChange={(e) => setSelectedStartYear(e.target.value)}
-                  label="Initial Year"
-                >
-                  {availableYears.map(year => (
-                    <MenuItem key={`start-year-${year}`} value={year.toString()}>
-                      {year}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-
-              {/* Trimestre inicial */}
-              <FormControl variant="outlined" size="small" sx={{ minWidth: 180 }}>
-                <InputLabel>Start Quarter</InputLabel>
-                <Select
-                  value={selectedStartQuarter}
-                  onChange={(e) => setSelectedStartQuarter(e.target.value)}
-                  label="Start Quarter"
-                >
-                  <MenuItem value="1">Q1: Jan - Mar</MenuItem>
-                  <MenuItem value="2">Q2: Apr - Jun</MenuItem>
-                  <MenuItem value="3">Q3: Jul - Sep</MenuItem>
-                  <MenuItem value="4">Q4: Oct - Dec</MenuItem>
-                </Select>
-              </FormControl>
-            </Box>
-
-            {/* Fila de selectores de fecha final */}
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'center' }}>
-              <Typography variant="subtitle2">To:</Typography>
-
-              {/* Año final */}
-              <FormControl variant="outlined" size="small" sx={{ minWidth: 120 }}>
-                <InputLabel>End Year</InputLabel>
-                <Select
-                  value={selectedEndYear}
-                  onChange={(e) => setSelectedEndYear(e.target.value)}
-                  label="End Year"
-                >
-                  {availableYears
-                    .filter(year => year >= parseInt(selectedStartYear || 0))
-                    .map(year => (
-                      <MenuItem key={`end-year-${year}`} value={year.toString()}>
-                        {year}
-                      </MenuItem>
-                    ))}
-                </Select>
-              </FormControl>
-
-              {/* Trimestre final */}
-              <FormControl variant="outlined" size="small" sx={{ minWidth: 180 }}>
-                <InputLabel>End Quarter</InputLabel>
-                <Select
-                  value={selectedEndQuarter}
-                  onChange={(e) => setSelectedEndQuarter(e.target.value)}
-                  label="End Quarter"
-                  disabled={!selectedEndYear}
-                >
-                  {[1, 2, 3, 4]
-                    .filter(q => {
-                      // If it's the same year as the start, only show quarters >= start quarter
-                      if (selectedStartYear === selectedEndYear) {
-                        return q >= parseInt(selectedStartQuarter);
-                      }
-                      return true;
-                    })
-                    .map(quarter => (
-                      <MenuItem key={`end-q${quarter}`} value={quarter.toString()}>
-                        Q{quarter}: {getQuarterRange(quarter).split(' - ')[0].slice(0, 3)} - {getQuarterRange(quarter).split(' - ')[1].slice(0, 3)}
-                      </MenuItem>
-                    ))}
-                </Select>
-              </FormControl>
-              <Chip
-                label={`${filteredTrips.length} trips in period`}
-                color="primary"
-                variant="outlined"
-                sx={{ ml: 'auto' }}
-              />
-            </Box>
-          </Box>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, p: 2, border: '1px dashed', borderColor: 'divider', borderRadius: 1 }}>
-            <Typography variant="subtitle1">Supporting Documentation</Typography>
-            <input
-              accept="application/pdf,image/*"
-              style={{ display: 'none' }}
-              id="declaration-document-upload"
-              type="file"
-              onChange={(e) => {
-                const file = e.target.files[0];
-                if (file) {
-                  setSelectedFile(file);
-                  // Create preview for images
-                  if (file.type.startsWith('image/')) {
-                    const reader = new FileReader();
-                    reader.onloadend = () => {
-                      setFilePreview(reader.result);
-                    };
-                    reader.readAsDataURL(file);
-                  } else if (file.type === 'application/pdf') {
-                    setFilePreview('PDF');
-                  }
-                }
-              }}
-            />
-            <label htmlFor="declaration-document-upload">
-              <Button
-                variant="outlined"
-                component="span"
-                startIcon={<UploadFileIcon />}
-                sx={{ mb: 2 }}
-              >
-                {selectedFile ? 'Change file' : 'Select file'} (PDF or image)
-              </Button>
-            </label>
-            
-            {/* File Preview */}
-            {selectedFile && (
-              <Box sx={{ mt: 1, mb: 2 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                  <Typography variant="body2" color="text.secondary">
-                    File: {selectedFile.name}
-                  </Typography>
-                  <IconButton 
-                    size="small" 
-                    color="error"
-                    onClick={() => {
-                      setSelectedFile(null);
-                      setFilePreview('');
-                      // Reset file input
-                      document.getElementById('declaration-document-upload').value = '';
-                    }}
-                    title="Delete file"
-                  >
-                    <DeleteIcon fontSize="small" />
-                  </IconButton>
-                </Box>
-                {filePreview === 'PDF' ? (
-                  <Box sx={{ 
-                    p: 2, 
-                    border: '1px solid', 
-                    borderColor: 'divider', 
-                    borderRadius: 1,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 1
-                  }}>
-                    <PictureAsPdfIcon color="error" />
-                    <Typography>PDF Document</Typography>
+                      <FormControl variant="outlined" size="small" sx={{ minWidth: 180 }}>
+                        <InputLabel>Start Quarter</InputLabel>
+                        <Select
+                          value={selectedStartQuarter}
+                          onChange={(e) => setSelectedStartQuarter(e.target.value)}
+                          label="Start Quarter"
+                        >
+                          <MenuItem value="1">Q1: Jan - Mar</MenuItem>
+                          <MenuItem value="2">Q2: Apr - Jun</MenuItem>
+                          <MenuItem value="3">Q3: Jul - Sep</MenuItem>
+                          <MenuItem value="4">Q4: Oct - Dec</MenuItem>
+                        </Select>
+                      </FormControl>
+                    </Box>
                   </Box>
-                ) : filePreview ? (
-                  <Box 
-                    component="img"
-                    src={filePreview}
-                    alt="Preview"
-                    sx={{ 
-                      width: '50px',
-                      height: '50px',
-                      objectFit: 'contain',
-                      border: '1px solid',
-                      borderColor: 'divider',
-                      borderRadius: 1
-                    }}
+
+                  {/* End Date Selection */}
+                  <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    <Typography variant="subtitle2">To:</Typography>
+                    <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                      <FormControl variant="outlined" size="small" sx={{ minWidth: 120 }}>
+                        <InputLabel>End Year</InputLabel>
+                        <Select
+                          value={selectedEndYear}
+                          onChange={(e) => setSelectedEndYear(e.target.value)}
+                          label="End Year"
+                        >
+                          {availableYears
+                            .filter(year => year >= parseInt(selectedStartYear || 0))
+                            .map(year => (
+                              <MenuItem key={`end-year-${year}`} value={year.toString()}>
+                                {year}
+                              </MenuItem>
+                            ))}
+                        </Select>
+                      </FormControl>
+
+                      <FormControl variant="outlined" size="small" sx={{ minWidth: 180 }}>
+                        <InputLabel>End Quarter</InputLabel>
+                        <Select
+                          value={selectedEndQuarter}
+                          onChange={(e) => setSelectedEndQuarter(e.target.value)}
+                          label="End Quarter"
+                          disabled={!selectedEndYear}
+                        >
+                          {[1, 2, 3, 4]
+                            .filter(q => {
+                              if (selectedStartYear === selectedEndYear) {
+                                return q >= parseInt(selectedStartQuarter);
+                              }
+                              return true;
+                            })
+                            .map(quarter => (
+                              <MenuItem key={`end-q${quarter}`} value={quarter.toString()}>
+                                Q{quarter}: {getQuarterRange(quarter).split(' - ')[0].slice(0, 3)} - {getQuarterRange(quarter).split(' - ')[1].slice(0, 3)}
+                              </MenuItem>
+                            ))}
+                        </Select>
+                      </FormControl>
+                    </Box>
+                  </Box>
+                </Box>
+
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 1 }}>
+                  <Chip
+                    label={`${filteredTrips.length} trips in period`}
+                    color="primary"
+                    variant="outlined"
                   />
-                ) : null}
+                  
+                  <Box sx={{ display: 'flex', gap: 1 }}>
+                    <Button
+                      variant="contained"
+                      startIcon={<CheckCircleIcon />}
+                      onClick={handleSubmit}
+                    >
+                      Apply Filters
+                    </Button>
+                    
+                    <Button
+                      variant="outlined"
+                      startIcon={<PrintIcon />}
+                      onClick={handlePrint}
+                    >
+                      Print
+                    </Button>
+                  </Box>
+                </Box>
               </Box>
-            )}
-            <Button
-              variant="contained"
-              color="primary"
-              startIcon={<CheckCircleIcon />}
-              onClick={() => {
-                // Handle finalize declaration logic here
-                console.log('Finalizing declaration...');
-                // Add your finalization logic here
-              }}
-              fullWidth
-            >
-              Finalize Declaration
-            </Button>
-          </Box>
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
 
-      {declaration && (
-        <>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
-            <Typography variant="h5">
-              Declaración IFTA: {declaration.quarter} {declaration.year}
-            </Typography>
-            <Box>
-              {declaration.status === 'pending' && (
-                <Button
-                  variant="contained"
-                  color="primary"
-                  startIcon={<SendIcon />}
-                  onClick={handleSubmit}
-                  sx={{ mr: 1 }}
-                >
-                  Submit
-                </Button>
-              )}
-              <Button
-                variant="outlined"
-                startIcon={<PrintIcon />}
-                onClick={handlePrint}
-                sx={{ mr: 1 }}
-              >
-                Print
-              </Button>
-              {declaration.status === 'pending' && (
-                <Button
-                  variant="outlined"
-                  startIcon={<EditIcon />}
-                  onClick={handleEdit}
-                  sx={{ mr: 1 }}
-                >
-                  Edit
-                </Button>
-              )}
-              {declaration.status === 'pending' && (
-                <Button
-                  variant="outlined"
-                  color="error"
-                  startIcon={<DeleteIcon />}
-                  onClick={handleDelete}
-                >
-                  Delete
-                </Button>
-              )}
-            </Box>
-          </Box>
+          {/* Supporting Documentation */}
+          <Card sx={{ mb: 3 }}>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>Supporting Documentation</Typography>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <input
+                  accept="application/pdf,image/*"
+                  style={{ display: 'none' }}
+                  id="declaration-document-upload"
+                  type="file"
+                  onChange={(e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                      setSelectedFile(file);
+                      if (file.type.startsWith('image/')) {
+                        const reader = new FileReader();
+                        reader.onloadend = () => {
+                          setFilePreview(reader.result);
+                        };
+                        reader.readAsDataURL(file);
+                      } else if (file.type === 'application/pdf') {
+                        setFilePreview('PDF');
+                      }
+                    }
+                  }}
+                />
+                
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  <label htmlFor="declaration-document-upload">
+                    <Button
+                      variant="outlined"
+                      component="span"
+                      startIcon={<UploadFileIcon />}
+                    >
+                      {selectedFile ? 'Change file' : 'Select file'} (PDF or image)
+                    </Button>
+                  </label>
+                  
+                  {selectedFile && (
+                    <Chip
+                      label={selectedFile.name}
+                      onDelete={() => {
+                        setSelectedFile(null);
+                        setFilePreview('');
+                        document.getElementById('declaration-document-upload').value = '';
+                      }}
+                      deleteIcon={<DeleteIcon />}
+                      variant="outlined"
+                    />
+                  )}
+                </Box>
 
-          <Grid container spacing={3}>
-            {/* Sección izquierda - Resumen por mes */}
+                {filePreview && (
+                  <Box sx={{ mt: 1 }}>
+                    {filePreview === 'PDF' ? (
+                      <Box sx={{ 
+                        p: 2, 
+                        border: '1px solid', 
+                        borderColor: 'divider', 
+                        borderRadius: 1,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 1
+                      }}>
+                        <PictureAsPdfIcon color="error" />
+                        <Typography>PDF Document</Typography>
+                      </Box>
+                    ) : (
+                      <Box 
+                        component="img"
+                        src={filePreview}
+                        alt="Preview"
+                        sx={{ 
+                          maxWidth: '100%',
+                          maxHeight: '300px',
+                          objectFit: 'contain',
+                          border: '1px solid',
+                          borderColor: 'divider',
+                          borderRadius: 1
+                        }}
+                      />
+                    )}
+                  </Box>
+                )}
+              </Box>
+            </CardContent>
+          </Card>
+
+          <Grid container spacing={3} sx={{ mt: 2 }}>
             <Grid item xs={12} md={6}>
-              <Card sx={{ height: '100%' }}>
+              <Card>
                 <CardContent>
-                  <Typography variant="h6" gutterBottom>
-                    Monthly Summary
-                  </Typography>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                    <Typography variant="h6">Monthly Summary</Typography>
+                    <Chip
+                      label={`${monthlySummary.length} months`}
+                      color="primary"
+                      variant="outlined"
+                      size="small"
+                    />
+                  </Box>
                   <Divider sx={{ mb: 3 }} />
-
                   <TableContainer component={Paper} variant="outlined" sx={{ width: '100%' }}>
                     <Table size="small">
                       <TableHead>
@@ -903,8 +1110,8 @@ const DeclarationDetail = () => {
               Back to List
             </Button>
           </Box>
-        </>
-      )}
+        </Box>
+      </Box>
     </Box>
   );
 };

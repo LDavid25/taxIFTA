@@ -78,9 +78,16 @@ app.use(
   })
 );
 
-// Enable CORS
-app.use(cors());
-app.options('*', cors());
+// Enable CORS with specific origin
+const corsOptions = {
+  origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  optionsSuccessStatus: 200 // some legacy browsers (IE11, various SmartTVs) choke on 204
+};
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 
 // Compression
 app.use(compression());
@@ -102,6 +109,12 @@ app.use((req, res, next) => {
 
 // Register routes with logging
 const registerRoute = (path, router) => {
+  // Register with /api prefix for frontend compatibility
+  const apiPath = `/api${path}`;
+  console.log(`Registering route: ${apiPath}`);
+  app.use(apiPath, router);
+  
+  // Also register without /api prefix for backward compatibility
   console.log(`Registering route: ${path}`);
   app.use(path, router);
 };
