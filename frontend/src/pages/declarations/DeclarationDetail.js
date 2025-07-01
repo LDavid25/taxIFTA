@@ -1,1117 +1,2045 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link as RouterLink } from 'react-router-dom';
-import { eachMonthOfInterval, format } from 'date-fns';
+﻿import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import api from '../../services/api';
+import { format, parseISO, startOfMonth, endOfMonth, eachMonthOfInterval } from 'date-fns';
+import { es } from 'date-fns/locale';
+import { getQuarterlyReportDetails } from '../../services/quarterlyReportService';
 import {
   Box,
   Button,
   Card,
   CardContent,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
   Typography,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
+  TableFooter,
   TableRow,
   Paper,
-  Breadcrumbs,
-  Link,
   Chip,
-  Grid,
-  IconButton,
-  Tooltip
+  CircularProgress,
+  Tabs,
+  Tab,
+  useTheme,
+  useMediaQuery,
+  TextField,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  Grid
 } from '@mui/material';
-import { 
+import {
   ArrowBack as ArrowBackIcon,
   PictureAsPdf as PdfIcon,
-  Print as PrintIcon,
-  Delete as DeleteIcon,
-  UploadFile as UploadFileIcon,
-  PictureAsPdf as PictureAsPdfIcon,
-  CheckCircle as CheckCircleIcon,
-  Send as SendIcon,
-  Edit as EditIcon,
   Description as ExcelIcon,
-  Add as AddIcon
+  TableChart as TableChartIcon,
+  ArrowBackIos as PrevIcon,
+  ArrowForwardIos as NextIcon
 } from '@mui/icons-material';
-import { Divider } from '@mui/material';
-import { getIndividualReports } from '../../services/quarterlyReportService';
+import { getDeclarationById } from '../../services/declarationService';
 import AlertMessage from '../../components/common/AlertMessage';
 import LoadingScreen from '../../components/common/LoadingScreen';
 
 // Helper functions
-const getStatusColor = (status) => {
-  switch (status) {
-    case 'approved': return 'success';
-    case 'pending': return 'warning';
-    case 'submitted': return 'info';
-    case 'rejected': return 'error';
-    default: return 'default';
+const stateCodeToName = (code, full = false) => {
+  try {
+    if (!code) return 'Unknown';
+    
+    // Manejar el caso especial 'TOTAL'
+    if (String(code).toUpperCase() === 'TOTAL') return 'TOTAL';
+    
+    const states = {
+      'AL': 'Alabama', 'AK': 'Alaska', 'AZ': 'Arizona', 'AR': 'Arkansas', 'CA': 'California',
+      'CO': 'Colorado', 'CT': 'Connecticut', 'DE': 'Delaware', 'FL': 'Florida', 'GA': 'Georgia',
+      'HI': 'Hawaii', 'ID': 'Idaho', 'IL': 'Illinois', 'IN': 'Indiana', 'IA': 'Iowa',
+      'KS': 'Kansas', 'KY': 'Kentucky', 'LA': 'Louisiana', 'ME': 'Maine', 'MD': 'Maryland',
+      'MA': 'Massachusetts', 'MI': 'Michigan', 'MN': 'Minnesota', 'MS': 'Mississippi',
+      'MO': 'Missouri', 'MT': 'Montana', 'NE': 'Nebraska', 'NV': 'Nevada', 'NH': 'New Hampshire',
+      'NJ': 'New Jersey', 'NM': 'New Mexico', 'NY': 'New York', 'NC': 'North Carolina',
+      'ND': 'North Dakota', 'OH': 'Ohio', 'OK': 'Oklahoma', 'OR': 'Oregon', 'PA': 'Pennsylvania',
+      'RI': 'Rhode Island', 'SC': 'South Carolina', 'SD': 'South Dakota', 'TN': 'Tennessee',
+      'TX': 'Texas', 'UT': 'Utah', 'VT': 'Vermont', 'VA': 'Virginia', 'WA': 'Washington',
+      'WV': 'West Virginia', 'WI': 'Wisconsin', 'WY': 'Wyoming', 'DC': 'District of Columbia',
+      'PR': 'Puerto Rico', 'GU': 'Guam', 'VI': 'Virgin Islands', 'MP': 'Northern Mariana Islands',
+      'AS': 'American Samoa'
+    };
+    
+    // Convertir a string y buscar directamente
+    const codeStr = String(code).toUpperCase();
+    const stateName = states[codeStr] || codeStr;
+    
+    // Si se solicita el formato completo, devolver 'CODE - Name', de lo contrario solo el nombre
+    return full ? `${codeStr} - ${stateName}` : stateName;
+  } catch (error) {
+    console.error('Error en stateCodeToName:', error);
+    return 'Error';
   }
 };
 
+const getStatusColor = (status) => {
+  if (!status) return 'default';
+  
+  // Usar un mapeo directo en lugar de switch con toLowerCase
+  const colorMap = {
+    'approved': 'success',
+    'rejected': 'error',
+    'pending': 'warning'
+  };
+  
+  // Convertir a string y buscar en el mapa
+  const statusStr = String(status);
+  return colorMap[statusStr] || 'default';
+};
+
 const getStatusText = (status) => {
-  switch (status) {
-    case 'approved': return 'Aprobado';
-    case 'pending': return 'Pendiente';
-    case 'submitted': return 'Enviado';
-    case 'rejected': return 'Rechazado';
-    default: return status;
-  }
+  if (!status) return 'Desconocido';
+  
+  const statusMap = {
+    'approved': 'Aprobado',
+    'rejected': 'Rechazado',
+    'pending': 'Pendiente'
+  };
+  
+  // Convertir a string y buscar en el mapa
+  const statusStr = String(status);
+  return statusMap[statusStr] || status;
 };
 
 const formatDate = (dateString) => {
   if (!dateString) return '';
-  const date = new Date(dateString);
-  return date.toLocaleDateString();
+  try {
+    return format(parseISO(dateString), 'PP', { locale: es });
+  } catch (error) {
+    console.error('Error formatting date:', error);
+    return dateString;
+  }
 };
 
-const getQuarterRange = (quarter) => {
-  const ranges = {
-    'Q1': 'Enero 1 - Marzo 31',
-    'Q2': 'Abril 1 - Junio 30',
-    'Q3': 'Julio 1 - Septiembre 30',
-    'Q4': 'Octubre 1 - Diciembre 31'
-  };
-  return ranges[quarter] || '';
+const formatNumber = (num) => {
+  return new Intl.NumberFormat('en-US').format(num);
+};
+
+const calculateMPG = (miles, gallons) => {
+  if (!gallons || gallons === 0) return 0;
+  return miles / gallons;
 };
 
 // Main component
 const DeclarationDetail = () => {
-  // Hooks at the top level
-  const { companyId, quarter, year, id } = useParams();
+  const { companyId, quarter, year } = useParams();
   const navigate = useNavigate();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   
-  // State declarations
+  // State
   const [loading, setLoading] = useState(true);
-  const [reports, setReports] = useState([]);
-  const [companyInfo, setCompanyInfo] = useState(null);
-  const [alert, setAlert] = useState({ open: false, message: '', severity: 'info' });
-  const [summary, setSummary] = useState({
-    total_miles: 0,
-    total_gallons: 0,
-    report_count: 0,
-    status: 'pending'
+  const [reportData, setReportData] = useState({
+    reports: [],
+    monthly_breakdown: [],
+    state_totals: [],
+    individual_reports: []
   });
-  const [stateSummary, setStateSummary] = useState([]);
-  const [declaration, setDeclaration] = useState({ trips: [] });
-  const [status, setStatus] = useState('pending');
+  const [availableQuarters, setAvailableQuarters] = useState([1, 2, 3, 4]); // Default to all quarters
+  const [companyInfo, setCompanyInfo] = useState(null);
+  const [activeTab, setActiveTab] = useState(0);
+  const [alert, setAlert] = useState({ open: false, message: '', severity: 'info' });
+
+
+  // Initialize filters state with the quarter from URL
+  const [filters, setFilters] = useState({
+    vehicle: 'all',
+    quarter: quarter // Use the quarter from URL
+  });
   
-  // UI State
-  const [file, setFile] = useState(null);
-  const [filePreview, setFilePreview] = useState('');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
-  const [selectedStatus, setSelectedStatus] = useState('all');
-  const [selectedFile, setSelectedFile] = useState(null);
-  
-  // Filter states
-  const [selectedQuarter, setSelectedQuarter] = useState(quarter || '1');
-  const [selectedMonth, setSelectedMonth] = useState('all');
-  const [filteredTrips, setFilteredTrips] = useState([]);
-  
-  // Available months based on selected quarter
-  const getAvailableMonths = () => {
-    const months = [
-      { value: '1', label: 'Enero' },
-      { value: '2', label: 'Febrero' },
-      { value: '3', label: 'Marzo' },
-      { value: '4', label: 'Abril' },
-      { value: '5', label: 'Mayo' },
-      { value: '6', label: 'Junio' },
-      { value: '7', label: 'Julio' },
-      { value: '8', label: 'Agosto' },
-      { value: '9', label: 'Septiembre' },
-      { value: '10', label: 'Octubre' },
-      { value: '11', label: 'Noviembre' },
-      { value: '12', label: 'Diciembre' }
-    ];
-    
-    // Filter months based on selected quarter
-    if (selectedQuarter === '1') return months.slice(0, 3);
-    if (selectedQuarter === '2') return months.slice(3, 6);
-    if (selectedQuarter === '3') return months.slice(6, 9);
-    if (selectedQuarter === '4') return months.slice(9, 12);
-    return months;
-  };
-  
-  // Filter trips based on selected quarter and month
+  // Update filters when URL changes
   useEffect(() => {
-    // Asegurarse de que siempre haya un array, incluso si declaration o declaration.trips son undefined
-    const trips = Array.isArray(declaration?.trips) ? declaration.trips : [];
-    let filtered = [...trips];
+    setFilters(prev => ({
+      ...prev,
+      quarter: quarter
+    }));
+  }, [quarter]);
+  
+  // Fetch available quarters for the current year and company
+  const fetchAvailableQuarters = useCallback(async () => {
+    if (!companyId || !year) return;
     
-    // Filter by quarter
-    filtered = filtered.filter(trip => {
-      const tripDate = new Date(trip.trip_date);
-      const tripMonth = tripDate.getMonth() + 1; // 1-12
+    try {
+      const response = await api.get(`/v1/quarterly-reports/company/${companyId}/year/${year}/quarters`);
+      if (response.data && response.data.quarters) {
+        setAvailableQuarters(response.data.quarters);
+      }
+    } catch (error) {
+      console.error('Error fetching available quarters:', error);
+      // If there's an error, fall back to all quarters
+      setAvailableQuarters([1, 2, 3, 4]);
+    }
+  }, [companyId, year]);
+
+  // Fetch report data
+  const fetchReportData = useCallback(async () => {
+    if (!companyId || !quarter || !year) return;
+    
+    setLoading(true);
+    try {
+      const response = await getQuarterlyReportDetails(companyId, quarter, year);
       
-      if (selectedQuarter === '1') return tripMonth >= 1 && tripMonth <= 3;
-      if (selectedQuarter === '2') return tripMonth >= 4 && tripMonth <= 6;
-      if (selectedQuarter === '3') return tripMonth >= 7 && tripMonth <= 9;
-      if (selectedQuarter === '4') return tripMonth >= 10 && tripMonth <= 12;
-      return true;
-    });
+      // Set report data
+      const reportData = {
+        reports: response.data?.reports || [],
+        monthly_breakdown: response.data?.monthly_breakdown || [],
+        state_totals: response.data?.state_totals || [],
+        individual_reports: response.data?.individual_reports || []
+      };
+      
+      console.log('Datos de la API - individual_reports:', reportData.individual_reports);
+      
+      setReportData(reportData);
+      
+      // Set company info if available
+      if (response.data?.company_name) {
+        setCompanyInfo({
+          id: companyId,
+          name: response.data.company_name
+        });
+      }
+    } catch (error) {
+      console.error('Error loading report data:', error);
+      setAlert({
+        open: true,
+        message: error.message || 'Error al cargar los datos del reporte',
+        severity: 'error'
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [companyId, quarter, year, filters.quarter]);
+
+  // Initial data load
+  useEffect(() => {
+    fetchAvailableQuarters();
+    fetchReportData();
+  }, [fetchAvailableQuarters, fetchReportData]);
+
+  // Process state summary from API data
+  const stateSummary = useMemo(() => {
+    if (!reportData.state_totals || reportData.state_totals.length === 0) return [];
     
-    // Filter by month if not 'all'
-    if (selectedMonth !== 'all') {
-      filtered = filtered.filter(trip => {
-        const tripDate = new Date(trip.trip_date);
-        return (tripDate.getMonth() + 1).toString() === selectedMonth;
+    // Calculate totals
+    const totalMiles = reportData.state_totals.reduce((sum, state) => 
+      sum + (parseFloat(state.total_miles) || 0), 0);
+      
+    const totalGallons = reportData.state_totals.reduce((sum, state) => 
+      sum + (parseFloat(state.total_gallons) || 0), 0);
+    
+    // Create summary array from state_totals
+    const summary = reportData.state_totals.map(state => ({
+      state: state.state_code,
+      miles: parseFloat(state.total_miles) || 0,
+      gallons: parseFloat(state.total_gallons) || 0,
+      mpg: calculateMPG(parseFloat(state.total_miles) || 0, parseFloat(state.total_gallons) || 0).toFixed(2),
+      percentage: totalMiles > 0 ? ((parseFloat(state.total_miles) || 0) / totalMiles) * 100 : 0
+    }));
+
+    // Add total row
+    if (summary.length > 0) {
+      summary.push({
+        state: 'TOTAL',
+        isTotal: true,
+        miles: totalMiles,
+        gallons: totalGallons,
+        mpg: calculateMPG(totalMiles, totalGallons).toFixed(2),
+        percentage: 100
       });
     }
+
+    return summary;
+  }, [reportData.state_totals]);
+
+  // Month names for display
+  const monthNames = [
+    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+  ];
+
+  // Process monthly data from API
+  const monthlyData = useMemo(() => {
+    if (!reportData.monthly_breakdown?.length) return [];
     
-    setFilteredTrips(filtered);
-  }, [declaration, selectedQuarter, selectedMonth]);
-  
-  // Quarter selection state for date range
-  const [selectedStartQuarter, setSelectedStartQuarter] = useState('1');
-  const [selectedEndQuarter, setSelectedEndQuarter] = useState('4');
-  
-  // Year selection
-  const currentYear = new Date().getFullYear();
-  const [selectedStartYear, setSelectedStartYear] = useState(currentYear.toString());
-  const [selectedEndYear, setSelectedEndYear] = useState(currentYear.toString());
-  const availableYears = Array.from({ length: 10 }, (_, i) => currentYear - 5 + i);
-  
-  // Calculate monthly summary (simplified example)
-  const monthlySummary = Array.isArray(declaration?.monthlySummary) ? declaration.monthlySummary : [];
-  
-  // Move all useEffects to the top, right after state declarations
-  // Cargar reportes individuales para la compañía, trimestre y año seleccionados
-  useEffect(() => {
-    const fetchIndividualReports = async () => {
-      if (!companyId || !quarter || !year) return;
+    // Group by month and state
+    const monthsMap = new Map();
+    
+    reportData.monthly_breakdown.forEach(item => {
+      const date = new Date(item.report_date);
+      const year = date.getFullYear();
+      const month = date.getMonth();
+      const monthKey = `${year}-${String(month + 1).padStart(2, '0')}`;
+      const stateCode = item.state_code;
       
-      setLoading(true);
-      try {
-        const response = await getIndividualReports(companyId, quarter, year);
-        const responseData = response.data || {};
-        
-        // Extraer los reports del objeto de respuesta
-        const reportsData = responseData.reports || [];
-        
-        // Procesar los datos para agrupar por vehículo y mes
-        const processedData = processReportData(reportsData);
-        setReports(processedData.vehicles || []);
-        
-        // Calcular resumen general
-        const totalMiles = processedData.vehicles.reduce((sum, vehicle) => sum + (parseFloat(vehicle.total_miles) || 0), 0);
-        const totalGallons = processedData.vehicles.reduce((sum, vehicle) => sum + (parseFloat(vehicle.total_gallons) || 0), 0);
-        
-        setSummary({
-          total_miles: totalMiles,
-          total_gallons: totalGallons,
-          report_count: processedData.vehicles.length,
-          status: 'completed' // Asumimos que los datos ya están completos
+      if (!monthsMap.has(monthKey)) {
+        monthsMap.set(monthKey, {
+          month,
+          year,
+          states: {}
         });
-        
-        // Procesar resumen por estado
-        const stateSummaryMap = new Map();
-        
-        if (processedData.stateSummary && Array.isArray(processedData.stateSummary)) {
-          processedData.stateSummary.forEach(stateData => {
-            if (stateSummaryMap.has(stateData.state_code)) {
-              const existing = stateSummaryMap.get(stateData.state_code);
-              stateSummaryMap.set(stateData.state_code, {
-                state: stateData.state_code,
-                miles: (existing.miles || 0) + (parseFloat(stateData.miles) || 0),
-                gallons: (existing.gallons || 0) + (parseFloat(stateData.gallons) || 0)
-              });
-            } else {
-              stateSummaryMap.set(stateData.state_code, {
-                state: stateData.state_code,
-                miles: parseFloat(stateData.miles) || 0,
-                gallons: parseFloat(stateData.gallons) || 0
-              });
-            }
-          });
-        }
-        
-        setStateSummary(Array.from(stateSummaryMap.values()));
-      } catch (error) {
-        console.error('Error fetching individual reports:', error);
-        setAlert({
-          open: true,
-          message: error.message || 'Error al cargar los reportes individuales',
-          severity: 'error'
-        });
-      } finally {
-        setLoading(false);
       }
-    };
-    
-    // Función para procesar los datos del backend
-    const processReportData = (reports) => {
-      const vehiclesMap = new Map();
-      const monthlyTotals = {};
-      const stateSummary = [];
-      
-      // Inicializar totales mensuales
-      const quarterMonths = getQuarterMonths(parseInt(quarter), parseInt(year));
-      quarterMonths.forEach(month => {
-        monthlyTotals[month] = {
-          total_miles: 0,
-          total_gallons: 0,
-          states: new Set()
-        };
-      });
-      
-      // Procesar cada reporte
-      if (!Array.isArray(reports)) {
-        console.error('Expected reports to be an array, received:', reports);
-        return {
-          vehicles: [],
-          monthlyTotals: {},
-          stateSummary: [],
-          lastUpdated: new Date().toISOString()
+
+      // Add state data for this month
+      if (!monthsMap.get(monthKey).states[stateCode]) {
+        monthsMap.get(monthKey).states[stateCode] = {
+          miles: 0,
+          gallons: 0
         };
       }
       
-      reports.forEach(report => {
-        const { vehicle_plate, report_month, state_data = [] } = report;
-        const monthKey = format(new Date(report_month), 'yyyy-MM');
+      // Sum up the values
+      const monthStates = monthsMap.get(monthKey).states[stateCode];
+      monthStates.miles += parseFloat(item.total_miles) || 0;
+      monthStates.gallons += parseFloat(item.total_gallons) || 0;
+    });
+
+    // Convert to array, sort by date, and add month name
+    return Array.from(monthsMap.values())
+      .sort((a, b) => {
+        if (a.year !== b.year) return a.year - b.year;
+        return a.month - b.month;
+      })
+      .map(monthData => ({
+        ...monthData,
+        monthName: monthNames[monthData.month]
+      }));
+  }, [reportData.monthly_breakdown]);
+
+  // Helper function to get quarter from month (0-11)
+  const getQuarterFromMonth = (month) => {
+    return Math.floor(month / 3) + 1;
+  };
+
+  // Helper function to get month range for a quarter
+  const getQuarterMonths = (quarter, year) => {
+    const startMonth = (quarter - 1) * 3;
+    const months = [
+      { month: startMonth, name: monthNames[startMonth], year },
+      { month: startMonth + 1, name: monthNames[startMonth + 1], year },
+      { month: startMonth + 2, name: monthNames[startMonth + 2], year }
+    ];
+    console.log(`Meses para Q${quarter} ${year}:`, months.map(m => m.name));
+    return months;
+  };
+
+  // Process data for the vehicle/state monthly table
+  const vehicleStateTableData = useMemo(() => {
+    if (!reportData.individual_reports) {
+      return { vehicles: [], months: [], quarters: [], generalTotal: { miles: 0, gallons: 0, mpg: '0.00' } };
+    }
+    
+    const reportsToProcess = filters.vehicle !== 'all' 
+      ? reportData.individual_reports.filter(r => r.vehicle_plate === filters.vehicle)
+      : reportData.individual_reports;
+    
+    if (reportsToProcess.length === 0) {
+      return { vehicles: [], months: [], quarters: [], generalTotal: { miles: 0, gallons: 0, mpg: '0.00' } };
+    }
+
+    // Get all unique months and quarters from reports
+    const monthsMap = new Map();
+    const quartersMap = new Map();
+    const vehiclesMap = new Map();
+    let generalTotalMiles = 0;
+    let generalTotalGallons = 0;
+
+    // Process each report
+    console.log('Procesando informes individuales. Total:', reportsToProcess.length);
+    
+    reportsToProcess.forEach((report, index) => {
+      console.log(`Procesando informe ${index + 1}:`, report);
+      
+      const vehiclePlate = report.vehicle_plate || 'SIN PLACA';
+      const month = report.report_month - 1; // Convert to 0-based month
+      const year = report.report_year;
+      const monthKey = `${year}-${String(month + 1).padStart(2, '0')}`;
+      
+      console.log(`Vehículo: ${vehiclePlate}, Mes: ${month + 1}, Año: ${year}, Clave de mes: ${monthKey}`);
+      
+      // Track unique months and quarters
+      if (!monthsMap.has(monthKey)) {
+        const quarter = getQuarterFromMonth(month);
+        const quarterKey = `Q${quarter}-${year}`;
         
-        // Inicializar vehículo si no existe
-        if (!vehiclesMap.has(vehicle_plate)) {
-          vehiclesMap.set(vehicle_plate, {
-            plate: vehicle_plate,
-            total_miles: 0,
-            total_gallons: 0,
-            months: {},
-            states: new Set()
+        monthsMap.set(monthKey, {
+          month,
+          monthName: monthNames[month],
+          year,
+          quarter,
+          quarterKey
+        });
+        
+        // Track unique quarters
+        if (!quartersMap.has(quarterKey)) {
+          quartersMap.set(quarterKey, {
+            quarter,
+            year,
+            months: getQuarterMonths(quarter, year)
+          });
+        }
+      }
+      
+      // Verificar si hay datos de estados
+      if (!report.state_data || !Array.isArray(report.state_data)) {
+        console.log(`  No hay datos de estados para el informe ${index + 1}`);
+        return; // Saltar este reporte si no tiene datos de estados
+      }
+
+      // Initialize vehicle if not exists
+      if (!vehiclesMap.has(vehiclePlate)) {
+        vehiclesMap.set(vehiclePlate, {
+          plate: vehiclePlate,
+          states: new Map(),
+          totalMiles: 0,
+          totalGallons: 0,
+          mpg: 0
+        });
+      }
+
+      const vehicle = vehiclesMap.get(vehiclePlate);
+      
+      // Procesar cada estado en el reporte
+      console.log(`  Estados en el informe ${index + 1}:`, report.state_data);
+      
+      report.state_data.forEach((state, stateIndex) => {
+        const stateCode = state.state_code;
+        console.log(`  Procesando estado ${stateIndex + 1}: ${stateCode}, Millas: ${state.miles}, Galones: ${state.gallons}`);
+        
+        // Initialize state if not exists
+        if (!vehicle.states.has(stateCode)) {
+          vehicle.states.set(stateCode, {
+            code: stateCode,
+            months: new Map(),
+            totalMiles: 0,
+            totalGallons: 0,
+            mpg: 0
           });
         }
         
-        const vehicle = vehiclesMap.get(vehicle_plate);
+        const stateData = vehicle.states.get(stateCode);
         
-        // Inicializar mes si no existe
-        if (!vehicle.months[monthKey]) {
-          vehicle.months[monthKey] = {
-            total_miles: 0,
-            total_gallons: 0,
-            states: []
-          };
+        // Initialize month data if not exists
+        if (!stateData.months.has(monthKey)) {
+          stateData.months.set(monthKey, { miles: 0, gallons: 0, hasData: false });
         }
         
-        // Procesar estados
-        if (Array.isArray(state_data)) {
-          state_data.forEach(state => {
-            // Agregar estado al resumen general
-            stateSummary.push({
-              state_code: state.state_code,
-              miles: parseFloat(state.miles) || 0,
-              gallons: parseFloat(state.gallons) || 0,
-              month: monthKey
-            });
-            
-            // Agregar estado al vehículo
-            vehicle.states.add(state.state_code);
-            vehicle.months[monthKey].states.push({
-              state_code: state.state_code,
-              miles: parseFloat(state.miles) || 0,
-              gallons: parseFloat(state.gallons) || 0
-            });
-            
-            // Actualizar totales
-            const miles = parseFloat(state.miles) || 0;
-            const gallons = parseFloat(state.gallons) || 0;
-            
-            vehicle.months[monthKey].total_miles += miles;
-            vehicle.months[monthKey].total_gallons += gallons;
-            vehicle.total_miles += miles;
-            vehicle.total_gallons += gallons;
-            
-            // Actualizar totales mensuales
-            if (monthlyTotals[monthKey]) {
-              monthlyTotals[monthKey].total_miles += miles;
-              monthlyTotals[monthKey].total_gallons += gallons;
-              monthlyTotals[monthKey].states.add(state.state_code);
-            }
-          });
-        }
+        // Add values
+        const monthData = stateData.months.get(monthKey);
+        const miles = parseFloat(state.miles) || 0;
+        const gallons = parseFloat(state.gallons) || 0;
+        
+        monthData.miles += miles;
+        monthData.gallons += gallons;
+        monthData.hasData = true;
+        
+        // Update state totals
+        stateData.totalMiles += miles;
+        stateData.totalGallons += gallons;
+        stateData.mpg = stateData.totalGallons > 0 ? 
+          (stateData.totalMiles / stateData.totalGallons).toFixed(2) : '0.00';
+        
+        // Update vehicle totals
+        vehicle.totalMiles += miles;
+        vehicle.totalGallons += gallons;
+        
+        // Update general totals
+        generalTotalMiles += miles;
+        generalTotalGallons += gallons;
       });
       
-      // Convertir Map a array y ordenar por placa
-      const vehicles = Array.from(vehiclesMap.values()).sort((a, b) => 
-        a.plate.localeCompare(b.plate)
+      // Calculate vehicle MPG
+      vehicle.mpg = vehicle.totalGallons > 0 ? 
+        (vehicle.totalMiles / vehicle.totalGallons).toFixed(2) : '0.00';
+    });
+    
+    // Ordenar meses cronológicamente (de más antiguo a más reciente)
+    const sortedMonths = Array.from(monthsMap.values()).sort((a, b) => {
+      if (a.year !== b.year) return a.year - b.year;
+      return a.month - b.month;
+    });
+    
+    console.log('Meses ordenados:', sortedMonths.map(m => `${m.monthName} ${m.year}`));
+    
+    // Ordenar cuartos cronológicamente
+    const sortedQuarters = Array.from(quartersMap.values()).sort((a, b) => {
+      if (a.year !== b.year) return a.year - b.year;
+      return a.quarter - b.quarter;
+    });
+    
+    console.log('Meses únicos encontrados:', sortedMonths);
+    
+    // Convertir el mapa de vehículos a un array y ordenar por placa
+    const vehicles = Array.from(vehiclesMap.values()).sort((a, b) => 
+      a.plate.localeCompare(b.plate)
+    );
+    
+    console.log('Vehículos encontrados:', vehicles.map(v => v.plate));
+    
+    // Convertir los mapas de estados a arrays y ordenar por código de estado
+    vehicles.forEach(vehicle => {
+      vehicle.states = Array.from(vehicle.states.values()).sort((a, b) => 
+        a.code.localeCompare(b.code)
       );
       
-      // Convertir Sets a arrays para los estados
-      vehicles.forEach(vehicle => {
-        vehicle.states = Array.from(vehicle.states);
-      });
+      // Calcular MPG para cada vehículo
+      vehicle.mpg = vehicle.totalGallons > 0 ? 
+        (vehicle.totalMiles / vehicle.totalGallons).toFixed(2) : '0.00';
       
-      Object.keys(monthlyTotals).forEach(month => {
-        monthlyTotals[month].states = Array.from(monthlyTotals[month].states);
-      });
-      
-      return {
-        vehicles,
-        monthlyTotals,
-        stateSummary,
-        lastUpdated: new Date().toISOString()
-      };
+      console.log(`Estados para el vehículo ${vehicle.plate}:`, vehicle.states.map(s => s.code));
+    });
+    
+    // Calcular MPG general
+    const generalMPG = generalTotalGallons > 0 ? 
+      (generalTotalMiles / generalTotalGallons).toFixed(2) : '0.00';
+    
+    const result = {
+      vehicles,
+      months: sortedMonths,
+      quarters: sortedQuarters,
+      generalTotal: {
+        miles: generalTotalMiles,
+        gallons: generalTotalGallons,
+        mpg: generalMPG
+      },
+      hasMultipleQuarters: sortedQuarters.length > 1
     };
     
-    // Función auxiliar para obtener los meses de un trimestre
-    const getQuarterMonths = (q, y) => {
-      let startMonth = 0;
-      switch (q) {
-        case 1: startMonth = 0; break;  // Q1: Ene-Mar
-        case 2: startMonth = 3; break;  // Q2: Abr-Jun
-        case 3: startMonth = 6; break;  // Q3: Jul-Sep
-        case 4: startMonth = 9; break;  // Q4: Oct-Dic
-        default: startMonth = 0;
-      }
-      
-      const startDate = new Date(y, startMonth, 1);
-      const endDate = new Date(y, startMonth + 3, 0);
-      
-      return eachMonthOfInterval({
-        start: startDate,
-        end: endDate
-      }).map(date => format(date, 'yyyy-MM'));
-    };
+    console.log('Datos procesados para la tabla:', {
+      totalVehicles: vehicles.length,
+      totalMonths: sortedMonths.length,
+      generalTotal: result.generalTotal,
+      sampleVehicle: vehicles.length > 0 ? {
+        plate: vehicles[0].plate,
+        states: vehicles[0].states.map(s => s.code),
+        totalMiles: vehicles[0].totalMiles,
+        totalGallons: vehicles[0].totalGallons,
+        mpg: vehicles[0].mpg
+      } : 'No hay vehículos'
+    });
     
-    fetchIndividualReports();
-  }, [companyId, quarter, year]);
-  
-  // Cargar datos de la declaración
-  useEffect(() => {
-    const fetchDeclaration = async () => {
-      if (!id) return;
-      
-      setLoading(true);
-      try {
-        // En una implementación real, esto obtendría datos de la API
-        // const response = await getDeclarationById(id);
-        // setDeclaration(response.data);
+    return result;
+  }, [reportData.individual_reports, filters.vehicle]);
 
-        // Simulamos datos para la demostración
-        setTimeout(() => {
-          const declarationData = {
-            id: parseInt(id),
-            quarter: 'Q1',
-            year: 2025,
-            total_miles: 5200,
-            total_gallons: 520,
-            status: 'approved',
-            created_at: '2025-04-15T10:30:00Z',
-            updated_at: '2025-04-20T14:45:00Z',
-            state_summary: [
-              { state: 'TX', miles: 1500, gallons: 150 },
-              { state: 'CA', miles: 1200, gallons: 120 },
-              { state: 'AZ', miles: 800, gallons: 80 },
-              { state: 'NM', miles: 1700, gallons: 170 }
-            ],
-            trips: [
-              { id: 1, trip_date: '2025-01-15', origin_state: 'TX', destination_state: 'CA', distance: 1200, fuel_consumed: 120 },
-              { id: 2, trip_date: '2025-02-10', origin_state: 'CA', destination_state: 'AZ', distance: 800, fuel_consumed: 80 },
-              { id: 3, trip_date: '2025-03-05', origin_state: 'AZ', destination_state: 'NM', distance: 1700, fuel_consumed: 170 },
-              { id: 4, trip_date: '2025-03-20', origin_state: 'NM', destination_state: 'TX', distance: 1500, fuel_consumed: 150 }
-            ]
-          };
-          setDeclaration(declarationData);
-          setStatus(declarationData.status);
-          setLoading(false);
-        }, 1000);
-      } catch (error) {
-        setAlert({
-          open: true,
-          message: error.message || 'Error loading declaration data',
-          severity: 'error'
-        });
-        setLoading(false);
-      }
-    };
-
-    fetchDeclaration();
-  }, [id]);
-
-  if (loading) {
-    return <LoadingScreen message="Cargando reporte trimestral..." />;
-  }
-
-  return (
-    <Box>
-      <AlertMessage
-        open={alert.open}
-        onClose={() => setAlert({ ...alert, open: false })}
-        severity={alert.severity}
-        message={alert.message}
-        autoHideDuration={6000}
-      />
-
-      <Box sx={{ mb: 3, display: 'flex', alignItems: 'center' }}>
-        <IconButton onClick={() => navigate(-1)} sx={{ mr: 2 }}>
-          <ArrowBackIcon />
-        </IconButton>
-        <Breadcrumbs aria-label="breadcrumb">
-          <Link component={RouterLink} to="/declarations" color="inherit">
-            Reportes Trimestrales
-          </Link>
-          <Typography color="text.primary">
-            {companyInfo?.name || 'Reporte'} - {quarter} {year}
-          </Typography>
-        </Breadcrumbs>
-      </Box>
-
-      {/* Resumen del reporte */}
-      <Card sx={{ mb: 3 }}>
-        <CardContent>
-          <Grid container spacing={3}>
-            <Grid item xs={12} md={4}>
-              <Typography variant="subtitle2" color="textSecondary">Compañía</Typography>
-              <Typography variant="h6">{companyInfo?.name || 'N/A'}</Typography>
-            </Grid>
-            <Grid item xs={12} md={2}>
-              <Typography variant="subtitle2" color="textSecondary">Trimestre</Typography>
-              <Typography variant="h6">{quarter} {year}</Typography>
-            </Grid>
-            <Grid item xs={12} md={2}>
-              <Typography variant="subtitle2" color="textSecondary">Estado</Typography>
-              <Chip 
-                label={getStatusText(summary.status)} 
-                color={getStatusColor(summary.status)} 
-                size="small"
-                sx={{ mt: 0.5 }}
-              />
-            </Grid>
-            <Grid item xs={12} md={2}>
-              <Typography variant="subtitle2" color="textSecondary">Total de Millas</Typography>
-              <Typography variant="h6">{summary.total_miles.toLocaleString()}</Typography>
-            </Grid>
-            <Grid item xs={12} md={2}>
-              <Typography variant="subtitle2" color="textSecondary">Total de Galones</Typography>
-              <Typography variant="h6">{summary.total_gallons.toLocaleString()}</Typography>
-            </Grid>
-          </Grid>
-        </CardContent>
-      </Card>
-
-      {/* Resumen por estado */}
-      <Card sx={{ mb: 3 }}>
-        <CardContent>
-          <Typography variant="h6" gutterBottom>Resumen por Estado</Typography>
-          <TableContainer component={Paper}>
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell>Estado</TableCell>
-                  <TableCell align="right">Millas</TableCell>
-                  <TableCell align="right">Galones</TableCell>
-                  <TableCell align="right">MPG</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {stateSummary.map((state) => (
-                  <TableRow key={state.state}>
-                    <TableCell>{state.state}</TableCell>
-                    <TableCell align="right">{state.miles.toLocaleString()}</TableCell>
-                    <TableCell align="right">{state.gallons.toLocaleString()}</TableCell>
-                    <TableCell align="right">
-                      {(state.miles / (state.gallons || 1)).toFixed(2)}
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {stateSummary.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={4} align="center">
-                      No hay datos de estados disponibles
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </CardContent>
-      </Card>
-
-      {/* Reportes individuales */}
-      <Card>
-        <CardContent>
-          {declaration && (
-            <>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, flexWrap: 'wrap', gap: 2 }}>
-                <Box>
-                  <Typography variant="h5" sx={{ mb: 1 }}>
-                    Declaración IFTA: {declaration.quarter} {declaration.year}
-                  </Typography>
-                  <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-                    <FormControl size="small" variant="outlined" sx={{ minWidth: 150 }}>
-                      <InputLabel>Trimestre</InputLabel>
-                      <Select
-                        value={selectedQuarter}
-                        onChange={(e) => {
-                          setSelectedQuarter(e.target.value);
-                          setSelectedMonth('all'); // Reset month when quarter changes
-                        }}
-                        label="Trimestre"
-                      >
-                        <MenuItem value="1">Q1 (Ene - Mar)</MenuItem>
-                        <MenuItem value="2">Q2 (Abr - Jun)</MenuItem>
-                        <MenuItem value="3">Q3 (Jul - Sep)</MenuItem>
-                        <MenuItem value="4">Q4 (Oct - Dic)</MenuItem>
-                      </Select>
-                    </FormControl>
-                    
-                    <FormControl size="small" variant="outlined" sx={{ minWidth: 150 }}>
-                      <InputLabel>Mes</InputLabel>
-                      <Select
-                        value={selectedMonth}
-                        onChange={(e) => setSelectedMonth(e.target.value)}
-                        label="Mes"
-                      >
-                        <MenuItem value="all">Todos los meses</MenuItem>
-                        {getAvailableMonths().map(month => (
-                          <MenuItem key={month.value} value={month.value}>
-                            {month.label}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                    
-                    <Chip
-                      label={`${filteredTrips.length} viajes`}
-                      color="primary"
-                      variant="outlined"
-                    />
-                  </Box>
-                </Box>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Tooltip title="Descargar PDF">
-                    <IconButton color="primary">
-                      <PdfIcon />
-                    </IconButton>
-                  </Tooltip>
-                  <Tooltip title="Descargar Excel">
-                    <IconButton color="primary">
-                      <ExcelIcon />
-                    </IconButton>
-                  </Tooltip>
-
-                </Box>
-              </Box>
-            </>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardContent>
-          <TableContainer component={Paper}>
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell>Vehículo</TableCell>
-                  <TableCell>Mes</TableCell>
-                  <TableCell align="right">Millas Totales</TableCell>
-                  <TableCell align="right">Galones Totales</TableCell>
-                  <TableCell align="right">MPG</TableCell>
-                  <TableCell>Estado</TableCell>
-                  <TableCell>Última Actualización</TableCell>
-                  <TableCell>Acciones</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {reports.map((report) => (
-                  <TableRow key={report.id}>
-                    <TableCell>{report.vehicle?.unit_number || report.vehicle_plate || 'N/A'}</TableCell>
-                    <TableCell>{report.report_month || 'N/A'}</TableCell>
-                    <TableCell align="right">{report.total_miles.toLocaleString()}</TableCell>
-                    <TableCell align="right">{report.total_gallons.toFixed(2)}</TableCell>
-                    <TableCell align="right">
-                      {report.total_miles > 0 && report.total_gallons > 0 
-                        ? (report.total_miles / report.total_gallons).toFixed(2)
-                        : 'N/A'}
-                    </TableCell>
-                    <TableCell>
-                      <Chip 
-                        label={getStatusText(report.status)} 
-                        size="small" 
-                        color={getStatusColor(report.status)}
-                        sx={{ minWidth: 80 }}
-                      />
-                    </TableCell>
-                    <TableCell>{formatDate(report.updated_at)}</TableCell>
-                    <TableCell>
-                      <Button 
-                        size="small" 
-                        color="primary"
-                        onClick={() => navigate(`/reports/${report.id}`)}
-                      >
-                        Ver Detalles
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {reports.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={7} align="center">
-                      No hay reportes individuales para este período
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </CardContent>
-      </Card>
-    </Box>
-  );
-
-  // Map state codes to full names
-  const stateCodeToName = (code) => {
-    const states = {
-      'AL': 'Alabama',
-      'AK': 'Alaska',
-      'AZ': 'Arizona',
-      'AR': 'Arkansas',
-      'CA': 'California',
-      'CO': 'Colorado',
-      'CT': 'Connecticut',
-      'DE': 'Delaware',
-      'FL': 'Florida',
-      'GA': 'Georgia',
-      'HI': 'Hawaii',
-      'ID': 'Idaho',
-      'IL': 'Illinois',
-      'IN': 'Indiana',
-      'IA': 'Iowa',
-      'KS': 'Kansas',
-      'KY': 'Kentucky',
-      'LA': 'Louisiana',
-      'ME': 'Maine',
-      'MD': 'Maryland',
-      'MA': 'Massachusetts',
-      'MI': 'Michigan',
-      'MN': 'Minnesota',
-      'MS': 'Mississippi',
-      'MO': 'Missouri',
-      'MT': 'Montana',
-      'NE': 'Nebraska',
-      'NV': 'Nevada',
-      'NH': 'New Hampshire',
-      'NJ': 'New Jersey',
-      'NM': 'New Mexico',
-      'NY': 'New York',
-      'NC': 'North Carolina',
-      'ND': 'North Dakota',
-      'OH': 'Ohio',
-      'OK': 'Oklahoma',
-      'OR': 'Oregon',
-      'PA': 'Pennsylvania',
-      'RI': 'Rhode Island',
-      'SC': 'South Carolina',
-      'SD': 'South Dakota',
-      'TN': 'Tennessee',
-      'TX': 'Texas',
-      'UT': 'Utah',
-      'VT': 'Vermont',
-      'VA': 'Virginia',
-      'WA': 'Washington',
-      'WV': 'West Virginia',
-      'WI': 'Wisconsin',
-      'WY': 'Wyoming'
-    };
-    return states[code] || code;
+  // State colors for chips (se mantienen para otros usos)
+  const stateColors = {
+    'AL': '#9c27b0', 'AK': '#3f51b5', 'AZ': '#2196f3', 'AR': '#00bcd4', 'CA': '#4caf50',
+    'CO': '#8bc34a', 'CT': '#ffeb3b', 'DE': '#ffc107', 'FL': '#ff9800', 'GA': '#ff5722',
+    'HI': '#f44336', 'ID': '#e91e63', 'IL': '#9c27b0', 'IN': '#3f51b5', 'IA': '#2196f3',
+    'KS': '#00bcd4', 'KY': '#4caf50', 'LA': '#8bc34a', 'ME': '#ffeb3b', 'MD': '#ffc107',
+    'MA': '#ff9800', 'MI': '#ff5722', 'MN': '#f44336', 'MS': '#e91e63', 'MO': '#9c27b0',
+    'MT': '#3f51b5', 'NE': '#2196f3', 'NV': '#00bcd4', 'NH': '#4caf50', 'NJ': '#8bc34a',
+    'NM': '#ffeb3b', 'NY': '#ffc107', 'NC': '#ff9800', 'ND': '#ff5722', 'OH': '#f44336',
+    'OK': '#e91e63', 'OR': '#9c27b0', 'PA': '#3f51b5', 'RI': '#2196f3', 'SC': '#00bcd4',
+    'SD': '#4caf50', 'TN': '#8bc34a', 'TX': '#ffeb3b', 'UT': '#ffc107', 'VT': '#ff9800',
+    'VA': '#ff5722', 'WA': '#f44336', 'WV': '#e91e63', 'WI': '#9c27b0', 'WY': '#3f51b5',
+    'DC': '#2196f3', 'PR': '#00bcd4', 'GU': '#4caf50', 'VI': '#8bc34a', 'MP': '#ffeb3b',
+    'AS': '#ffc107'
   };
 
-  // Event handlers
-  const handleAlertClose = () => setAlert({ ...alert, open: false });
-  
-  const handleEdit = () => navigate(`/declarations/${id}/edit`);
-  
-  const handleDelete = () => {
-    setAlert({
-      open: true,
-      message: 'This functionality will be implemented in the future',
-      severity: 'info'
-    });
-  };
-  
-  const handlePrint = () => window.print();
-  
-  const handleSubmit = () => {
-    setAlert({
-      open: true,
-      message: 'Submission functionality in development',
-      severity: 'info'
-    });
+  // Handle tab change
+  const handleTabChange = (event, newValue) => {
+    setActiveTab(newValue);
   };
 
-  // Manejar cambio de estado
-  const handleStatusChange = (event) => {
-    const newStatus = event.target.value;
-    setStatus(newStatus);
-    // En una implementación real, aquí se haría una llamada a la API para actualizar el estado
-    setDeclaration(prev => ({
+  // Handle filter changes
+  const handleFilterChange = (field, value) => {
+    if (field === 'quarter') {
+      // Navigate to the new quarter's URL with the correct path
+      navigate(`/declarations/company/${companyId}/quarter/${value}/year/${year}`);
+      return;
+    }
+    
+    // For other filters (like vehicle), update the local state
+    setFilters(prev => ({
       ...prev,
-      status: newStatus,
-      updated_at: new Date().toISOString()
+      [field]: value
     }));
   };
 
-  if (loading) {
-    return <LoadingScreen message="Cargando datos de la declaración..." />;
-  }
 
-  return (
-    <Box sx={{ p: 3 }}>
-      <Box>
-        <AlertMessage
-          open={alert.open}
-          onClose={handleAlertClose}
-          severity={alert.severity}
-          message={alert.message}
-          autoHideDuration={6000}
-        />
 
-        <Breadcrumbs aria-label="breadcrumb" sx={{ mb: 3 }}>
-          <Link component={RouterLink} to="/dashboard" color="inherit">
-            Dashboard
-          </Link>
-          <Link component={RouterLink} to="/declarations" color="inherit">
-            Declaraciones
-          </Link>
-          <Typography color="text.primary">Detalles de Declaración</Typography>
-        </Breadcrumbs>
+  // Filter reports based on selected filters
+  const filteredReports = useMemo(() => {
+    if (!reportData.individual_reports) return [];
+    
+    return reportData.individual_reports.filter(report => {
+      // Filter by vehicle
+      if (filters.vehicle !== 'all' && report.vehicle_plate !== filters.vehicle) {
+        return false;
+      }
+      
 
-        <Box>
-          {/* Filter by date range */}
-          <Card sx={{ mb: 3 }}>
-            <CardContent>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <Typography variant="h6">Filter by Date Range</Typography>
+      return true;
+    });
+  }, [reportData.individual_reports, filters.vehicle]);
+
+  // Calculate totals from filtered reports
+  const filteredTotals = useMemo(() => {
+    if (!reportData.individual_reports) return { totalMiles: 0, totalGallons: 0, avgMPG: 0 };
+    
+    const reportsToProcess = filters.vehicle !== 'all' 
+      ? reportData.individual_reports.filter(r => r.vehicle_plate === filters.vehicle)
+      : reportData.individual_reports;
+    
+    return reportsToProcess.reduce((acc, report) => {
+      const miles = parseFloat(report.total_miles) || 0;
+      const gallons = parseFloat(report.total_gallons) || 0;
+      return {
+        totalMiles: acc.totalMiles + miles,
+        totalGallons: acc.totalGallons + gallons,
+        avgMPG: (acc.totalMiles + miles) / ((acc.totalGallons + gallons) || 1)
+      };
+    }, { totalMiles: 0, totalGallons: 0, avgMPG: 0 });
+  }, [reportData.individual_reports, filters.vehicle]);
+
+  // Calculate report summary
+  const reportSummary = useMemo(() => {
+    const totalMiles = reportData.state_totals?.reduce((sum, state) => 
+      sum + (parseFloat(state?.total_miles) || 0), 0) || 0;
+      
+    const totalGallons = reportData.state_totals?.reduce((sum, state) => 
+      sum + (parseFloat(state?.total_gallons) || 0), 0) || 0;
+      
+    const avgMPG = totalGallons > 0 ? (totalMiles / totalGallons).toFixed(2) : 0;
+
+    // Get date range for the report
+    const reportDates = (reportData.individual_reports || [])
+      .map(r => r?.report_date ? new Date(r.report_date) : null)
+      .filter(Boolean);
+    
+    const startDate = reportDates.length > 0 
+      ? format(Math.min(...reportDates), 'PP', { locale: es })
+      : 'N/A';
+      
+    const endDate = reportDates.length > 0 
+      ? format(Math.max(...reportDates), 'PP', { locale: es })
+      : 'N/A';
+
+    return {
+      total_miles: totalMiles,
+      total_gallons: totalGallons,
+      avg_mpg: avgMPG,
+      start_date: startDate,
+      end_date: endDate,
+      report_count: reportData.individual_reports?.length || 0
+    };
+  }, [reportData]);
+  
+  // Set initial loading state
+  useEffect(() => {
+    if (reportData.individual_reports.length > 0) {
+      setLoading(false);
+    }
+  }, [reportData]);
+
+  // Update the report data when filters change
+  useEffect(() => {
+    if (filters.vehicle !== 'all') {
+      // Update the report data based on the filtered reports
+      const filteredData = {
+        ...reportData,
+        individual_reports: filteredReports,
+        state_totals: calculateStateTotals(filteredReports)
+      };
+      // You might want to update the state with filtered data here
+      // or use the filtered data directly in your render methods
+    }
+  }, [filters.vehicle, filteredReports]);
+
+  // Helper function to calculate state totals from filtered reports
+  const calculateStateTotals = (reports) => {
+    const stateMap = new Map();
+    
+    reports.forEach(report => {
+      if (report.state_data?.length) {
+        report.state_data.forEach(state => {
+          const stateCode = state.state_code;
+          if (!stateMap.has(stateCode)) {
+            stateMap.set(stateCode, {
+              state_code: stateCode,
+              total_miles: 0,
+              total_gallons: 0
+            });
+          }
+          const stateTotal = stateMap.get(stateCode);
+          stateTotal.total_miles += parseFloat(state.total_miles) || 0;
+          stateTotal.total_gallons += parseFloat(state.total_gallons) || 0;
+        });
+      }
+    });
+    
+    return Array.from(stateMap.values());
+  };
+
+  // Estilos comunes para la tabla
+  const tableStyles = {
+    container: {
+      mt: 2,
+      maxHeight: '75vh',
+      width: '100%',
+      overflow: 'auto',
+      border: '1px solid #e0e0e0',
+      borderRadius: '4px',
+      boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+      position: 'relative',
+      fontSize: '0.8rem',
+      '&::-webkit-scrollbar': {
+        width: '8px',
+        height: '8px',
+      },
+      '&::-webkit-scrollbar-track': {
+        background: '#f1f1f1',
+        borderRadius: '0 0 4px 0',
+      },
+      '&::-webkit-scrollbar-thumb': {
+        background: '#888',
+        borderRadius: '4px',
+        '&:hover': {
+          background: '#666',
+        },
+      },
+    },
+    table: {
+      minWidth: 'max-content',
+      tableLayout: 'auto',
+      borderCollapse: 'separate',
+      borderSpacing: 0,
+      '& th, & td': {
+        padding: '4px 6px',
+        whiteSpace: 'nowrap',
+        verticalAlign: 'middle',
+        lineHeight: '1.1',
+        fontSize: '0.75rem',
+        border: '1px solid #e0e0e0',
+        boxSizing: 'border-box',
+        textOverflow: 'ellipsis',
+        overflow: 'hidden',
+      },
+
+      '& th': {
+        backgroundColor: '#f0f4f8',
+        color: '#2d3748',
+        fontWeight: 700,
+        textTransform: 'uppercase',
+        letterSpacing: '0.3px',
+        fontSize: '0.65rem',
+        padding: '4px 6px',
+        borderBottom: '1px solid #cbd5e0',
+        whiteSpace: 'nowrap',
+        '&.sticky-header': {
+          position: 'sticky',
+          top: 0,
+          zIndex: 10,
+          boxShadow: '0 1px 2px 0 rgba(0,0,0,0.05)',
+        },
+      },
+      '& td': {
+        fontFamily: '"Roboto Mono", monospace',
+        textAlign: 'right',
+        backgroundColor: '#fff',
+        '&.state-cell': {
+          textAlign: 'left',
+          fontWeight: 500,
+          position: 'sticky',
+          left: '150px',
+          zIndex: 12,
+          backgroundColor: 'inherit !important',
+          minWidth: '120px',
+          maxWidth: '120px',
+        },
+        '&.vehicle-cell': {
+          position: 'sticky',
+          left: 0,
+          zIndex: 13,
+          backgroundColor: '#fff !important',
+          fontWeight: 600,
+          minWidth: '150px',
+          maxWidth: '150px',
+          boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)',
+        },
+      },
+      '& tr:nth-of-type(odd) td': {
+        backgroundColor: '#f8fafc',
+      },
+      '& tr:nth-of-type(even) td': {
+        backgroundColor: '#ffffff',
+      },
+      '& tr:hover td': {
+        backgroundColor: '#f0f4ff !important',
+      },
+      '& tr.total-row td': {
+        fontWeight: 600,
+        minWidth: '150px',
+        maxWidth: '150px',
+      }
+    },
+    stickyColumn: {
+      position: 'sticky',
+      left: 0,
+      zIndex: 5,
+      backgroundColor: '#fff !important',
+      '&:after': {
+        content: '""',
+        position: 'absolute',
+        right: 0,
+        top: 0,
+        height: '100%',
+        width: '1px',
+        backgroundColor: '#e0e0e0',
+        zIndex: 20,
+      }
+    },
+    stickyHeader: {
+      backgroundColor: '#f5f5f5 !important',
+      zIndex: '11 !important',
+      '&:after': {
+        content: 'none',
+      }
+    },
+    totalRow: {
+      '& td': {
+        fontWeight: 'bold',
+        backgroundColor: '#e8f5e9 !important',
+        position: 'sticky',
+        bottom: 0,
+        zIndex: 3
+      }
+    }
+  };
+
+  // Group months by quarter for the header
+  const groupMonthsByQuarter = (months) => {
+    const quarters = {};
+    months.forEach(month => {
+      const quarter = `Q${Math.floor((month.month) / 3) + 1} ${month.year}`;
+      if (!quarters[quarter]) {
+        quarters[quarter] = [];
+      }
+      quarters[quarter].push(month);
+    });
+    return quarters;
+  };
+
+  // Render the vehicle/state monthly table
+  const renderVehicleStateTable = () => {
+    console.log('Renderizando tabla con vehicleStateTableData:', vehicleStateTableData);
+    
+    if (!vehicleStateTableData.vehicles.length) {
+      console.log('No hay vehículos en vehicleStateTableData');
+      return <Box sx={{ p: 2, textAlign: 'center', color: 'text.secondary' }}>No hay datos disponibles</Box>;
+    }
+    
+    // Agrupar meses por trimestre
+    const quarters = groupMonthsByQuarter(vehicleStateTableData.months);
+    const quarterEntries = Object.entries(quarters);
+    
+    // Calcular el ancho total necesario para la tabla
+    const totalColumns = 2 + (vehicleStateTableData.months.length * 2) + 2; // Vehicle + State + (Months * 2) + Total + MPG
+    const columnWidth = 120; // px
+    const tableWidth = totalColumns * columnWidth;
+    
+    // Función para formatear números con separadores de miles
+    const formatCellNumber = (num) => {
+      if (num === undefined || num === null) return '0.00';
+      return new Intl.NumberFormat('es-ES', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      }).format(num);
+    };
+
+    return (
+      <TableContainer 
+        component={Paper} 
+        sx={{ 
+          ...tableStyles.container,
+          '& .MuiTable-root': {
+            minWidth: 'max-content',
+            width: '100%',
+            '& th, & td': {
+              padding: '3px 5px',
+              fontSize: '0.7rem',
+            },
+          },
+          '& .MuiTableCell-head': {
+            whiteSpace: 'nowrap',
+            position: 'sticky',
+            top: 0,
+            zIndex: 10,
+            backgroundColor: '#f5f7fa',
+          },
+        }}
+      >
+        <Table 
+          size="small" 
+          stickyHeader 
+          sx={{ 
+            ...tableStyles.table,
+            width: 'auto',
+            minWidth: '100%',
+          }}
+        >
+          <TableHead>
+            {/* Fila de encabezado con trimestres */}
+            <TableRow>
+              <TableCell 
+                rowSpan={2} 
+                align="center" 
+                sx={{ 
+                  position: 'sticky', 
+                  left: 0, 
+                  zIndex: 4, 
+                  backgroundColor: '#f5f5f5',
+                  minWidth: '100px',
+                  textAlign: 'center',
+                  fontWeight: 'bold',
+                  borderRight: '1px solid #e0e0e0',
+                  boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)',
+                }}
+              >
+                # UNIT
+              </TableCell>
+              
+              <TableCell 
+                rowSpan={2} 
+                align="center" 
+                sx={{ 
+                  position: 'sticky', 
+                  left: 100,
+                  zIndex: 4, 
+                  backgroundColor: '#f5f5f5',
+                  minWidth: '120px',
+                  textAlign: 'center',
+                  fontWeight: 'bold',
+                  borderRight: '1px solid #e0e0e0',
+                  boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)',
+                }}
+              >
+                STATES
+              </TableCell>
+              
+              {/* Encabezados de trimestres */}
+              {quarterEntries.map(([quarter, months]) => {
+                // Calcular total de millas y galones para el trimestre
+                const quarterTotal = {
+                  miles: 0,
+                  gallons: 0
+                };
                 
-                <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 3 }}>
-                  {/* Start Date Selection */}
-                  <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
-                    <Typography variant="subtitle2">From:</Typography>
-                    <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-                      <FormControl variant="outlined" size="small" sx={{ minWidth: 120 }}>
-                        <InputLabel>Start Year</InputLabel>
-                        <Select
-                          value={selectedStartYear}
-                          onChange={(e) => setSelectedStartYear(e.target.value)}
-                          label="Start Year"
-                        >
-                          {availableYears.map(year => (
-                            <MenuItem key={`start-year-${year}`} value={year.toString()}>
-                              {year}
-                            </MenuItem>
-                          ))}
-                        </Select>
-                      </FormControl>
-
-                      <FormControl variant="outlined" size="small" sx={{ minWidth: 180 }}>
-                        <InputLabel>Start Quarter</InputLabel>
-                        <Select
-                          value={selectedStartQuarter}
-                          onChange={(e) => setSelectedStartQuarter(e.target.value)}
-                          label="Start Quarter"
-                        >
-                          <MenuItem value="1">Q1: Jan - Mar</MenuItem>
-                          <MenuItem value="2">Q2: Apr - Jun</MenuItem>
-                          <MenuItem value="3">Q3: Jul - Sep</MenuItem>
-                          <MenuItem value="4">Q4: Oct - Dec</MenuItem>
-                        </Select>
-                      </FormControl>
-                    </Box>
-                  </Box>
-
-                  {/* End Date Selection */}
-                  <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
-                    <Typography variant="subtitle2">To:</Typography>
-                    <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-                      <FormControl variant="outlined" size="small" sx={{ minWidth: 120 }}>
-                        <InputLabel>End Year</InputLabel>
-                        <Select
-                          value={selectedEndYear}
-                          onChange={(e) => setSelectedEndYear(e.target.value)}
-                          label="End Year"
-                        >
-                          {availableYears
-                            .filter(year => year >= parseInt(selectedStartYear || 0))
-                            .map(year => (
-                              <MenuItem key={`end-year-${year}`} value={year.toString()}>
-                                {year}
-                              </MenuItem>
-                            ))}
-                        </Select>
-                      </FormControl>
-
-                      <FormControl variant="outlined" size="small" sx={{ minWidth: 180 }}>
-                        <InputLabel>End Quarter</InputLabel>
-                        <Select
-                          value={selectedEndQuarter}
-                          onChange={(e) => setSelectedEndQuarter(e.target.value)}
-                          label="End Quarter"
-                          disabled={!selectedEndYear}
-                        >
-                          {[1, 2, 3, 4]
-                            .filter(q => {
-                              if (selectedStartYear === selectedEndYear) {
-                                return q >= parseInt(selectedStartQuarter);
-                              }
-                              return true;
-                            })
-                            .map(quarter => (
-                              <MenuItem key={`end-q${quarter}`} value={quarter.toString()}>
-                                Q{quarter}: {getQuarterRange(quarter).split(' - ')[0].slice(0, 3)} - {getQuarterRange(quarter).split(' - ')[1].slice(0, 3)}
-                              </MenuItem>
-                            ))}
-                        </Select>
-                      </FormControl>
-                    </Box>
-                  </Box>
-                </Box>
-
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 1 }}>
-                  <Chip
-                    label={`${filteredTrips.length} trips in period`}
-                    color="primary"
-                    variant="outlined"
-                  />
-                  
-                  <Box sx={{ display: 'flex', gap: 1 }}>
-                    <Button
-                      variant="contained"
-                      startIcon={<CheckCircleIcon />}
-                      onClick={handleSubmit}
+                months.forEach(month => {
+                  const monthKey = `${month.year}-${String(month.month + 1).padStart(2, '0')}`;
+                  vehicleStateTableData.vehicles.forEach(vehicle => {
+                    vehicle.states.forEach(state => {
+                      const monthData = state.months.get(monthKey) || { miles: 0, gallons: 0 };
+                      quarterTotal.miles += monthData.miles || 0;
+                      quarterTotal.gallons += monthData.gallons || 0;
+                    });
+                  });
+                });
+                
+                const mpg = quarterTotal.gallons > 0 ? (quarterTotal.miles / quarterTotal.gallons).toFixed(2) : '0.00';
+                
+                return (
+                  <React.Fragment key={quarter}>
+                    <TableCell 
+                      colSpan={months.length * 2}
+                      align="center"
+                      sx={{
+                        fontWeight: 'bold',
+                        backgroundColor: '#e3f2fd',
+                        borderRight: '1px solid #e0e0e0',
+                        minWidth: `${months.length * 160}px`,
+                        textAlign: 'center',
+                        fontSize: '0.9rem',
+                        padding: '4px 8px',
+                        borderBottom: '1px solid #e0e0e0',
+                        position: 'relative'
+                      }} 
                     >
-                      Apply Filters
-                    </Button>
-                    
-                    <Button
-                      variant="outlined"
-                      startIcon={<PrintIcon />}
-                      onClick={handlePrint}
-                    >
-                      Print
-                    </Button>
-                  </Box>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
-
-          {/* Supporting Documentation */}
-          <Card sx={{ mb: 3 }}>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>Supporting Documentation</Typography>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <input
-                  accept="application/pdf,image/*"
-                  style={{ display: 'none' }}
-                  id="declaration-document-upload"
-                  type="file"
-                  onChange={(e) => {
-                    const file = e.target.files[0];
-                    if (file) {
-                      setSelectedFile(file);
-                      if (file.type.startsWith('image/')) {
-                        const reader = new FileReader();
-                        reader.onloadend = () => {
-                          setFilePreview(reader.result);
-                        };
-                        reader.readAsDataURL(file);
-                      } else if (file.type === 'application/pdf') {
-                        setFilePreview('PDF');
+                      {quarter}
+                      {/* Removed duplicate quarter totals */}
+                    </TableCell>
+                  </React.Fragment>
+                );
+              })}
+              
+              <TableCell 
+                rowSpan={2} 
+                align="center" 
+                sx={{ 
+                  fontWeight: 'bold',
+                  backgroundColor: '#e3f2fd',
+                  minWidth: '100px',
+                  textAlign: 'center',
+                  borderRight: '1px solid #e0e0e0',
+                  boxShadow: '-2px 0 5px -2px rgba(0,0,0,0.1)',
+                }}
+              >
+                TOTAL MILES
+              </TableCell>
+              
+              <TableCell 
+                rowSpan={2} 
+                align="center" 
+                sx={{ 
+                  fontWeight: 'bold',
+                  backgroundColor: '#e3f2fd',
+                  minWidth: '100px',
+                  textAlign: 'center',
+                  borderRight: '1px solid #e0e0e0',
+                  boxShadow: '-2px 0 5px -2px rgba(0,0,0,0.1)',
+                }}
+              >
+                TOTAL GALLONS
+              </TableCell>
+              
+              <TableCell 
+                rowSpan={2} 
+                align="center" 
+                sx={{ 
+                  position: 'sticky',
+                  right: 0,
+                  zIndex: 4, 
+                  backgroundColor: '#f5f5f5',
+                  minWidth: '80px',
+                  textAlign: 'center',
+                  fontWeight: 'bold',
+                  borderLeft: '1px solid #e0e0e0',
+                  boxShadow: '-2px 0 5px -2px rgba(0,0,0,0.1)',
+                }}
+              >
+                MPG
+              </TableCell>
+            </TableRow>
+            
+            {/* Month names with MILES and GAL headers */}
+            <TableRow>
+              {vehicleStateTableData.months.map((month, idx) => (
+                <TableCell 
+                  key={`month-header-${month.month}-${month.year}`}
+                  colSpan={2}
+                  align="center"
+                  sx={{ 
+                    fontWeight: 'bold',
+                    backgroundColor: '#f5f5f5',
+                    minWidth: '160px',
+                    borderRight: '1px solid #e0e0e0',
+                    fontSize: '0.8rem',
+                    padding: '4px 6px',
+                    '& > div': {
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      '& > span': {
+                        flex: 1,
+                        textAlign: 'center',
+                        fontWeight: 'normal',
+                        fontSize: '0.7rem',
+                        padding: '2px 0'
                       }
                     }
                   }}
-                />
-                
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <label htmlFor="declaration-document-upload">
-                    <Button
-                      variant="outlined"
-                      component="span"
-                      startIcon={<UploadFileIcon />}
-                    >
-                      {selectedFile ? 'Change file' : 'Select file'} (PDF or image)
-                    </Button>
-                  </label>
-                  
-                  {selectedFile && (
-                    <Chip
-                      label={selectedFile.name}
-                      onDelete={() => {
-                        setSelectedFile(null);
-                        setFilePreview('');
-                        document.getElementById('declaration-document-upload').value = '';
-                      }}
-                      deleteIcon={<DeleteIcon />}
-                      variant="outlined"
-                    />
-                  )}
-                </Box>
-
-                {filePreview && (
-                  <Box sx={{ mt: 1 }}>
-                    {filePreview === 'PDF' ? (
-                      <Box sx={{ 
-                        p: 2, 
-                        border: '1px solid', 
-                        borderColor: 'divider', 
-                        borderRadius: 1,
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 1
-                      }}>
-                        <PictureAsPdfIcon color="error" />
-                        <Typography>PDF Document</Typography>
-                      </Box>
-                    ) : (
-                      <Box 
-                        component="img"
-                        src={filePreview}
-                        alt="Preview"
-                        sx={{ 
-                          maxWidth: '100%',
-                          maxHeight: '300px',
-                          objectFit: 'contain',
-                          border: '1px solid',
-                          borderColor: 'divider',
-                          borderRadius: 1
+                >
+                  <div style={{ marginBottom: '4px' }}>{`${month.monthName} ${month.year}`}</div>
+                  <div>
+                    <span>MILES</span>
+                    <span>GAL</span>
+                  </div>
+                </TableCell>
+              ))}
+            </TableRow>
+          </TableHead>
+          
+          <TableBody>
+          {vehicleStateTableData.vehicles.flatMap((vehicle, vIdx) => {
+            const vehicleRows = [];
+            let isFirstState = true;
+            
+            // Add a row for each state
+            console.log(`Procesando vehículo ${vIdx + 1}: ${vehicle.plate}, Estados:`, vehicle.states);
+            
+            // Ordenar estados por código
+            const sortedStates = [...vehicle.states].sort((a, b) => 
+              a.code.localeCompare(b.code)
+            );
+            
+            sortedStates.forEach((state, sIdx) => {
+              console.log(`  Estado ${sIdx + 1} para ${vehicle.plate}:`, state.code, 'Meses:', state.months);
+              
+              vehicleRows.push(
+                <TableRow 
+                  key={`${vIdx}-${sIdx}`}
+                  sx={{
+                    '&:hover': { 
+                      backgroundColor: 'rgba(0, 0, 0, 0.02)',
+                      '& td': {
+                        backgroundColor: 'rgba(0, 0, 0, 0.01)'
+                      }
+                    }
+                  }}
+                  >
+                    {/* Vehicle Plate (only in first row) */}
+                    {isFirstState && (
+                      <TableCell 
+                      className="vehicle-cell"
+                      rowSpan={sortedStates.length}
+                        sx={{
+                          position: 'sticky',
+                          left: 0,
+                          zIndex: 12,
+                          fontWeight: 600,
+                          textAlign: 'center',
+                          verticalAlign: 'middle',
+                          padding: '4px 6px !important',
+                          backgroundColor: '#ffffff !important',
+                          minWidth: '120px',
+                          maxWidth: '120px',
+                          borderRight: '1px solid #e0e0e0',
+                          boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)',
+                          '&:hover': {
+                            backgroundColor: '#f5f7fa !important',
+                          },
                         }}
-                      />
+                      >
+                        <Box component="span" sx={{
+                          display: 'inline-block',
+                          width: '100%',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          fontSize: '0.75rem',
+                          fontWeight: 'bold',
+                        }}>
+                          {vehicle.plate}
+                        </Box>
+                      </TableCell>
                     )}
-                  </Box>
-                )}
-              </Box>
-            </CardContent>
-          </Card>
+                    
+                    {/* State Code */}
+                    <TableCell 
+                      key={`${vIdx}-${sIdx}-state`}
+                      align="center"
+                      sx={{
+                        position: 'sticky',
+                        left: '120px',
+                        zIndex: 11,
+                        textAlign: 'center',
+                        padding: '4px 6px !important',
+                        backgroundColor: sIdx % 2 === 0 ? '#ffffff' : '#f9f9f9',
+                        minWidth: '80px',
+                        maxWidth: '80px',
+                        borderRight: '1px solid #e0e0e0',
+                        boxShadow: '2px 0 5px -2px rgba(0,0,0,0.1)',
+                        fontSize: '0.75rem',
+                        '&:hover': {
+                          backgroundColor: '#f5f7fa !important',
+                        },
+                      }}
+                    >
+                      <Box component="span" sx={{
+                        display: 'inline-block',
+                        width: '100%',
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        fontWeight: 500,
+                      }}>
+                        {state.code}
+                      </Box>
+                    </TableCell>
+                    
+                    {/* Monthly data for this state */}
+                    {vehicleStateTableData.months.flatMap(month => {
+                      const monthKey = `${month.year}-${String(month.month + 1).padStart(2, '0')}`;
+                      const monthData = state.months.get(monthKey) || { miles: 0, gallons: 0 };
+                      const mpg = monthData.gallons > 0 ? (monthData.miles / monthData.gallons).toFixed(2) : '0.00';
+                      
+                      console.log(`    Datos para ${vehicle.plate} - ${state.code} - ${monthKey}:`, monthData);
+                      
+                      return [
+                        <TableCell 
+                          key={`${vIdx}-${sIdx}-${monthKey}-miles`}
+                          sx={{
+                            backgroundColor: sIdx % 2 === 0 ? '#ffffff' : '#f9f9f9',
+                            borderRight: '1px solid #e0e0e0',
+                            padding: '4px 6px',
+                            minWidth: '80px',
+                            textAlign: 'right',
+                            color: monthData.miles > 0 ? 'inherit' : '#999',
+                            fontStyle: monthData.miles > 0 ? 'normal' : 'italic'
+                          }}
+                          title={`${formatCellNumber(monthData.miles)} millas`}
+                        >
+                          {monthData.miles > 0 ? formatCellNumber(monthData.miles) : '-'}
+                        </TableCell>,
+                        <TableCell 
+                          key={`${vIdx}-${sIdx}-${monthKey}-gal`}
+                          sx={{
+                            backgroundColor: sIdx % 2 === 0 ? '#ffffff' : '#f9f9f9',
+                            borderRight: '1px solid #e0e0e0',
+                            padding: '4px 6px',
+                            minWidth: '80px',
+                            textAlign: 'right',
+                            color: monthData.gallons > 0 ? 'inherit' : '#999',
+                            fontStyle: monthData.gallons > 0 ? 'normal' : 'italic'
+                          }}
+                          title={`${formatCellNumber(monthData.gallons)} galones`}
+                        >
+                          {monthData.gallons > 0 ? formatCellNumber(monthData.gallons) : '-'}
+                        </TableCell>
+                      ];
+                    })}
+                    
+                    {/* State totals */}
+                    <TableCell 
+                      sx={{
+                        fontWeight: 'bold',
+                        backgroundColor: sIdx % 2 === 0 ? '#f8f9fa' : '#f1f3f5',
+                        borderRight: '1px solid #e0e0e0',
+                        color: state.totalMiles > 0 ? 'inherit' : '#999',
+                        fontStyle: state.totalMiles > 0 ? 'normal' : 'italic',
+                        textAlign: 'right',
+                        padding: '4px 8px !important',
+                        fontSize: '0.8rem'
+                      }}
+                      title={`Total millas: ${formatCellNumber(state.totalMiles)}`}
+                    >
+                      {state.totalMiles > 0 ? formatCellNumber(state.totalMiles) : '-'}
+                    </TableCell>
+                    <TableCell 
+                      sx={{
+                        fontWeight: 'bold',
+                        backgroundColor: sIdx % 2 === 0 ? '#f8f9fa' : '#f1f3f5',
+                        borderRight: '1px solid #e0e0e0',
+                        color: state.totalGallons > 0 ? 'inherit' : '#999',
+                        fontStyle: state.totalGallons > 0 ? 'normal' : 'italic',
+                        textAlign: 'right',
+                        padding: '4px 8px !important',
+                        fontSize: '0.8rem'
+                      }}
+                      title={`Total galones: ${formatCellNumber(state.totalGallons)}`}
+                    >
+                      {state.totalGallons > 0 ? formatCellNumber(state.totalGallons) : '-'}
+                    </TableCell>
+                    
+                    {/* MPG for this state */}
+                    <TableCell 
+                      sx={{
+                        fontWeight: 'bold',
+                        backgroundColor: sIdx % 2 === 0 ? '#f8f9fa' : '#f1f3f5',
+                        position: 'sticky',
+                        right: 0,
+                        zIndex: 1,
+                        minWidth: '60px',
+                        textAlign: 'center',
+                        color: state.mpg > 0 ? 'inherit' : '#999',
+                        fontStyle: state.mpg > 0 ? 'normal' : 'italic',
+                        fontSize: '0.8rem',
+                        borderLeft: '1px solid #e0e0e0'
+                      }}
+                      title={`MPG: ${state.mpg}`}
+                    >
+                      {state.mpg > 0 ? state.mpg : '-'}
+                    </TableCell>
+                  </TableRow>
+                );
+                
+                isFirstState = false;
+              });
+              
+              return vehicleRows;
+            })}
+            
+            {/* General Total Row */}
+            {vehicleStateTableData.vehicles.length > 0 && (
+              <TableRow sx={{ backgroundColor: '#e8f5e9' }}>
+                <TableCell 
+                  colSpan={2}
+                  align="right"
+                  sx={{ 
+                    fontWeight: 'bold',
+                    borderRight: '1px solid #e0e0e0',
+                    position: 'sticky',
+                    left: 0,
+                    zIndex: 2,
+                    backgroundColor: '#e8f5e9',
+                    padding: '8px',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  TOTAL GENERAL
+                </TableCell>
+                
+                {/* Monthly general totals */}
+                {vehicleStateTableData.months.map(month => {
+                  const monthKey = `${month.year}-${String(month.month + 1).padStart(2, '0')}`;
+                  
+                  // Calculate total miles and gallons for this month across all vehicles and states
+                  const monthTotal = vehicleStateTableData.vehicles.reduce(
+                    (acc, vehicle) => {
+                      const vehicleMonthTotal = vehicle.states.reduce(
+                        (vAcc, state) => {
+                          const monthData = state.months.get(monthKey) || { miles: 0, gallons: 0 };
+                          return {
+                            miles: vAcc.miles + (monthData.miles || 0),
+                            gallons: vAcc.gallons + (monthData.gallons || 0)
+                          };
+                        },
+                        { miles: 0, gallons: 0 }
+                      );
+                      
+                      return {
+                        miles: acc.miles + vehicleMonthTotal.miles,
+                        gallons: acc.gallons + vehicleMonthTotal.gallons
+                      };
+                    },
+                    { miles: 0, gallons: 0 }
+                  );
+                  
+                  return (
+                    <React.Fragment key={`total-${monthKey}`}>
+                      <TableCell 
+                        align="right"
+                        sx={{
+                          fontFamily: 'monospace',
+                          fontWeight: 'bold',
+                          borderRight: '1px solid #e0e0e0',
+                          backgroundColor: '#e8f5e9',
+                          padding: '8px',
+                          whiteSpace: 'nowrap'
+                        }}
+                      >
+                        {formatNumber(monthTotal.miles)}
+                      </TableCell>
+                      <TableCell 
+                        align="right"
+                        sx={{
+                          fontFamily: 'monospace',
+                          fontWeight: 'bold',
+                          borderRight: '1px solid #e0e0e0',
+                          backgroundColor: '#e8f5e9',
+                          padding: '8px',
+                          whiteSpace: 'nowrap'
+                        }}
+                      >
+                        {formatNumber(monthTotal.gallons)}
+                      </TableCell>
+                    </React.Fragment>
+                  );
+                })}
+                
+                {/* General totals */}
+                <TableCell 
+                  align="right"
+                  sx={{
+                    fontFamily: 'monospace',
+                    fontWeight: 'bold',
+                    borderRight: '1px solid #e0e0e0',
+                    backgroundColor: '#c8e6c9',
+                    padding: '8px',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  {formatNumber(vehicleStateTableData.generalTotal.miles)}
+                </TableCell>
+                <TableCell 
+                  align="right"
+                  sx={{
+                    fontFamily: 'monospace',
+                    fontWeight: 'bold',
+                    borderRight: '1px solid #e0e0e0',
+                    backgroundColor: '#c8e6c9',
+                    padding: '8px',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  {formatNumber(vehicleStateTableData.generalTotal.gallons)}
+                </TableCell>
+                
+                {/* General MPG */}
+                <TableCell 
+                  align="center"
+                  sx={{
+                    fontFamily: 'monospace',
+                    fontWeight: 'bold',
+                    backgroundColor: '#c8e6c9',
+                    padding: '8px',
+                    whiteSpace: 'nowrap',
+                    position: 'sticky',
+                    right: 0,
+                    zIndex: 1
+                  }}
+                >
+                  {vehicleStateTableData.generalTotal.mpg}
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+          
 
-          <Grid container spacing={3} sx={{ mt: 2 }}>
-            <Grid item xs={12} md={6}>
-              <Card>
-                <CardContent>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                    <Typography variant="h6">Monthly Summary</Typography>
-                    <Chip
-                      label={`${monthlySummary.length} months`}
-                      color="primary"
-                      variant="outlined"
-                      size="small"
-                    />
-                  </Box>
-                  <Divider sx={{ mb: 3 }} />
-                  <TableContainer component={Paper} variant="outlined" sx={{ width: '100%' }}>
-                    <Table size="small">
-                      <TableHead>
-                        <TableRow>
-                          <TableCell>Month</TableCell>
-                          <TableCell align="right">Total Miles</TableCell>
-                          <TableCell align="right">Total Gallons</TableCell>
-                          <TableCell align="right">MPG</TableCell>
-                        </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        {monthlySummary.map((monthData, index) => (
-                          <TableRow key={index}>
-                            <TableCell component="th" scope="row">
-                              {`${monthData.monthName} ${monthData.year}`}
-                            </TableCell>
-                            <TableCell align="right">{monthData.totalMiles.toLocaleString()}</TableCell>
-                            <TableCell align="right">{monthData.totalGallons.toLocaleString()}</TableCell>
-                            <TableCell align="right">
-                              {(monthData.totalMiles / monthData.totalGallons).toFixed(1)}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                        {monthlySummary.length > 0 && (
-                          <TableRow sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
-                            <TableCell component="th" scope="row" sx={{ fontWeight: 'bold' }}>Total</TableCell>
-                            <TableCell align="right" sx={{ fontWeight: 'bold' }}>
-                              {monthlySummary.reduce((sum, m) => sum + m.totalMiles, 0).toLocaleString()}
-                            </TableCell>
-                            <TableCell align="right" sx={{ fontWeight: 'bold' }}>
-                              {monthlySummary.reduce((sum, m) => sum + m.totalGallons, 0).toLocaleString()}
-                            </TableCell>
-                            <TableCell align="right" sx={{ fontWeight: 'bold' }}>
-                              {(
-                                monthlySummary.reduce((sum, m) => sum + m.totalMiles, 0) /
-                                monthlySummary.reduce((sum, m) => sum + m.totalGallons, 0)
-                              ).toFixed(1)}
-                            </TableCell>
-                          </TableRow>
-                        )}
-                      </TableBody>
-                    </Table>
-                  </TableContainer>
-                </CardContent>
-              </Card>
-            </Grid>
+        </Table>
+      </TableContainer>
+    );
+  };
 
-            {/* Sección derecha - Resumen por estado */}
-            <Grid item xs={12} md={6}>
-              <Card sx={{ height: '100%' }}>
-                <CardContent>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                    <Typography variant="h6">State Distribution</Typography>
-                    <Chip
-                      label={`Total trips: ${filteredTrips.length}`}
-                      color="primary"
-                      variant="outlined"
-                      size="small"
-                    />
-                  </Box>
-                  <Divider sx={{ mb: 3 }} />
-                  <TableContainer component={Paper} variant="outlined" sx={{ width: '100%' }}>
-                    <Table size="small">
-                      <TableHead>
-                        <TableRow>
-                          <TableCell>State</TableCell>
-                          <TableCell align="right">Miles</TableCell>
-                          <TableCell align="right">Gallons</TableCell>
-                        </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        {declaration.state_summary.map((state) => (
-                          <TableRow key={state.state}>
-                            <TableCell component="th" scope="row">
-                              {`${state.state} - ${stateCodeToName(state.state)}`}
-                            </TableCell>
-                            <TableCell align="right">{state.miles.toLocaleString()}</TableCell>
-                            <TableCell align="right">{state.gallons.toLocaleString()}</TableCell>
-                          </TableRow>
-                        ))}
-                        <TableRow>
-                          <TableCell component="th" scope="row" sx={{ fontWeight: 'bold' }}>
-                            Total
-                          </TableCell>
-                          <TableCell align="right" sx={{ fontWeight: 'bold' }}>
-                            {declaration.state_summary.reduce((sum, state) => sum + state.miles, 0).toLocaleString()}
-                          </TableCell>
-                          <TableCell align="right" sx={{ fontWeight: 'bold' }}>
-                            {declaration.state_summary.reduce((sum, state) => sum + state.gallons, 0).toLocaleString()}
-                          </TableCell>
-                        </TableRow>
-                      </TableBody>
-                    </Table>
-                  </TableContainer>
-                </CardContent>
-              </Card>
-            </Grid>
-          </Grid>
-
-          <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
-            <Button
-              variant="outlined"
-              onClick={() => navigate('/declarations')}
-            >
-              Back to List
-            </Button>
-          </Box>
-        </Box>
+  if (loading) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="50vh">
+        <CircularProgress />
       </Box>
+    );
+  }
+
+  // Get company name from companyInfo or use a default
+  const companyName = companyInfo?.name || 'Nombre de la Compañía';
+  
+  // Use filtered reports count if a filter is active
+  const validReportsCount = filters.vehicle !== 'all' 
+    ? filteredReports.length 
+    : reportData?.individual_reports?.length || 0;
+  
+  // Get quarter name in Spanish
+  const getQuarterName = (q) => {
+    const quarters = {
+      1: 'Quarter 1',
+      2: 'Quarter 2',
+      3: 'Quarter 3',
+      4: 'Quarter 4'
+    };
+    return quarters[q] || `TRIMESTRE ${q}`;
+  };
+
+  return (
+    <Box sx={{ p: 3, overflow: 'hidden' }}>
+      {/* Report Header */}
+      <Card sx={{ mb: 3, backgroundColor: '#f8f9fa', border: '1px solid #e0e0e0' }}>
+        <CardContent sx={{ py: 2, '&:last-child': { pb: 2 } }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}>
+            <Box>
+              <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#2c3e50', mb: 0.5 }}>
+                {companyName.toUpperCase()}
+              </Typography>
+              <Typography variant="subtitle2" sx={{ color: '#7f8c8d', fontSize: '0.9rem' }}>
+                {getQuarterName(parseInt(quarter))} {year}
+              </Typography>
+            </Box>
+            <Box sx={{ 
+              backgroundColor: '#e8f4fd', 
+              borderRadius: '4px', 
+              px: 2, 
+              py: 1,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1
+            }}>
+              <Typography variant="subtitle2" sx={{ color: '#2c3e50', fontWeight: '500' }}>
+                Reportes Válidos:
+              </Typography>
+              <Box sx={{ 
+                backgroundColor: '#4caf50', 
+                color: 'white', 
+                borderRadius: '12px', 
+                px: 1.5, 
+                py: 0.5,
+                fontWeight: 'bold',
+                fontSize: '0.85rem'
+              }}>
+                {validReportsCount}
+              </Box>
+            </Box>
+          </Box>
+        </CardContent>
+      </Card>
+      
+      {/* Filters */}
+      <Card sx={{ mb: 3 }}>
+        <CardContent>
+          <Typography variant="h5" gutterBottom>
+            DECLARACIÓN IFTA - Q{quarter} {year}
+          </Typography>
+          
+          {/* Filters */}
+          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mt: 2 }}>
+            <FormControl size="small" sx={{ minWidth: 180, mr: 2 }}>
+              <InputLabel># UNIT</InputLabel>
+              <Select
+                value={filters.vehicle}
+                label="# UNIT"
+                onChange={(e) => handleFilterChange('vehicle', e.target.value)}
+              >
+                <MenuItem value="all">Todos los vehículos</MenuItem>
+                {Array.from(new Set(reportData.individual_reports
+                  ?.map(r => r.vehicle_plate)
+                  ?.filter(Boolean) || [])).sort().map(plate => (
+                  <MenuItem key={plate} value={plate}>{plate}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            
+            <FormControl size="small" sx={{ minWidth: 120 }}>
+              <InputLabel>Trimestre</InputLabel>
+              <Select
+                value={filters.quarter}
+                label="Trimestre"
+                onChange={(e) => handleFilterChange('quarter', e.target.value)}
+              >
+                {availableQuarters.map(q => (
+                  <MenuItem key={`q-${q}`} value={q}>Q{q}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Box>
+        </CardContent>
+      </Card>
+
+      {/* Combined Summary Table */}
+      <Card sx={{ mb: 3, width: '100%', overflow: 'hidden' }}>
+        <CardContent sx={{ p: 0, '&:last-child': { pb: 0 } }}>
+          <TableContainer component={Paper} sx={{ maxWidth: '100%', overflowX: 'auto' }}>
+            <Table size="small" sx={{ minWidth: 'max-content' }}>
+              <TableHead>
+                <TableRow>
+                  {/* Fixed Columns */}
+                  <TableCell align="center" rowSpan={2} sx={{ 
+                    fontWeight: 'bold', 
+                    position: 'sticky',
+                    left: 0,
+                    backgroundColor: 'white',
+                    zIndex: 3,
+                    minWidth: '80px'
+                  }}># UNIT</TableCell>
+                  
+                  <TableCell align="center" rowSpan={2} sx={{ 
+                    fontWeight: 'bold',
+                    position: 'sticky',
+                    left: 80,
+                    backgroundColor: 'white',
+                    zIndex: 3,
+                    minWidth: '100px',
+                    borderRight: '1px solid #e0e0e0'
+                  }}>STATES</TableCell>
+                  
+                  {/* Month Headers */}
+                  {vehicleStateTableData.months.length > 0 ? (
+                    vehicleStateTableData.months.map((month, idx) => (
+                      <React.Fragment key={`${month.month}-${month.year}`}>
+                        <TableCell 
+                          align="center" 
+                          colSpan={2}
+                          sx={{ 
+                            fontWeight: 'bold', 
+                            minWidth: '160px',
+                            borderRight: idx === vehicleStateTableData.months.length - 1 ? '1px solid #e0e0e0' : 'none',
+                            backgroundColor: '#f5f5f5'
+                          }}
+                        >
+                          {month.monthName}
+                        </TableCell>
+                      </React.Fragment>
+                    ))
+                  ) : (
+                    // Fallback en caso de que no haya meses definidos
+                    ['Abr', 'May', 'Jun'].map((month, idx) => (
+                      <React.Fragment key={month}>
+                        <TableCell 
+                          align="center" 
+                          colSpan={2}
+                          sx={{ 
+                            fontWeight: 'bold', 
+                            minWidth: '160px',
+                            borderRight: idx === 2 ? '1px solid #e0e0e0' : 'none',
+                            backgroundColor: '#f5f5f5'
+                          }}
+                        >
+                          {month}
+                        </TableCell>
+                      </React.Fragment>
+                    ))
+                  )}
+                  
+                  {/* Fixed Total Columns */}
+                  <TableCell align="center" rowSpan={2} sx={{ 
+                    fontWeight: 'bold',
+                    position: 'sticky',
+                    right: 100,
+                    backgroundColor: 'white',
+                    zIndex: 3,
+                    minWidth: '100px',
+                    borderLeft: '1px solid #e0e0e0'
+                  }}>TOTAL MILES</TableCell>
+                  
+                  <TableCell align="center" rowSpan={2} sx={{ 
+                    fontWeight: 'bold',
+                    position: 'sticky',
+                    right: 0,
+                    backgroundColor: 'white',
+                    zIndex: 3,
+                    minWidth: '100px',
+                    borderRight: '1px solid #e0e0e0'
+                  }}>TOTAL GALLONS</TableCell>
+                </TableRow>
+              </TableHead>
+              
+              <TableBody>
+                {(() => {
+                  // Usamos los datos ya procesados en vehicleStateTableData
+                  const { vehicles, months } = vehicleStateTableData;
+                  
+                  // Si no hay vehículos, mostramos un mensaje
+                  if (vehicles.length === 0) {
+                    return (
+                      <TableRow>
+                        <TableCell colSpan={10} align="center">
+                          No hay datos disponibles para mostrar
+                        </TableCell>
+                      </TableRow>
+                    );
+                  }
+                  
+                  // Creamos un array plano con todas las filas a mostrar
+                  const allRows = [];
+                  
+                  // Recorremos cada vehículo
+                  vehicles.forEach((vehicle, vIdx) => {
+                    const vehicleStates = Array.from(vehicle.states.values());
+                    
+                    // Si el vehículo no tiene estados, mostramos una fila con totales
+                    if (vehicleStates.length === 0) {
+                      allRows.push({
+                        isVehicle: true,
+                        plate: vehicle.plate,
+                        rowSpan: 1,
+                        states: [{
+                          code: 'TOTAL',
+                          months: months.map(m => ({
+                            month: m.month,
+                            year: m.year,
+                            miles: 0,
+                            gallons: 0
+                          })),
+                          totalMiles: vehicle.totalMiles,
+                          totalGallons: vehicle.totalGallons
+                        }]
+                      });
+                      return;
+                    }
+                    
+                    // Agregamos el vehículo con sus estados
+                    allRows.push({
+                      isVehicle: true,
+                      plate: vehicle.plate,
+                      rowSpan: vehicleStates.length,
+                      states: vehicleStates
+                    });
+                  });
+                  
+                  // Calculate grand totals for miles and gallons
+                  let grandTotalMiles = 0;
+                  let grandTotalGallons = 0;
+                  
+                  allRows.forEach(vehicle => {
+                    vehicle.states.forEach(state => {
+                      grandTotalMiles += state.totalMiles || 0;
+                      grandTotalGallons += state.totalGallons || 0;
+                    });
+                  });
+                  
+                  // Render the rows
+                  const rows = allRows.flatMap((vehicle, vIdx) => {
+                    return vehicle.states.map((state, sIdx) => (
+                      <TableRow key={`${vIdx}-${sIdx}`}>
+                        {/* Columna #UNIT - solo visible en la primera fila del grupo */}
+                        {sIdx === 0 && (
+                          <TableCell 
+                            align="center" 
+                            rowSpan={vehicle.rowSpan}
+                            sx={{ 
+                              position: 'sticky',
+                              left: 0,
+                              backgroundColor: 'white',
+                              zIndex: 2,
+                              borderBottom: '1px solid rgba(224, 224, 224, 1)',
+                              verticalAlign: 'top',
+                              padding: '8px 4px',
+                              minWidth: '80px',
+                              fontWeight: 'bold',
+                              backgroundColor: sIdx % 2 === 0 ? '#ffffff' : '#f9f9f9'
+                            }}
+                          >
+                            {vehicle.plate}
+                          </TableCell>
+                        )}
+                        
+                        {/* Columna STATES */}
+                        <TableCell 
+                          align="center" 
+                          sx={{ 
+                            position: 'sticky',
+                            left: 80,
+                            backgroundColor: sIdx % 2 === 0 ? '#ffffff' : '#f9f9f9',
+                            zIndex: 2,
+                            borderRight: '1px solid #e0e0e0',
+                            borderBottom: '1px solid rgba(224, 224, 224, 1)',
+                            whiteSpace: 'nowrap',
+                            padding: '8px 4px',
+                            fontSize: '0.9rem',
+                            minWidth: '100px',
+                            fontWeight: 'bold'
+                          }}
+                        >
+                          {stateCodeToName(state.code, true) || '-'}
+                        </TableCell>
+                        
+                        {/* Datos mensuales */}
+                        {months.map((month, mIdx) => {
+                          // Asegurarse de que el formato de monthKey coincida con el usado en el procesamiento
+                          const monthKey = `${month.year}-${String(month.month + 1).padStart(2, '0')}`;
+                          const monthData = state.months.get(monthKey) || { miles: 0, gallons: 0, hasData: false };
+                          
+                          // Depuración
+                          console.log(`Mostrando datos para ${monthKey}:`, monthData);
+                          
+                          return (
+                            <React.Fragment key={monthKey}>
+                              <TableCell 
+                                align="center"
+                                sx={{ 
+                                  minWidth: '80px',
+                                  backgroundColor: sIdx % 2 === 0 ? '#ffffff' : '#f9f9f9',
+                                  fontFamily: 'monospace',
+                                  fontSize: '0.85rem',
+                                  padding: '4px 2px',
+                                  color: monthData.hasData ? 'inherit' : '#999',
+                                  fontStyle: monthData.hasData ? 'normal' : 'italic'
+                                }}
+                              >
+                                {monthData.hasData ? formatNumber(monthData.miles) : '-'}
+                              </TableCell>
+                              <TableCell 
+                                align="center"
+                                sx={{ 
+                                  minWidth: '80px',
+                                  backgroundColor: sIdx % 2 === 0 ? '#ffffff' : '#f9f9f9',
+                                  borderRight: mIdx === months.length - 1 ? '1px solid #e0e0e0' : 'none',
+                                  fontFamily: 'monospace',
+                                  fontSize: '0.85rem',
+                                  padding: '4px 2px',
+                                  color: monthData.hasData ? 'inherit' : '#999',
+                                  fontStyle: monthData.hasData ? 'normal' : 'italic'
+                                }}
+                              >
+                                {monthData.hasData ? formatNumber(monthData.gallons) : '-'}
+                              </TableCell>
+                            </React.Fragment>
+                          );
+                        })}
+                        
+                        {/* Columnas fijas de totales */}
+                        <TableCell 
+                          align="center" 
+                          sx={{ 
+                            fontWeight: 'bold',
+                            position: 'sticky',
+                            right: 100,
+                            backgroundColor: sIdx % 2 === 0 ? '#ffffff' : '#f9f9f9',
+                            zIndex: 2,
+                            borderLeft: '1px solid #e0e0e0',
+                            fontFamily: 'monospace',
+                            fontSize: '0.9rem'
+                          }}
+                        >
+                          {formatNumber(state.totalMiles)}
+                        </TableCell>
+                        
+                        <TableCell 
+                          align="center" 
+                          sx={{ 
+                            fontWeight: 'bold',
+                            position: 'sticky',
+                            right: 0,
+                            backgroundColor: sIdx % 2 === 0 ? '#ffffff' : '#f9f9f9',
+                            zIndex: 2,
+                            borderRight: '1px solid #e0e0e0',
+                            fontFamily: 'monospace',
+                            fontSize: '0.9rem'
+                          }}
+                        >
+                          {formatNumber(state.totalGallons)}
+                        </TableCell>
+                      </TableRow>
+                    ));
+                  });
+                  
+                  // Add the grand total row at the end
+                  rows.push(
+                    <TableRow key="grand-total" sx={{ '&:last-child td': { borderBottom: 0 }, backgroundColor: 'action.hover' }}>
+                      <TableCell 
+                        colSpan={2 + vehicleStateTableData.months.length * 2} 
+                        align="right"
+                        sx={{ 
+                          fontWeight: 'bold',
+                          borderRight: '1px solid #e0e0e0',
+                          padding: '8px 16px',
+                          textTransform: 'uppercase',
+                          fontSize: '0.8rem'
+                        }}
+                      >
+                        TOTAL GENERAL
+                      </TableCell>
+                      <TableCell 
+                        align="right"
+                        sx={{ 
+                          fontWeight: 'bold',
+                          borderRight: '1px solid #e0e0e0',
+                          padding: '8px 16px',
+                          backgroundColor: '#e8f5e9'
+                        }}
+                      >
+                        {formatNumber(grandTotalMiles)}
+                      </TableCell>
+                      <TableCell 
+                        align="right"
+                        sx={{ 
+                          fontWeight: 'bold',
+                          padding: '8px 16px',
+                          backgroundColor: '#e8f5e9'
+                        }}
+                      >
+                        {formatNumber(grandTotalGallons)}
+                      </TableCell>
+                    </TableRow>
+                  );
+                  
+                  return rows;
+                })()}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </CardContent>
+      </Card>
+
+      {/* Quarterly Miles Summary Table */}
+      <Card sx={{ mb: 3 }}>
+        <CardContent>
+          <Typography variant="h6" gutterBottom>RESUMEN DE MILLAS POR TRIMESTRE</Typography>
+          <TableContainer component={Paper}>
+            <Table size="small" sx={{ minWidth: 600 }}>
+              <TableHead>
+                <TableRow>
+                  <TableCell>Vehículo</TableCell>
+                  <TableCell align="right">Q1</TableCell>
+                  <TableCell align="right">Q2</TableCell>
+                  <TableCell align="right">Q3</TableCell>
+                  <TableCell align="right">Q4</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 'bold' }}>Total</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {(() => {
+                  // Group reports by vehicle
+                  const vehicles = {};
+                  
+                  console.log('=== REGISTROS INDIVIDUALES DE REPORTES ===', reportData.individual_reports);
+                  
+                  const reportsToProcess = filters.vehicle !== 'all' ? filteredReports : reportData.individual_reports;
+                  
+                  reportsToProcess.forEach(report => {
+                    const plate = report.vehicle_plate || 'SIN PLACA';
+                    if (!vehicles[plate]) {
+                      vehicles[plate] = {
+                        Q1: 0, Q2: 0, Q3: 0, Q4: 0, total: 0
+                      };
+                    }
+                    
+                    // Determine quarter (1-4)
+                    const quarter = Math.ceil((report.report_month || 1) / 3);
+                    const quarterKey = `Q${quarter}`;
+                    const miles = parseFloat(report.total_miles) || 0;
+                    
+                    // Add to quarter total
+                    vehicles[plate][quarterKey] += miles;
+                    vehicles[plate].total += miles;
+                  });
+                  
+                  // Convert to array and sort by plate
+                  return Object.entries(vehicles)
+                    .sort(([plateA], [plateB]) => plateA.localeCompare(plateB))
+                    .map(([plate, data]) => (
+                      <TableRow key={plate}>
+                        <TableCell>{plate}</TableCell>
+                        <TableCell align="right">{formatNumber(data.Q1)}</TableCell>
+                        <TableCell align="right">{formatNumber(data.Q2)}</TableCell>
+                        <TableCell align="right">{formatNumber(data.Q3)}</TableCell>
+                        <TableCell align="right">{formatNumber(data.Q4)}</TableCell>
+                        <TableCell align="right" sx={{ fontWeight: 'bold' }}>
+                          {formatNumber(data.total)}
+                        </TableCell>
+                      </TableRow>
+                    ));
+                })()}
+                
+                {/* Total Row */}
+                {(() => {
+                  // Calculate totals for each quarter
+                  const totals = { Q1: 0, Q2: 0, Q3: 0, Q4: 0, total: 0 };
+                  
+                  reportData.individual_reports?.forEach(report => {
+                    const quarter = Math.ceil((report.report_month || 1) / 3);
+                    const quarterKey = `Q${quarter}`;
+                    const miles = parseFloat(report.total_miles) || 0;
+                    
+                    totals[quarterKey] += miles;
+                    totals.total += miles;
+                  });
+                  
+                  return (
+                    <TableRow sx={{ '&:last-child td, &:last-child th': { border: 0 }, backgroundColor: '#f5f5f5' }}>
+                      <TableCell component="th" scope="row" sx={{ fontWeight: 'bold' }}>TOTAL</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 'bold' }}>{formatNumber(totals.Q1)}</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 'bold' }}>{formatNumber(totals.Q2)}</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 'bold' }}>{formatNumber(totals.Q3)}</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 'bold' }}>{formatNumber(totals.Q4)}</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 'bold', backgroundColor: '#e8f5e9' }}>
+                        {formatNumber(totals.total)}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })()}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </CardContent>
+      </Card>
+
+      {/* Monthly Detail Table */}
+      <Card sx={{ mb: 3 }}>
+        <Box sx={{ p: 2 }}>
+          <Typography variant="h6" gutterBottom>
+            DETALLE POR MES Y ESTADO
+          </Typography>
+          <Box sx={{ mt: 2, mb: 2 }}>
+
+          </Box>
+          {renderVehicleStateTable()}
+        </Box>
+      </Card>
+      
+
+
+      {/* Tab Content */}
+      {activeTab === 0 && (
+        <Card>
+          <CardContent>
+            <Typography variant="h6" gutterBottom>
+              Resumen por Estado
+            </Typography>
+            <TableContainer component={Paper}>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Estado</TableCell>
+                    <TableCell align="right">Millas</TableCell>
+                    <TableCell align="right">Galones</TableCell>
+                    <TableCell align="right">MPG</TableCell>
+                    <TableCell align="right">% del Total</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {stateSummary.map((state, index) => (
+                    <TableRow key={`${state.state}-${index}`}>
+                      <TableCell>{stateCodeToName(state.state)}</TableCell>
+                      <TableCell align="right">{formatNumber(state.miles)}</TableCell>
+                      <TableCell align="right">{formatNumber(state.gallons)}</TableCell>
+                      <TableCell align="right">{state.mpg}</TableCell>
+                      <TableCell align="right">{state.percentage.toFixed(2)}%</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </CardContent>
+        </Card>
+      )}
+
+      {activeTab === 1 && (
+        <Card>
+          <CardContent>
+            <Typography variant="h6" gutterBottom>
+              Detalle por Vehículo
+            </Typography>
+            <TableContainer component={Paper}>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Placa</TableCell>
+                    <TableCell>Fecha</TableCell>
+                    <TableCell align="right">Millas</TableCell>
+                    <TableCell align="right">Galones</TableCell>
+                    <TableCell>Estados</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {reportData.individual_reports.map((report, index) => (
+                    <TableRow key={index} hover>
+                      <TableCell><strong>{report.vehicle_plate || 'N/A'}</strong></TableCell>
+                      <TableCell>{report.report_date ? formatDate(report.report_date) : 'N/A'}</TableCell>
+                      <TableCell align="right">{formatNumber(report.total_miles)}</TableCell>
+                      <TableCell align="right">{formatNumber(report.total_gallons)}</TableCell>
+                      <TableCell>
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                          {report.state_data?.map((state, i) => (
+                            <Chip
+                              key={i}
+                              label={state.state_code}
+                              size="small"
+                              sx={{
+                                bgcolor: stateColors[state.state_code] || '#e0e0e0',
+                                color: 'white',
+                                fontWeight: 'bold'
+                              }}
+                            />
+                          ))}
+                        </Box>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  <TableRow sx={{ '&:last-child td': { borderBottom: 0 }, backgroundColor: 'action.hover' }}>
+                    <TableCell><strong>Total</strong></TableCell>
+                    <TableCell align="right"><strong>{formatNumber(reportSummary.total_miles)}</strong></TableCell>
+                    <TableCell align="right"><strong>{formatNumber(reportSummary.total_gallons)}</strong></TableCell>
+                    <TableCell align="right">
+                      <strong>{calculateMPG(reportSummary.total_miles, reportSummary.total_gallons)}</strong>
+                    </TableCell>
+                    <TableCell>
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                        {stateSummary?.map((state, i) => (
+                          <Chip
+                            key={i}
+                            label={state.state}
+                            size="small"
+                            sx={{
+                              bgcolor: stateColors[state.state] || '#e0e0e0',
+                              color: 'white',
+                              fontWeight: 'bold'
+                            }}
+                          />
+                        ))}
+                      </Box>
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Navigation buttons removed */}
     </Box>
   );
 };

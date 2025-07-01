@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -51,6 +51,7 @@ const DeclarationList = () => {
   const [quarterFilter, setQuarterFilter] = useState('all');
   const [yearFilter, setYearFilter] = useState('all');
   const [companyFilter, setCompanyFilter] = useState('all');
+  const [availableQuarters, setAvailableQuarters] = useState([1, 2, 3, 4]); // Default to all quarters
   const [individualReports, setIndividualReports] = useState({});
   const [filteredReports, setFilteredReports] = useState([]);
   // Estado para la paginación
@@ -253,10 +254,39 @@ const DeclarationList = () => {
   };
 
   // Obtener años únicos para el filtro
-  const getUniqueYears = () => {
-    const years = [...new Set(groupedReports.map(report => report.year).filter(Boolean))].sort((a, b) => b - a);
-    return years;
-  };
+  const years = useMemo(() => {
+    const uniqueYears = new Set();
+    groupedReports.forEach(report => uniqueYears.add(report.year));
+    return Array.from(uniqueYears).sort((a, b) => b - a); // Orden descendente
+  }, [groupedReports]);
+
+  // Obtener trimestres disponibles cuando cambia el año
+  useEffect(() => {
+    const fetchAvailableQuarters = async () => {
+      if (yearFilter === 'all' || companyFilter === 'all') {
+        setAvailableQuarters([1, 2, 3, 4]);
+        return;
+      }
+
+      try {
+        const response = await api.get(`/v1/quarterly-reports/company/${companyFilter}/year/${yearFilter}/quarters`);
+        if (response.data && response.data.quarters) {
+          setAvailableQuarters(response.data.quarters);
+          // Si el trimestre actual no está en los disponibles, lo cambiamos a 'all'
+          if (quarterFilter !== 'all' && !response.data.quarters.includes(parseInt(quarterFilter))) {
+            setQuarterFilter('all');
+          }
+        } else {
+          setAvailableQuarters([1, 2, 3, 4]);
+        }
+      } catch (error) {
+        console.error('Error fetching available quarters:', error);
+        setAvailableQuarters([1, 2, 3, 4]);
+      }
+    };
+
+    fetchAvailableQuarters();
+  }, [yearFilter, companyFilter]);
 
   // Obtener compañías únicas para el filtro
   const getUniqueCompanies = () => {
@@ -431,9 +461,9 @@ const DeclarationList = () => {
                 onChange={(e) => setQuarterFilter(e.target.value)}
                 label="Trimestre"
               >
-                <MenuItem value="all">Todos</MenuItem>
-                {getUniqueQuarters().map(quarter => (
-                  <MenuItem key={quarter} value={quarter}>Q{quarter}</MenuItem>
+                <MenuItem value="all">Todos los trimestres</MenuItem>
+                {availableQuarters.map(q => (
+                  <MenuItem key={`q${q}`} value={q}>Q{q}</MenuItem>
                 ))}
               </Select>
             </FormControl>
@@ -447,7 +477,7 @@ const DeclarationList = () => {
                 label="Año"
               >
                 <MenuItem value="all">Todos</MenuItem>
-                {getUniqueYears().map(year => (
+                {years.map(year => (
                   <MenuItem key={year} value={year}>{year}</MenuItem>
                 ))}
               </Select>

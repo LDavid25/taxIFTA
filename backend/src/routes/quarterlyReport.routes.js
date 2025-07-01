@@ -41,6 +41,9 @@ router.use(authController.protect);
 // Obtener reportes agrupados por compañía y trimestre
 router.get('/grouped', quarterlyReportController.getGroupedQuarterlyReports);
 
+// Obtener trimestres disponibles para una compañía y año
+router.get('/company/:companyId/year/:year/quarters', quarterlyReportController.getAvailableQuarters);
+
 // Obtener reportes individuales de un grupo específico
 router.get('/company/:companyId/quarter/:quarter/year/:year', (req, res, next) => {
   console.log('Solicitud recibida para obtener reportes individuales:', {
@@ -55,5 +58,11 @@ router.get('/company/:companyId/quarter/:quarter/year/:year', (req, res, next) =
 
 // Obtener un reporte trimestral específico por su ID
 router.get('/:id', quarterlyReportController.getQuarterlyReport);
+
+// Obtener detalles extendidos de un reporte trimestral
+router.get(
+  '/company/:companyId/quarter/:quarter/year/:year/details',
+  quarterlyReportController.getQuarterlyReportDetails
+);
 
 module.exports = router;

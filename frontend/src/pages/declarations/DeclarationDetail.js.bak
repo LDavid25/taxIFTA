@@ -1,0 +1,1374 @@
+import React, { useState, useEffect, useMemo } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { format, parseISO } from 'date-fns';
+import { es } from 'date-fns/locale';
+import PrintIcon from '@mui/icons-material/Print';
+import {
+  Box,
+  Button,
+  Card,
+  CardContent,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Typography,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  Breadcrumbs,
+  Link,
+  Chip,
+  Grid,
+  IconButton,
+  Tooltip,
+  Tabs,
+  Tab,
+  useTheme,
+  useMediaQuery
+} from '@mui/material';
+import {
+  ArrowBack as ArrowBackIcon,
+  ArrowForward as ArrowForwardIcon,
+  PictureAsPdf as PdfIcon,
+  Delete as DeleteIcon,
+  UploadFile as UploadFileIcon,
+  CheckCircle as CheckCircleIcon,
+  Send as SendIcon,
+  Edit as EditIcon,
+  Description as ExcelIcon,
+  Add as AddIcon,
+  BarChart as BarChartIcon,
+  TableChart as TableChartIcon,
+  PictureAsPdf as PictureAsPdfIcon
+} from '@mui/icons-material';
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
+  Legend, ResponsiveContainer, Cell, ComposedChart, Line
+} from 'recharts';
+
+import { getIndividualReports } from '../../services/quarterlyReportService';
+import { getDeclarationById } from '../../services/declarationService';
+import AlertMessage from '../../components/common/AlertMessage';
+import LoadingScreen from '../../components/common/LoadingScreen';
+
+// Helper functions
+const stateCodeToName = (code) => {
+  const states = {
+    'AL': 'Alabama', 'AK': 'Alaska', 'AZ': 'Arizona', 'AR': 'Arkansas', 'CA': 'California',
+    'CO': 'Colorado', 'CT': 'Connecticut', 'DE': 'Delaware', 'FL': 'Florida', 'GA': 'Georgia',
+    'HI': 'Hawaii', 'ID': 'Idaho', 'IL': 'Illinois', 'IN': 'Indiana', 'IA': 'Iowa',
+    'KS': 'Kansas', 'KY': 'Kentucky', 'LA': 'Louisiana', 'ME': 'Maine', 'MD': 'Maryland',
+    'MA': 'Massachusetts', 'MI': 'Michigan', 'MN': 'Minnesota', 'MS': 'Mississippi',
+    'MO': 'Missouri', 'MT': 'Montana', 'NE': 'Nebraska', 'NV': 'Nevada', 'NH': 'New Hampshire',
+    'NJ': 'New Jersey', 'NM': 'New Mexico', 'NY': 'New York', 'NC': 'North Carolina',
+    'ND': 'North Dakota', 'OH': 'Ohio', 'OK': 'Oklahoma', 'OR': 'Oregon', 'PA': 'Pennsylvania',
+    'RI': 'Rhode Island', 'SC': 'South Carolina', 'SD': 'South Dakota', 'TN': 'Tennessee',
+    'TX': 'Texas', 'UT': 'Utah', 'VT': 'Vermont', 'VA': 'Virginia', 'WA': 'Washington',
+    'WV': 'West Virginia', 'WI': 'Wisconsin', 'WY': 'Wyoming', 'DC': 'District of Columbia',
+    'PR': 'Puerto Rico', 'GU': 'Guam', 'VI': 'Virgin Islands', 'MP': 'Northern Mariana Islands',
+    'AS': 'American Samoa'
+  };
+
+  return states[code] || code;
+};
+
+const getStatusColor = (status) => {
+  switch (status?.toLowerCase()) {
+    case 'approved':
+      return 'success';
+    case 'rejected':
+      return 'error';
+    case 'pending':
+      return 'warning';
+    default:
+      return 'default';
+  }
+};
+
+const getStatusText = (status) => {
+  if (!status) return 'Desconocido';
+  return status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
+};
+
+const formatDate = (dateString) => {
+  if (!dateString) return '';
+  try {
+    return format(parseISO(dateString), 'PP', { locale: es });
+  } catch (error) {
+    console.error('Error formatting date:', error);
+    return dateString;
+  }
+};
+
+const formatNumber = (num) => {
+  return new Intl.NumberFormat('en-US').format(num);
+};
+
+const calculateMPG = (miles, gallons) => {
+  if (!gallons || gallons === 0) return 0;
+  return miles / gallons;
+};
+
+// Main component
+const DeclarationDetail = () => {
+  // Hooks at the top level
+  const { companyId, quarter, year, id } = useParams();
+  const navigate = useNavigate();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+
+  // State declarations
+  const [loading, setLoading] = useState(true);
+  const [reports, setReports] = useState([]);
+  const [companyInfo, setCompanyInfo] = useState(null);
+  const [alert, setAlert] = useState({ open: false, message: '', severity: 'info' });
+  const [activeTab, setActiveTab] = useState(0);
+
+  // Summary state
+  const [summary, setSummary] = useState({
+    total_miles: 0,
+    total_gallons: 0,
+    report_count: 0,
+    status: 'pending',
+    start_date: '',
+    end_date: ''
+  });
+  
+  // Fetch declaration details from API
+  useEffect(() => {
+    const fetchDeclarationDetails = async () => {
+      if (!id) return;
+      
+      setLoading(true);
+      try {
+        const response = await getDeclarationById(id);
+        const declarationData = response.data;
+        
+        console.log('Datos de la declaración recibidos:', declarationData);
+        
+        // Extract data from the backend response
+        const { quarterlyReport, reports = [] } = declarationData;
+        
+        // Calculate totals from individual reports
+        const totals = reports.reduce((acc, report) => {
+          return {
+            totalMiles: acc.totalMiles + (parseFloat(report.total_miles) || 0),
+            totalGallons: acc.totalGallons + (parseFloat(report.total_gallons) || 0),
+            reportCount: acc.reportCount + 1
+          };
+        }, { totalMiles: 0, totalGallons: 0, reportCount: 0 });
+        
+        // Process state summary
+        const stateSummaryMap = new Map();
+        reports.forEach(report => {
+          if (report.state_data && Array.isArray(report.state_data)) {
+            report.state_data.forEach(state => {
+              const stateCode = state.state_code;
+              const miles = parseFloat(state.miles) || 0;
+              const gallons = parseFloat(state.gallons) || 0;
+              
+              if (stateSummaryMap.has(stateCode)) {
+                const existing = stateSummaryMap.get(stateCode);
+                stateSummaryMap.set(stateCode, {
+                  ...existing,
+                  miles: existing.miles + miles,
+                  gallons: existing.gallons + gallons
+                });
+              } else {
+                stateSummaryMap.set(stateCode, {
+                  state: stateCode,
+                  miles,
+                  gallons
+                });
+              }
+            });
+          }
+        });
+        
+        // Process monthly data
+        const monthlyDataMap = new Map();
+        reports.forEach(report => {
+          if (report.report_month && report.report_year) {
+            const monthKey = `${report.report_year}-${String(report.report_month).padStart(2, '0')}-01`;
+            const miles = parseFloat(report.total_miles) || 0;
+            const gallons = parseFloat(report.total_gallons) || 0;
+            
+            if (monthlyDataMap.has(monthKey)) {
+              const existing = monthlyDataMap.get(monthKey);
+              monthlyDataMap.set(monthKey, {
+                ...existing,
+                total_miles: existing.total_miles + miles,
+                total_gallons: existing.total_gallons + gallons,
+                states: [...new Set([...existing.states, ...(report.state_data?.map(s => s.state_code) || [])])]
+              });
+            } else {
+              monthlyDataMap.set(monthKey, {
+                total_miles: miles,
+                total_gallons: gallons,
+                states: [...new Set(report.state_data?.map(s => s.state_code) || [])]
+              });
+            }
+          }
+        });
+        
+        // Update summary state with calculated data
+        setSummary({
+          total_miles: totals.totalMiles,
+          total_gallons: totals.totalGallons,
+          report_count: totals.reportCount,
+          status: quarterlyReport?.status || 'pending',
+          start_date: quarterlyReport?.start_date || '',
+          end_date: quarterlyReport?.end_date || ''
+        });
+        
+        // Update state summary
+        setStateSummary(Array.from(stateSummaryMap.values()));
+        
+        // Convert Map to object for monthly data
+        const monthlyDataObj = {};
+        monthlyDataMap.forEach((value, key) => {
+          monthlyDataObj[key] = value;
+        });
+        
+        setMonthlyData(monthlyDataObj);
+        setStatus(quarterlyReport?.status || 'pending');
+        
+      } catch (error) {
+        console.error('Error fetching declaration details:', error);
+        setAlert({
+          open: true,
+          message: error.message || 'Error al cargar los detalles de la declaración',
+          severity: 'error'
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchDeclarationDetails();
+  }, [id]);
+
+  // State for processed data
+  const [stateSummary, setStateSummary] = useState([]);
+  const [monthlyData, setMonthlyData] = useState({});
+  const [vehicleData, setVehicleData] = useState([]);
+  const [declaration, setDeclaration] = useState({ trips: [] });
+  const [status, setStatus] = useState('pending');
+
+  // UI State
+  const [file, setFile] = useState(null);
+  const [filePreview, setFilePreview] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [selectedStatus, setSelectedStatus] = useState('all');
+  const [selectedFile, setSelectedFile] = useState(null);
+
+  // Filter states
+  const [selectedQuarter, setSelectedQuarter] = useState(quarter || '1');
+  const [selectedMonth, setSelectedMonth] = useState('all');
+  const [filteredTrips, setFilteredTrips] = useState([]);
+
+  // Available months based on selected quarter
+  const getAvailableMonths = () => {
+    const months = [
+      { value: '1', label: 'Enero' },
+      { value: '2', label: 'Febrero' },
+      { value: '3', label: 'Marzo' },
+      { value: '4', label: 'Abril' },
+      { value: '5', label: 'Mayo' },
+      { value: '6', label: 'Junio' },
+      { value: '7', label: 'Julio' },
+      { value: '8', label: 'Agosto' },
+      { value: '9', label: 'Septiembre' },
+      { value: '10', label: 'Octubre' },
+      { value: '11', label: 'Noviembre' },
+      { value: '12', label: 'Diciembre' }
+    ];
+
+    // Filter months based on selected quarter
+    if (selectedQuarter === '1') return months.slice(0, 3);
+    if (selectedQuarter === '2') return months.slice(3, 6);
+    if (selectedQuarter === '3') return months.slice(6, 9);
+    if (selectedQuarter === '4') return months.slice(9, 12);
+    return months;
+  };
+
+  // Filter trips based on selected quarter and month
+  useEffect(() => {
+    // Asegurarse de que siempre haya un array, incluso si declaration o declaration.trips son undefined
+    const trips = Array.isArray(declaration?.trips) ? declaration.trips : [];
+    let filtered = [...trips];
+
+    // Filter by quarter
+    filtered = filtered.filter(trip => {
+      const tripDate = new Date(trip.trip_date);
+      const tripMonth = tripDate.getMonth() + 1; // 1-12
+
+      if (selectedQuarter === '1') return tripMonth >= 1 && tripMonth <= 3;
+      if (selectedQuarter === '2') return tripMonth >= 4 && tripMonth <= 6;
+      if (selectedQuarter === '3') return tripMonth >= 7 && tripMonth <= 9;
+      if (selectedQuarter === '4') return tripMonth >= 10 && tripMonth <= 12;
+      return true;
+    });
+
+    // Filter by month if not 'all'
+    if (selectedMonth !== 'all') {
+      filtered = filtered.filter(trip => {
+        const tripDate = new Date(trip.trip_date);
+        return (tripDate.getMonth() + 1).toString() === selectedMonth;
+      });
+    }
+
+    setFilteredTrips(filtered);
+  }, [declaration, selectedQuarter, selectedMonth]);
+
+  // Quarter selection state for date range
+  const [selectedStartQuarter, setSelectedStartQuarter] = useState('1');
+  const [selectedEndQuarter, setSelectedEndQuarter] = useState('4');
+
+  // Year selection
+  const currentYear = new Date().getFullYear();
+  const [selectedStartYear, setSelectedStartYear] = useState(currentYear.toString());
+  const [selectedEndYear, setSelectedEndYear] = useState(currentYear.toString());
+  const availableYears = Array.from({ length: 10 }, (_, i) => currentYear - 5 + i);
+
+  // Calculate monthly summary from the processed data
+  const monthlySummary = useMemo(() => {
+    if (!monthlyData || Object.keys(monthlyData).length === 0) return [];
+    
+    return Object.entries(monthlyData).map(([month, data]) => ({
+      month,
+      monthName: new Date(month).toLocaleString('es', { month: 'long' }),
+      year: new Date(month).getFullYear(),
+      totalMiles: data.total_miles || 0,
+      totalGallons: data.total_gallons || 0,
+      states: data.states || []
+    }));
+  }, [monthlyData]);
+
+  // Process state summary data for the table
+  const processedStateSummary = useMemo(() => {
+    if (!stateSummary || stateSummary.length === 0) return [];
+    
+    // Calculate total miles and gallons for percentage calculations
+    const totalMiles = stateSummary.reduce((sum, state) => sum + (parseFloat(state.miles) || 0), 0);
+    const totalGallons = stateSummary.reduce((sum, state) => sum + (parseFloat(state.gallons) || 0), 0);
+    
+    return stateSummary.map(state => ({
+      ...state,
+      mpg: calculateMPG(state.miles, state.gallons),
+      milesPercent: totalMiles > 0 ? (state.miles / totalMiles) * 100 : 0,
+      gallonsPercent: totalGallons > 0 ? (state.gallons / totalGallons) * 100 : 0
+    })).sort((a, b) => b.miles - a.miles); // Sort by miles descending
+  }, [stateSummary]);
+
+  // Function to get months in a quarter as text
+  const getQuarterMonthsText = (quarter, year) => {
+    const quarterMonths = {
+      '1': ['Enero', 'Febrero', 'Marzo'],
+      '2': ['Abril', 'Mayo', 'Junio'],
+      '3': ['Julio', 'Agosto', 'Septiembre'],
+      '4': ['Octubre', 'Noviembre', 'Diciembre']
+    };
+
+    // Extract just the quarter number (in case it comes with 'Q')
+    const quarterNum = quarter.toString().replace('Q', '');
+    const months = quarterMonths[quarterNum] || [];
+
+    return months.join(', ');
+  };
+
+  // Función para procesar los datos de los reportes
+  const processReportData = (reports) => {
+    const stateSummaryMap = new Map();
+    const monthlyDataMap = new Map();
+    const vehicleMap = new Map();
+
+    // Procesar cada reporte
+    reports.forEach(report => {
+      const { vehicle_plate, report_month, report_year, state_data = [] } = report;
+      const monthKey = `${report_year}-${String(report_month).padStart(2, '0')}`;
+
+      // Inicializar vehículo si no existe
+      if (!vehicleMap.has(vehicle_plate)) {
+        vehicleMap.set(vehicle_plate, {
+          plate: vehicle_plate,
+          total_miles: 0,
+          total_gallons: 0,
+          states: new Set(),
+          months: {}
+        });
+      }
+
+      const vehicle = vehicleMap.get(vehicle_plate);
+
+      // Procesar cada estado en el reporte
+      state_data.forEach(state => {
+        const stateCode = state.state_code;
+        const miles = parseFloat(state.miles) || 0;
+        const gallons = parseFloat(state.gallons) || 0;
+
+        // Actualizar resumen por estado
+        if (stateSummaryMap.has(stateCode)) {
+          const existing = stateSummaryMap.get(stateCode);
+          stateSummaryMap.set(stateCode, {
+            ...existing,
+            miles: existing.miles + miles,
+            gallons: existing.gallons + gallons,
+            mpg: calculateMPG(existing.miles + miles, existing.gallons + gallons)
+          });
+        } else {
+          stateSummaryMap.set(stateCode, {
+            state: stateCode,
+            miles,
+            gallons,
+            mpg: calculateMPG(miles, gallons)
+          });
+        }
+
+        // Actualizar datos mensuales
+        if (!monthlyDataMap.has(monthKey)) {
+          monthlyDataMap.set(monthKey, {
+            month: monthKey,
+            states: {},
+            total_miles: 0,
+            total_gallons: 0
+          });
+        }
+
+        const monthData = monthlyDataMap.get(monthKey);
+        monthData.states[stateCode] = {
+          miles: (monthData.states[stateCode]?.miles || 0) + miles,
+          gallons: (monthData.states[stateCode]?.gallons || 0) + gallons
+        };
+
+        monthData.total_miles += miles;
+        monthData.total_gallons += gallons;
+
+        // Actualizar datos del vehículo
+        vehicle.total_miles += miles;
+        vehicle.total_gallons += gallons;
+        vehicle.states.add(stateCode);
+
+        if (!vehicle.months[monthKey]) {
+          vehicle.months[monthKey] = {
+            total_miles: 0,
+            total_gallons: 0,
+            states: {}
+          };
+        }
+
+        vehicle.months[monthKey].total_miles += miles;
+        vehicle.months[monthKey].total_gallons += gallons;
+
+        if (!vehicle.months[monthKey].states[stateCode]) {
+          vehicle.months[monthKey].states[stateCode] = {
+            miles: 0,
+            gallons: 0
+          };
+        }
+
+        vehicle.months[monthKey].states[stateCode].miles += miles;
+        vehicle.months[monthKey].states[stateCode].gallons += gallons;
+      });
+    });
+
+    // Convertir Map a array para el resumen de estados
+    const stateSummary = Array.from(stateSummaryMap.values())
+      .sort((a, b) => b.miles - a.miles);
+
+    // Ordenar datos mensuales
+    const monthlyData = Array.from(monthlyDataMap.values())
+      .sort((a, b) => a.month.localeCompare(b.month));
+
+    // Procesar datos para el gráfico
+    const chartData = monthlyData.map(month => ({
+      name: month.month,
+      ...Object.entries(month.states).reduce((acc, [state, data]) => {
+        acc[`${state}_miles`] = data.miles;
+        acc[`${state}_gallons`] = data.gallons;
+        acc[`${state}_mpg`] = calculateMPG(data.miles, data.gallons);
+        return acc;
+      }, {}),
+      total_miles: month.total_miles,
+      total_gallons: month.total_gallons,
+      mpg: calculateMPG(month.total_miles, month.total_gallons)
+    }));
+
+    // Calcular totales generales
+    const totalMiles = stateSummary.reduce((sum, state) => sum + state.miles, 0);
+    const totalGallons = stateSummary.reduce((sum, state) => sum + state.gallons, 0);
+
+    return {
+      stateSummary,
+      monthlyData,
+      chartData,
+      vehicles: Array.from(vehicleMap.values()),
+      totals: {
+        total_miles: totalMiles,
+        total_gallons: totalGallons,
+        mpg: calculateMPG(totalMiles, totalGallons)
+      }
+    };
+  };
+
+  // Cargar reportes individuales para la compañía, trimestre y año seleccionados
+  useEffect(() => {
+    const fetchIndividualReports = async () => {
+      if (!companyId || !quarter || !year) return;
+
+      setLoading(true);
+      try {
+        const response = await getIndividualReports(companyId, quarter, year);
+        const responseData = response.data || {};
+
+        // Establecer información de la compañía
+        if (responseData.company) {
+          setCompanyInfo({
+            id: responseData.company.id,
+            name: responseData.company.name
+          });
+        }
+
+        // Procesar los reportes
+        const reportsData = responseData.reports || [];
+        const processedData = processReportData(reportsData);
+
+        // Actualizar estados
+        setReports(processedData.vehicles);
+        setStateSummary(processedData.stateSummary);
+        setMonthlyData(processedData.monthlyData);
+        setVehicleData(processedData.vehicles);
+
+        // Actualizar resumen general
+        setSummary({
+          ...processedData.totals,
+          report_count: reportsData.length,
+          status: responseData.status || 'completed',
+          start_date: responseData.start_date || '',
+          end_date: responseData.end_date || ''
+        });
+      } catch (error) {
+        console.error('Error fetching individual reports:', error);
+        setAlert({
+          open: true,
+          message: error.message || 'Error al cargar los reportes individuales',
+          severity: 'error'
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchIndividualReports();
+  }, [companyId, quarter, year]);
+
+  // Cargar datos de la declaración
+  useEffect(() => {
+    const fetchDeclaration = async () => {
+      if (!id) return;
+
+      setLoading(true);
+      try {
+        // En una implementación real, esto obtendría datos de la API
+        // const response = await getDeclarationById(id);
+        // setDeclaration(response.data);
+
+        // Simulamos datos para la demostración
+        setTimeout(() => {
+          const declarationData = {
+            id: parseInt(id),
+            quarter: 'Q1',
+            year: 2025,
+            total_miles: 5200,
+            total_gallons: 520,
+            status: 'approved',
+            created_at: '2025-04-15T10:30:00Z',
+            updated_at: '2025-04-20T14:45:00Z',
+            state_summary: [
+              { state: 'TX', miles: 1500, gallons: 150 },
+              { state: 'CA', miles: 1200, gallons: 120 },
+              { state: 'AZ', miles: 800, gallons: 80 },
+              { state: 'NM', miles: 1700, gallons: 170 }
+            ],
+            trips: [
+              { id: 1, trip_date: '2025-01-15', origin_state: 'TX', destination_state: 'CA', distance: 1200, fuel_consumed: 120 },
+              { id: 2, trip_date: '2025-02-10', origin_state: 'CA', destination_state: 'AZ', distance: 800, fuel_consumed: 80 },
+              { id: 3, trip_date: '2025-03-05', origin_state: 'AZ', destination_state: 'NM', distance: 1700, fuel_consumed: 170 },
+              { id: 4, trip_date: '2025-03-20', origin_state: 'NM', destination_state: 'TX', distance: 1500, fuel_consumed: 150 }
+            ]
+          };
+          setDeclaration(declarationData);
+          setStatus(declarationData.status);
+          setLoading(false);
+        }, 1000);
+      } catch (error) {
+        setAlert({
+          open: true,
+          message: error.message || 'Error loading declaration data',
+          severity: 'error'
+        });
+        setLoading(false);
+      }
+    };
+
+    fetchDeclaration();
+  }, [id]);
+
+  // Datos para el gráfico de barras
+  const chartData = useMemo(() => {
+    if (!monthlyData || !Array.isArray(monthlyData)) return [];
+
+    return monthlyData.map(month => ({
+      name: format(parseISO(`${month.month}-01`), 'MMM yyyy'),
+      ...Object.entries(month.states).reduce((acc, [state, data]) => {
+        acc[`${state}_miles`] = data.miles;
+        acc[`${state}_gallons`] = data.gallons;
+        acc[`${state}_mpg`] = calculateMPG(data.miles, data.gallons);
+        return acc;
+      }, {}),
+      total_miles: month.total_miles,
+      total_gallons: month.total_gallons,
+      mpg: calculateMPG(month.total_miles, month.total_gallons)
+    }));
+  }, [monthlyData]);
+
+  // Colores para los estados en los gráficos
+  const stateColors = {
+    'TX': '#8884d8',
+    'CA': '#82ca9d',
+    'AZ': '#ffc658',
+    'NM': '#ff8042',
+    'NV': '#0088fe',
+    'CO': '#00c49f',
+    'UT': '#ffbb28',
+    'OK': '#ff8042'
+  };
+
+  if (loading) {
+    return <LoadingScreen message="Cargando reporte trimestral..." />;
+  }
+
+  // Datos de ejemplo para la tabla de resumen por estado
+  const stateSummaryData = [
+    { state: 'ALABAMA', miles: 1200, gallons: 450, mpg: 2.67, percentage: 20.0 },
+    { state: 'FLORIDA', miles: 1500, gallons: 545, mpg: 2.75, percentage: 25.0 },
+  ];
+
+  // Calcular totales
+  const totalMiles = stateSummaryData.reduce((sum, state) => sum + state.miles, 0);
+  const totalGallons = stateSummaryData.reduce((sum, state) => sum + state.gallons, 0);
+  const averageMPG = totalGallons > 0 ? (totalMiles / totalGallons).toFixed(2) : 0;
+  const totalPercentage = stateSummaryData.reduce((sum, state) => sum + state.percentage, 0);
+
+  // Datos de ejemplo para la tabla de detalle por mes y estado
+  const monthlyDetailData = [
+    {
+      state: 'AL',
+      months: [
+        { miles: 400, gallons: 150 },
+        { miles: 380, gallons: 140 },
+        { miles: 420, gallons: 160 },
+        { miles: 410, gallons: 155 }
+      ]
+    },
+    {
+      state: 'FL',
+      months: [
+        { miles: 500, gallons: 180 },
+        { miles: 480, gallons: 175 },
+        { miles: 520, gallons: 190 },
+        { miles: 500, gallons: 185 }
+      ]
+    }
+  ];
+
+  // Meses para la tabla de detalle
+  const months = ['ENERO', 'FEBRERO', 'MARZO', 'ABRIL'];
+
+  // Calcular totales por mes
+  const monthlyTotals = months.map((_, monthIndex) => {
+    return monthlyDetailData.reduce((acc, stateData) => ({
+      miles: acc.miles + (stateData.months[monthIndex]?.miles || 0),
+      gallons: acc.gallons + (stateData.months[monthIndex]?.gallons || 0)
+    }), { miles: 0, gallons: 0 });
+  });
+
+  return (
+    <Box sx={{ p: 3 }}>
+      {/* Encabezado */}
+      <Card sx={{ mb: 3, backgroundColor: '#f5f5f5' }}>
+        <CardContent>
+          <Typography variant="h5" gutterBottom>
+            DECLARACIÓN IFTA - Q{quarter} {year}
+          </Typography>
+
+          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mt: 2 }}>
+            <FormControl size="small" sx={{ minWidth: 180 }}>
+              <InputLabel>Vehículo</InputLabel>
+              <Select value="all" label="Vehículo" disabled={loading}>
+                <MenuItem key="all-vehicles" value="all">Todos los vehículos</MenuItem>
+                {vehicleData.map((vehicle) => (
+                  <MenuItem key={`vehicle-${vehicle.id}`} value={vehicle.id}>
+                    {vehicle.plate} - {vehicle.name || 'Sin nombre'}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            <FormControl size="small" sx={{ minWidth: 120 }}>
+              <InputLabel>Período</InputLabel>
+              <Select 
+                value={`Q${quarter} ${year}`} 
+                label="Período"
+                disabled={true}
+              >
+                <MenuItem key={`period-${quarter}-${year}`} value={`Q${quarter} ${year}`}>
+                  Q{quarter} {year}
+                </MenuItem>
+              </Select>
+            </FormControl>
+
+            <Button 
+              variant="contained" 
+              color="primary"
+              onClick={() => window.print()}
+              startIcon={<PrintIcon />}
+            >
+              Imprimir
+            </Button>
+          </Box>
+        </CardContent>
+      </Card>
+
+      {/* Resumen por Estado */}
+      <Card sx={{ mb: 3 }}>
+        <CardContent>
+          <Typography variant="h6" gutterBottom>RESUMEN POR ESTADO</Typography>
+          <TableContainer component={Paper}>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell sx={{ fontWeight: 'bold' }}>ESTADO</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 'bold' }}>MILLAS TOTALES</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 'bold' }}>GALONES TOTALES</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 'bold' }}>MPG PROMEDIO</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 'bold' }}>% TOTAL</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {stateSummaryData.map((row, index) => (
+                  <TableRow key={`state-summary-${row.state}-${index}`}>
+                    <TableCell>{row.state}</TableCell>
+                    <TableCell align="right">{row.miles.toLocaleString()}</TableCell>
+                    <TableCell align="right">{row.gallons.toLocaleString()}</TableCell>
+                    <TableCell align="right">{row.mpg.toFixed(2)}</TableCell>
+                    <TableCell align="right">{row.percentage.toFixed(1)}%</TableCell>
+                  </TableRow>
+                ))}
+                <TableRow sx={{ '&:last-child td': { borderBottom: 0 }, backgroundColor: '#f5f5f5' }}>
+                  <TableCell sx={{ fontWeight: 'bold' }}>TOTAL</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 'bold' }}>{totalMiles.toLocaleString()}</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 'bold' }}>{totalGallons.toLocaleString()}</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 'bold' }}>{averageMPG}</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 'bold' }}>{totalPercentage.toFixed(1)}%</TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </CardContent>
+      </Card>
+
+      {/* Detalle por Mes y Estado */}
+      <Card sx={{ mb: 3 }}>
+        <CardContent>
+          <Typography variant="h6" gutterBottom>DETALLE POR MES Y ESTADO</Typography>
+          <TableContainer component={Paper} sx={{ overflowX: 'auto' }}>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell rowSpan={2} sx={{ fontWeight: 'bold', borderRight: '1px solid #e0e0e0' }}>ESTADO</TableCell>
+                  {months.map((month, index) => (
+                    <TableCell key={`month-header-${month}-${index}`} colSpan={2} align="center" sx={{ fontWeight: 'bold', borderRight: '1px solid #e0e0e0' }}>
+                      {month}
+                    </TableCell>
+                  ))}
+                </TableRow>
+                <TableRow>
+                  {months.map((_, index) => (
+                    <React.Fragment key={`month-subheader-${index}`}>
+                      <TableCell align="center" sx={{ fontWeight: 'bold', borderRight: '1px solid #e0e0e0' }}>MILLAS</TableCell>
+                      <TableCell align="center" sx={{ fontWeight: 'bold', borderRight: '1px solid #e0e0e0' }}>GAL.</TableCell>
+                    </React.Fragment>
+                  ))}
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {monthlyDetailData.map((stateData, idx) => (
+                  <TableRow key={`state-detail-${stateData.state}-${idx}`}>
+                    <TableCell sx={{ fontWeight: 'bold', borderRight: '1px solid #e0e0e0' }}>{stateData.state}</TableCell>
+                    {stateData.months.map((month, midx) => (
+                      <React.Fragment key={`month-data-${stateData.state}-${midx}`}>
+                        <TableCell align="right" sx={{ borderRight: '1px solid #e0e0e0' }}>{month.miles}</TableCell>
+                        <TableCell align="right" sx={{ borderRight: '1px solid #e0e0e0' }}>{month.gallons}</TableCell>
+                      </React.Fragment>
+                    ))}
+                  </TableRow>
+                ))}
+                <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
+                  <TableCell sx={{ fontWeight: 'bold', borderRight: '1px solid #e0e0e0' }}>TOTAL</TableCell>
+                  {monthlyTotals.map((total, tidx) => (
+                    <React.Fragment key={`total-${tidx}`}>
+                      <TableCell align="right" sx={{ fontWeight: 'bold', borderRight: '1px solid #e0e0e0' }}>
+                        {total.miles}
+                      </TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 'bold', borderRight: '1px solid #e0e0e0' }}>
+                        {total.gallons}
+                      </TableCell>
+                    </React.Fragment>
+                  ))}
+                </TableRow>
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </CardContent>
+      </Card>
+
+      {/* Gráfico de Consumo Mensual */}
+      <Card sx={{ mb: 3 }}>
+        <CardContent>
+          <Typography variant="h6" gutterBottom>GRÁFICO DE CONSUMO MENSUAL</Typography>
+          <Box sx={{ height: 300, mt: 3, position: 'relative' }}>
+            {/* Gráfico simulado con texto */}
+            <Box sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              height: '100%',
+              fontFamily: 'monospace',
+              whiteSpace: 'pre',
+              overflow: 'hidden'
+            }}>
+              <Box sx={{ flex: 1, position: 'relative' }}>
+                <Box sx={{
+                  position: 'absolute',
+                  right: 0,
+                  top: 0,
+                  bottom: 0,
+                  width: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'flex-end',
+                  pl: 4
+                }}>
+                  {[0, 100, 200, 300, 400, 500, 600, 700, 800, 900].map((value, i) => (
+                    <Box key={i} sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      height: '10%',
+                      borderBottom: '1px solid #e0e0e0',
+                      color: '#666',
+                      fontSize: '0.8rem'
+                    }}>
+                      <Box sx={{ width: 30, textAlign: 'right', mr: 1 }}>{value}</Box>
+                      <Box sx={{ flex: 1, height: '100%', position: 'relative' }}>
+                        {i === 0 && (
+                          <>
+                            <Box sx={{
+                              position: 'absolute',
+                              left: '25%',
+                              bottom: '50%',
+                              width: '15%',
+                              height: 10,
+                              backgroundColor: '#8884d8',
+                              borderRadius: '2px 2px 0 0'
+                            }} />
+                            <Box sx={{
+                              position: 'absolute',
+                              left: '45%',
+                              bottom: '40%',
+                              width: '15%',
+                              height: 20,
+                              backgroundColor: '#82ca9d',
+                              borderRadius: '2px 2px 0 0'
+                            }} />
+                            <Box sx={{
+                              position: 'absolute',
+                              left: '65%',
+                              bottom: '60%',
+                              width: '15%',
+                              height: 30,
+                              backgroundColor: '#ffc658',
+                              borderRadius: '2px 2px 0 0'
+                            }} />
+                            <Box sx={{
+                              position: 'absolute',
+                              left: '85%',
+                              bottom: '30%',
+                              width: '15%',
+                              height: 40,
+                              backgroundColor: '#ff8042',
+                              borderRadius: '2px 2px 0 0'
+                            }} />
+                          </>
+                        )}
+                      </Box>
+                    </Box>
+                  ))}
+                  <Box sx={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    mt: 1,
+                    px: 4
+                  }}>
+                    {['Ene', 'Feb', 'Mar', 'Abr'].map((month, i) => (
+                      <Box key={`month-label-${month}-${i}`} sx={{ textAlign: 'center', fontSize: '0.8rem', color: '#666' }}>
+                        {month}
+                      </Box>
+                    ))}
+                  </Box>
+                </Box>
+              </Box>
+              <Box sx={{
+                display: 'flex',
+                justifyContent: 'center',
+                gap: 3,
+                mt: 2,
+                '& > div': {
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1,
+                  fontSize: '0.8rem'
+                }
+              }}>
+                <div><Box sx={{ width: 12, height: 12, bgcolor: '#8884d8' }} /> AL</div>
+                <div><Box sx={{ width: 12, height: 12, bgcolor: '#82ca9d' }} /> FL</div>
+                <div><Box sx={{ width: 12, height: 12, bgcolor: '#ffc658' }} /> Promedio</div>
+              </Box>
+            </Box>
+          </Box>
+        </CardContent>
+      </Card>
+
+      {/* Resumen General */}
+      <Card sx={{ mb: 3, backgroundColor: '#f5f5f5' }}>
+        <CardContent>
+          <Typography variant="h6" gutterBottom>RESUMEN GENERAL</Typography>
+          <Box sx={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            mt: 2,
+            gap: 2
+          }}>
+            <Box sx={{ minWidth: 120 }}>
+              <Typography variant="subtitle2" color="textSecondary">Estado</Typography>
+              <Chip 
+                label={getStatusText(status)} 
+                color={getStatusColor(status)}
+                size="small"
+                sx={{ mt: 0.5, minWidth: 100, fontWeight: 'bold' }}
+              />
+            </Box>
+            <Box sx={{ minWidth: 120 }}>
+              <Typography variant="subtitle2" color="textSecondary">Total Millas</Typography>
+              <Typography variant="h6">{formatNumber(summary.total_miles || 0)}</Typography>
+            </Box>
+            <Box sx={{ minWidth: 120 }}>
+              <Typography variant="subtitle2" color="textSecondary">Total Galones</Typography>
+              <Typography variant="h6">{formatNumber(summary.total_gallons || 0)}</Typography>
+            </Box>
+            <Box sx={{ minWidth: 120 }}>
+              <Typography variant="subtitle2" color="textSecondary">MPG</Typography>
+              <Typography variant="h6">
+                {calculateMPG(summary.total_miles || 0, summary.total_gallons || 0).toFixed(2)}
+              </Typography>
+            </Box>
+            <Box sx={{ minWidth: 120 }}>
+              <Typography variant="subtitle2" color="textSecondary">Período</Typography>
+              <Typography variant="body2">
+                {summary.start_date ? formatDate(summary.start_date) : 'N/A'} - {summary.end_date ? formatDate(summary.end_date) : 'N/A'}
+              </Typography>
+            </Box>
+          </Box>
+        </CardContent>
+      </Card>
+
+      {/* Botones de Navegación y Exportación */}
+      <Box sx={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: 2,
+        mb: 4
+      }}>
+
+
+
+      </Box>
+
+      {/* Contenido de las pestañas */}
+      <Box sx={{ mb: 3 }}>
+        {/* Pestaña de Resumen */}
+        {activeTab === 0 && (
+          <Card>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>Resumen por Estado</Typography>
+              <TableContainer component={Paper} sx={{ maxHeight: 500, overflow: 'auto' }}>
+                <Table size="small" stickyHeader>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Estado</TableCell>
+                      <TableCell align="right">Millas</TableCell>
+                      <TableCell align="right">Galones</TableCell>
+                      <TableCell align="right">MPG</TableCell>
+                      <TableCell align="right">% Millas</TableCell>
+                      <TableCell align="right">% Galones</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {processedStateSummary.length > 0 ? (
+                      <>
+                        {processedStateSummary.map((state, index) => (
+                          <TableRow key={`${state.state}-${index}`} hover>
+                            <TableCell>
+                              <Box>
+                                <strong>{state.state}</strong>
+                                <Typography variant="caption" display="block" color="textSecondary">
+                                  {stateCodeToName(state.state) || 'Estado desconocido'}
+                                </Typography>
+                              </Box>
+                            </TableCell>
+                            <TableCell align="right">{formatNumber(state.miles)}</TableCell>
+                            <TableCell align="right">{formatNumber(state.gallons)}</TableCell>
+                            <TableCell align="right">
+                              {typeof state.mpg === 'number' ? state.mpg.toFixed(2) : 'N/A'}
+                            </TableCell>
+                            <TableCell align="right">
+                              {state.milesPercent.toFixed(1)}%
+                            </TableCell>
+                            <TableCell align="right">
+                              {state.gallonsPercent.toFixed(1)}%
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                        <TableRow sx={{ '&:last-child td': { borderBottom: 0 }, backgroundColor: 'action.hover' }}>
+                          <TableCell><strong>Total</strong></TableCell>
+                          <TableCell align="right"><strong>{formatNumber(summary.total_miles)}</strong></TableCell>
+                          <TableCell align="right"><strong>{formatNumber(summary.total_gallons)}</strong></TableCell>
+                          <TableCell align="right">
+                            <strong>{calculateMPG(summary.total_miles, summary.total_gallons).toFixed(2)}</strong>
+                          </TableCell>
+                          <TableCell align="right">100%</TableCell>
+                          <TableCell align="right">100%</TableCell>
+                        </TableRow>
+                      </>
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={6} align="center" sx={{ py: 3 }}>
+                          <Typography color="textSecondary">
+                            No hay datos disponibles para mostrar
+                          </Typography>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Pestaña de Gráficos */}
+        {activeTab === 1 && (
+          <Grid container spacing={3}>
+            <Grid item xs={12} md={6}>
+              <Card>
+                <CardContent>
+                  <Typography variant="h6" gutterBottom>Millas por Estado</Typography>
+                  <Box sx={{ height: 400 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={stateSummary}
+                        margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis
+                          dataKey="state"
+                          angle={-45}
+                          textAnchor="end"
+                          height={60}
+                        />
+                        <YAxis />
+                        <RechartsTooltip
+                          formatter={(value) => [formatNumber(value), 'Millas']}
+                        />
+                        <Bar dataKey="miles" fill="#8884d8" name="Millas">
+                          {stateSummary.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={stateColors[entry.state] || '#8884d8'} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <Card>
+                <CardContent>
+                  <Typography variant="h6" gutterBottom>Consumo por Mes</Typography>
+                  <Box sx={{ height: 400 }}>
+                    {monthlySummary.length > 0 ? (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <ComposedChart
+                          data={monthlySummary}
+                          margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis
+                            dataKey="monthName"
+                            angle={-45}
+                            textAnchor="end"
+                            height={60}
+                            label={{ value: 'Mes', position: 'insideBottomRight', offset: -10 }}
+                          />
+                          <YAxis yAxisId="left" orientation="left" stroke="#8884d8" label={{ value: 'Millas', angle: -90, position: 'insideLeft' }} />
+                          <YAxis yAxisId="right" orientation="right" stroke="#82ca9d" label={{ value: 'Galones', angle: 90, position: 'insideRight' }} />
+                          <RechartsTooltip
+                            formatter={(value, name) => {
+                              if (name === 'MPG') return [value.toFixed(2), 'MPG'];
+                              return [formatNumber(value), name.includes('miles') ? 'Millas' : 'Galones'];
+                            }}
+                            labelFormatter={(label) => `Mes: ${label}`}
+                          />
+                          <Legend />
+                          <Bar yAxisId="left" dataKey="totalMiles" name="Millas" fill="#8884d8" />
+                          <Bar yAxisId="right" dataKey="totalGallons" name="Galones" fill="#82ca9d" />
+                          <Line
+                            yAxisId="left"
+                            type="monotone"
+                            dataKey={data => calculateMPG(data.totalMiles, data.totalGallons)}
+                            name="MPG"
+                            stroke="#ff7300"
+                            dot={false}
+                            strokeWidth={2}
+                          />
+                        </ComposedChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <Box sx={{ 
+                        height: '100%', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center',
+                        backgroundColor: 'background.default',
+                        borderRadius: 1
+                      }}>
+                        <Typography color="textSecondary">
+                          No hay datos de consumo disponibles para mostrar
+                        </Typography>
+                      </Box>
+                    )}
+                  </Box>
+                  
+                  {/* Tabla detallada por mes */}
+                  <Box sx={{ mt: 4 }}>
+                    <Typography variant="h6" gutterBottom>Detalle por Mes</Typography>
+                    <TableContainer component={Paper} sx={{ maxHeight: 400, overflow: 'auto' }}>
+                      <Table size="small" stickyHeader>
+                        <TableHead>
+                          <TableRow>
+                            <TableCell>Mes</TableCell>
+                            <TableCell align="right">Millas</TableCell>
+                            <TableCell align="right">Galones</TableCell>
+                            <TableCell align="right">MPG</TableCell>
+                            <TableCell>Estados</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {monthlySummary.length > 0 ? (
+                            monthlySummary.map((month, index) => (
+                              <TableRow key={index} hover>
+                                <TableCell>
+                                  <strong>{`${month.monthName} ${month.year}`}</strong>
+                                </TableCell>
+                                <TableCell align="right">{formatNumber(month.totalMiles)}</TableCell>
+                                <TableCell align="right">{formatNumber(month.totalGallons)}</TableCell>
+                                <TableCell align="right">
+                                  {calculateMPG(month.totalMiles, month.totalGallons).toFixed(2)}
+                                </TableCell>
+                                <TableCell>
+                                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                                    {Array.isArray(month.states) && month.states.length > 0 ? (
+                                      month.states.map((state, i) => (
+                                        <Chip
+                                          key={i}
+                                          label={state}
+                                          size="small"
+                                          sx={{
+                                            bgcolor: stateColors[state] || '#e0e0e0',
+                                            color: 'white',
+                                            fontWeight: 'bold',
+                                            fontSize: '0.7rem'
+                                          }}
+                                        />
+                                      ))
+                                    ) : (
+                                      <Typography variant="caption" color="textSecondary">
+                                        Sin datos
+                                      </Typography>
+                                    )}
+                                  </Box>
+                                </TableCell>
+                              </TableRow>
+                            ))
+                          ) : (
+                            <TableRow>
+                              <TableCell colSpan={5} align="center" sx={{ py: 3 }}>
+                                <Typography color="textSecondary">
+                                  No hay datos mensuales disponibles
+                                </Typography>
+                              </TableCell>
+                            </TableRow>
+                          )}
+                          {monthlySummary.length > 0 && (
+                            <TableRow sx={{ '&:last-child td': { borderBottom: 0 }, backgroundColor: 'action.hover' }}>
+                              <TableCell><strong>Total</strong></TableCell>
+                              <TableCell align="right">
+                                <strong>{formatNumber(monthlySummary.reduce((sum, m) => sum + m.totalMiles, 0))}</strong>
+                              </TableCell>
+                              <TableCell align="right">
+                                <strong>{formatNumber(monthlySummary.reduce((sum, m) => sum + m.totalGallons, 0))}</strong>
+                              </TableCell>
+                              <TableCell align="right">
+                                <strong>
+                                  {calculateMPG(
+                                    monthlySummary.reduce((sum, m) => sum + m.totalMiles, 0),
+                                    monthlySummary.reduce((sum, m) => sum + m.totalGallons, 0)
+                                  ).toFixed(2)}
+                                </strong>
+                              </TableCell>
+                              <TableCell></TableCell>
+                            </TableRow>
+                          )}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
+          </Grid>
+        )}
+
+        {/* Pestaña de Vehículos */}
+        {activeTab === 2 && (
+          <Card>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>Vehículos</Typography>
+              <TableContainer component={Paper} sx={{ maxHeight: 500, overflow: 'auto' }}>
+                <Table size="small" stickyHeader>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Vehículo</TableCell>
+                      <TableCell align="right">Millas</TableCell>
+                      <TableCell align="right">Galones</TableCell>
+                      <TableCell align="right">MPG</TableCell>
+                      <TableCell>Estados</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {vehicleData.map((vehicle, index) => (
+                      <TableRow key={index} hover>
+                        <TableCell><strong>{vehicle.plate}</strong></TableCell>
+                        <TableCell align="right">{formatNumber(vehicle.total_miles)}</TableCell>
+                        <TableCell align="right">{formatNumber(vehicle.total_gallons)}</TableCell>
+                        <TableCell align="right">
+                          {calculateMPG(vehicle.total_miles, vehicle.total_gallons)}
+                        </TableCell>
+                        <TableCell>
+                          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                            {Array.from(vehicle.states).map((state, i) => (
+                              <Chip
+                                key={i}
+                                label={state}
+                                size="small"
+                                sx={{
+                                  bgcolor: stateColors[state] || '#e0e0e0',
+                                  color: 'white',
+                                  fontWeight: 'bold'
+                                }}
+                              />
+                            ))}
+                          </Box>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    <TableRow sx={{ '&:last-child td': { borderBottom: 0 }, backgroundColor: 'action.hover' }}>
+                      <TableCell><strong>Total</strong></TableCell>
+                      <TableCell align="right"><strong>{formatNumber(summary.total_miles)}</strong></TableCell>
+                      <TableCell align="right"><strong>{formatNumber(summary.total_gallons)}</strong></TableCell>
+                      <TableCell align="right">
+                        <strong>{calculateMPG(summary.total_miles, summary.total_gallons)}</strong>
+                      </TableCell>
+                      <TableCell>
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                          {stateSummary.map((state, i) => (
+                            <Chip
+                              key={i}
+                              label={state.state}
+                              size="small"
+                              sx={{
+                                bgcolor: stateColors[state.state] || '#e0e0e0',
+                                color: 'white',
+                                fontWeight: 'bold'
+                              }}
+                            />
+                          ))}
+                        </Box>
+                      </TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </CardContent>
+          </Card>
+        )}
+      </Box>
+
+      {/* Botones de acción */}
+      <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, mt: 3 }}>
+        <Button
+          variant="outlined"
+          startIcon={<ArrowBackIcon />}
+          onClick={() => navigate(-1)}
+        >
+          Volver
+        </Button>
+        <Button
+          variant="contained"
+          color="primary"
+          startIcon={<PdfIcon />}
+          onClick={() => { }}
+        >
+          Exportar PDF
+        </Button>
+        <Button
+          variant="contained"
+          color="success"
+          startIcon={<ExcelIcon />}
+          onClick={() => { }}
+        >
+          Exportar Excel
+        </Button>
+      </Box>
+    </Box>
+  );
+};
+
+export default DeclarationDetail;

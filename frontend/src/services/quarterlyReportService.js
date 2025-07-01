@@ -143,13 +143,39 @@ export const getQuarterlyReport = async (id) => {
  */
 export const updateQuarterlyReportStatus = async (id, status) => {
   try {
-    const response = await api.patch(
-      `${API_URL}/${id}/status`,
-      { status }
-    );
+    const response = await api.patch(`${API_URL}/${id}/status`, { status });
     return response.data;
   } catch (error) {
-    console.error('Error al actualizar el estado del reporte trimestral:', error);
+    console.error('Error al actualizar el estado del reporte:', error);
+    throw error;
+  }
+};
+
+/**
+ * Obtiene los detalles extendidos de un reporte trimestral
+ * @param {string} companyId - ID de la compañía
+ * @param {string|number} quarter - Número del trimestre (1-4)
+ * @param {string|number} year - Año del reporte
+ * @param {Object} [options] - Opciones adicionales
+ * @param {number} [options.quarter] - Trimestre específico a filtrar (1-4)
+ * @returns {Promise<Object>} Datos detallados del reporte trimestral
+ */
+export const getQuarterlyReportDetails = async (companyId, quarter, year, { quarter: filterQuarter } = {}) => {
+  try {
+    const params = new URLSearchParams();
+    
+    // Add quarter filter if provided
+    if (filterQuarter !== undefined) {
+      params.append('quarter', filterQuarter);
+    }
+    
+    const queryString = params.toString();
+    const url = `${API_URL}/company/${companyId}/quarter/${quarter}/year/${year}/details${queryString ? `?${queryString}` : ''}`;
+    
+    const response = await api.get(url);
+    return response.data;
+  } catch (error) {
+    console.error('Error al obtener los detalles del reporte trimestral:', error);
     throw error;
   }
 };

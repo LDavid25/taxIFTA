@@ -1,4 +1,5 @@
 const { sequelize } = require('../models');
+const { Op } = require('sequelize');
 const AppError = require('../utils/appError');
 
 /**
@@ -614,3 +615,220 @@ exports.getQuarterlyReport = async (req, res, next) => {
     next(new AppError('Error al obtener el reporte trimestral', 500));
   }
 };
+
+// Obtener detalles extendidos de un reporte trimestral
+/**
+ * Obtiene los trimestres disponibles para una compañía y año específicos
+ * @param {Object} req - Objeto de solicitud de Express
+ * @param {Object} res - Objeto de respuesta de Express
+ * @param {Function} next - Función de middleware de Express
+ */
+exports.getAvailableQuarters = async (req, res, next) => {
+  try {
+    const { companyId, year } = req.params;
+
+    if (!companyId || !year) {
+      return next(new AppError('Se requieren los parámetros companyId y year', 400));
+    }
+
+    const query = `
+      SELECT DISTINCT quarter
+      FROM ifta_quarterly_reports
+      WHERE company_id = :companyId
+      AND year = :year
+      AND status = 'approved'
+      ORDER BY quarter ASC
+    `;
+
+    const [results] = await sequelize.query(query, {
+      replacements: { companyId, year },
+      type: sequelize.QueryTypes.SELECT
+    });
+
+    // Extraer los trimestres de los resultados
+    const quarters = results.map(item => item.quarter);
+
+    res.status(200).json({
+      status: 'success',
+      data: {
+        quarters
+      }
+    });
+  } catch (error) {
+    console.error('Error al obtener trimestres disponibles:', error);
+    next(new AppError('Error al obtener los trimestres disponibles', 500));
+  }
+};
+
+exports.getQuarterlyReportDetails = async (req, res, next) => {
+  const { companyId, quarter, year } = req.params;
+  console.log(`\n=== Iniciando getQuarterlyReportDetails ===`);
+  console.log(`Parámetros: companyId=${companyId}, quarter=${quarter}, year=${year}`);
+
+  try {
+    // 1. Consulta para obtener los datos básicos del reporte trimestral
+    const quarterlyQuery = `
+      SELECT 
+        iqr.*,
+        c.name as company_name,
+        (SELECT COUNT(*) FROM ifta_reports ir 
+         WHERE ir.quarterly_report_id = iqr.id) as report_count
+      FROM ifta_quarterly_reports iqr
+      JOIN companies c ON iqr.company_id = c.id
+      WHERE iqr.company_id = :companyId
+      AND iqr.quarter = :quarter
+      AND iqr.year = :year
+    `;
+
+    console.log('\nEjecutando consulta de datos trimestrales...');
+    const [quarterlyData] = await sequelize.query(quarterlyQuery, {
+      replacements: { companyId, quarter, year },
+      type: sequelize.QueryTypes.SELECT
+    });
+    console.log('Datos trimestrales obtenidos:', JSON.stringify(quarterlyData, null, 2));
+
+    // 2. Consulta para obtener los datos mensuales por estado
+    const monthlyQuery = `
+      SELECT 
+        r.report_month,
+        TO_CHAR(TO_DATE(r.report_month::text, 'MM'), 'Month') as month_name,
+        irs.state_code,
+        SUM(irs.miles) as total_miles,
+        SUM(irs.gallons) as total_gallons
+      FROM ifta_reports r
+      JOIN ifta_quarterly_reports qr ON qr.id = r.quarterly_report_id
+      JOIN ifta_report_states irs ON irs.report_id = r.id
+      WHERE qr.company_id = :companyId
+        AND qr.quarter = :quarter
+        AND qr.year = :year
+        AND r.status IN ('sent', 'in_progress')
+      GROUP BY r.report_month, irs.state_code
+      ORDER BY r.report_month, irs.state_code
+    `;
+
+    console.log('\nEjecutando consulta de datos mensuales...');
+    const monthlyData = await sequelize.query(monthlyQuery, {
+      replacements: { companyId, quarter, year },
+      type: sequelize.QueryTypes.SELECT
+    });
+    console.log('Datos mensuales obtenidos:', JSON.stringify(monthlyData, null, 2));
+
+    // 3. Consulta para obtener totales por estado
+    const stateTotalsQuery = `
+      SELECT 
+        irs.state_code,
+        SUM(irs.miles) as total_miles,
+        SUM(irs.gallons) as total_gallons,
+        ROUND((SUM(irs.miles) / NULLIF(SUM(irs.gallons), 0))::numeric, 2) as mpg
+      FROM ifta_report_states irs
+      JOIN ifta_reports r ON r.id = irs.report_id
+      JOIN ifta_quarterly_reports qr ON qr.id = r.quarterly_report_id
+      WHERE qr.company_id = :companyId
+        AND qr.quarter = :quarter
+        AND qr.year = :year
+        AND r.status IN ('sent', 'in_progress')
+      GROUP BY irs.state_code
+      ORDER BY total_miles DESC
+    `;
+
+    console.log('\nEjecutando consulta de totales por estado...');
+    const stateTotals = await sequelize.query(stateTotalsQuery, {
+      replacements: { companyId, quarter, year },
+      type: sequelize.QueryTypes.SELECT
+    });
+    console.log('Totales por estado obtenidos:', JSON.stringify(stateTotals, null, 2));
+
+    // 4. Consulta para obtener los reportes individuales con datos de estados
+    const reportsQuery = `
+      WITH report_states AS (
+        SELECT 
+          irs.report_id,
+          irs.state_code,
+          irs.miles,
+          irs.gallons,
+          ROW_NUMBER() OVER (PARTITION BY irs.report_id, irs.state_code ORDER BY irs.created_at DESC) as rn
+        FROM ifta_report_states irs
+        JOIN ifta_reports r ON r.id = irs.report_id
+        JOIN ifta_quarterly_reports qr ON qr.id = r.quarterly_report_id
+        WHERE qr.company_id = :companyId
+          AND qr.quarter = :quarter
+          AND qr.year = :year
+          AND r.status IN ('sent', 'in_progress')
+      )
+      SELECT 
+        r.id,
+        r.vehicle_plate,
+        r.report_month,
+        r.report_year,
+        r.status,
+        r.total_miles,
+        r.total_gallons,
+        r.notes,
+        r.created_at,
+        r.updated_at,
+        COALESCE(
+          json_agg(
+            json_build_object(
+              'state_code', rs.state_code,
+              'miles', rs.miles,
+              'gallons', rs.gallons,
+              'mpg', ROUND((rs.miles / NULLIF(rs.gallons, 0))::numeric, 2)
+            )
+          ) FILTER (WHERE rs.report_id IS NOT NULL),
+          '[]'::json
+        ) as state_data
+      FROM ifta_reports r
+      JOIN ifta_quarterly_reports qr ON qr.id = r.quarterly_report_id
+      LEFT JOIN report_states rs ON rs.report_id = r.id AND rs.rn = 1
+      WHERE qr.company_id = :companyId
+        AND qr.quarter = :quarter
+        AND qr.year = :year
+        AND r.status IN ('sent', 'in_progress')
+      GROUP BY r.id
+      ORDER BY r.vehicle_plate, r.report_month
+    `;
+
+    console.log('\nEjecutando consulta de reportes individuales...');
+    const reports = await sequelize.query(reportsQuery, {
+      replacements: { companyId, quarter, year },
+      type: sequelize.QueryTypes.SELECT
+    });
+    console.log('Reportes individuales obtenidos:', reports.length);
+
+    // Procesar datos para la respuesta
+    const response = {
+      status: 'success',
+      data: {
+        ...quarterlyData,
+        monthly_breakdown: monthlyData,
+        state_totals: stateTotals,
+        individual_reports: reports
+      }
+    };
+
+    console.log('\n=== Respuesta final ===');
+    console.log(JSON.stringify({
+      status: 'success',
+      data: {
+        ...quarterlyData,
+        monthly_breakdown: `${monthlyData.length} meses con datos`,
+        state_totals: `${stateTotals.length} estados`,
+        individual_reports: `${reports.length} reportes`
+      }
+    }, null, 2));
+
+    res.json(response);
+
+  } catch (error) {
+    console.error('\n=== ERROR en getQuarterlyReportDetails ===');
+    console.error('Error:', error.message);
+    console.error('Stack:', error.stack);
+    
+    res.status(500).json({
+      status: 'error',
+      message: 'Error al obtener los detalles del reporte',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+

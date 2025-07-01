@@ -5,9 +5,7 @@ import { ThemeProvider as MuiThemeProvider } from '@mui/material/styles';
 import { LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { es } from 'date-fns/locale';
-import { ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
-import { SnackbarProvider } from 'notistack';
+
 
 // Contextos
 import { useAuth } from './context/AuthContext';
@@ -140,29 +138,7 @@ function App() {
   return (
     <MuiThemeProvider theme={theme}>
       <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={es}>
-        <SnackbarProvider 
-          maxSnack={3}
-          anchorOrigin={{
-            vertical: 'bottom',
-            horizontal: 'right',
-          }}
-          autoHideDuration={3000}
-        >
         <CssBaseline />
-        
-        {/* Contenedor de notificaciones secundarias (arriba a la derecha) */}
-        <ToastContainer 
-          position="top-right"
-          autoClose={5000}
-          hideProgressBar={false}
-          newestOnTop={false}
-          closeOnClick
-          rtl={false}
-          pauseOnFocusLoss
-          draggable
-          pauseOnHover
-          toastStyle={{ marginTop: '20px' }}
-        />
         <CompanyProvider>
           <Routes>
             {/* Rutas públicas */}
@@ -244,7 +220,6 @@ function App() {
             <Route path="*" element={<NotFound />} />
           </Routes>
         </CompanyProvider>
-        </SnackbarProvider>
       </LocalizationProvider>
     </MuiThemeProvider>
   );
