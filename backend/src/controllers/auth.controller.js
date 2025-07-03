@@ -86,8 +86,15 @@ exports.register = async (req, res, next) => {
 
     let companyId = company_id;
 
-    // 2) Si es un usuario regular (no admin) y no tiene company_id, crear una nueva compañía si se proporcionan datos
-    if (role === 'user' && !company_id && (company_name || company_phone || company_email)) {
+    // 2) Si es un usuario regular (no admin) y no tiene company_id, validar que se proporcionen los datos necesarios para crear una nueva compañía
+    if (role === 'user' && !company_id) {
+      // Validar que se proporcionen los campos requeridos para crear una nueva compañía
+      if (!company_name || !company_email) {
+        await transaction.rollback();
+        return next(
+          new AppError('Se requieren el nombre y correo de la compañía para crear una nueva', StatusCodes.BAD_REQUEST)
+        );
+      }
       // Solo validar si el correo ya existe si se proporciona
       if (company_email) {
         const existingCompany = await Company.findOne({
