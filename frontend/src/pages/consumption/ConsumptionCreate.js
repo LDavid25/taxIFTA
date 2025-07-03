@@ -181,6 +181,7 @@ const ConsumptionCreate = () => {
             severity: 'error',
             autoHideDuration: 5000
           });
+          setIsChecking(false); // Asegurarse de restablecer el estado de verificación
           return false;
         }
         
@@ -206,6 +207,7 @@ const ConsumptionCreate = () => {
         setFormData(values);
         setShowJurisdictions(true);
         setIsReportValid(true);
+        setIsChecking(false); // Asegurarse de restablecer el estado de verificación
         return true;
       }
       
@@ -1002,77 +1004,74 @@ const ConsumptionCreate = () => {
                           sum + (parseFloat(entry.gallons) || 0), 0).toFixed(3)}
                       </Typography>
                     </Grid>
-                    <Grid item xs={12}>
-                      <Box 
-                        sx={{ 
-                          display: 'flex', 
-                          alignItems: 'center', 
-                          gap: 2,
-                          p: 1.5,
-                          borderRadius: 1,
-                          bgcolor: 'background.paper',
-                          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-                          width: 'fit-content',
-                          mx: 'auto',
-                          minWidth: 180,
-                          justifyContent: 'space-between'
-                        }}
-                      >
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <LocalGasStationIcon color="action" />
-                          <Typography 
-                            variant="subtitle2" 
-                            component="span"
-                            color="text.secondary"
-                          >
-                            MPG:
-                          </Typography>
-                        </Box>
+                    {/* MPG - Solo visible para Admin */}
+                    {currentUser?.role === 'admin' && (
+                      <Grid item xs={12}>
                         <Box 
-                          sx={{
-                            px: 1.5,
-                            py: 0.5,
+                          sx={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: 2,
+                            p: 1.5,
                             borderRadius: 1,
-                            ...(() => {
-                              const totalMiles = formik.values.stateEntries.reduce((sum, entry) =>
-                                sum + (parseFloat(entry.miles) || 0), 0);
-                              const totalGallons = formik.values.stateEntries.reduce((sum, entry) =>
-                                sum + (parseFloat(entry.gallons) || 0), 0) || 1;
-                              const mpg = Math.round((totalMiles / totalGallons) * 100) / 100; // Ensure exactly 2 decimal places
-                              
-                              // Calculate color based on distance from 5 (optimal value)
-                              const distanceFromOptimal = Math.abs(mpg - 5);
-                              // Normalize to 0-1 range where 0 is optimal (5) and 1 is max distance (5+)
-                              const normalized = Math.min(distanceFromOptimal / 5, 1);
-                              // Invert so 0 distance = green, max distance = red
-                              const hue = ((1 - normalized) * 120).toString(10);
-                              const bgColor = `hsla(${hue}, 80%, 90%, 0.7)`;
-                              const textColor = `hsl(${hue}, 80%, 25%)`;
-                              
-                              return {
-                                bgcolor: bgColor,
-                                color: textColor,
-                                border: `1px solid ${textColor}20`,
-                                fontWeight: 600,
-                                transition: 'all 0.3s ease',
-                                '&:hover': {
-                                  transform: 'scale(1.03)',
-                                  boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
-                                }
-                              };
-                            })()
+                            bgcolor: 'background.paper',
+                            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                            width: 'fit-content',
+                            mx: 'auto',
+                            minWidth: 180,
+                            justifyContent: 'space-between'
                           }}
                         >
-                          {(() => {
-                            const totalMiles = formik.values.stateEntries.reduce((sum, entry) =>
-                              sum + (parseFloat(entry.miles) || 0), 0);
-                            const totalGallons = formik.values.stateEntries.reduce((sum, entry) =>
-                              sum + (parseFloat(entry.gallons) || 0), 0) || 1;
-                            return (totalMiles / totalGallons).toFixed(2);
-                          })()}
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <LocalGasStationIcon color="action" />
+                            <Typography 
+                              variant="subtitle2" 
+                              component="span"
+                              color="text.secondary"
+                            >
+                              MPG:
+                            </Typography>
+                          </Box>
+                          <Box 
+                            sx={{
+                              px: 1.5,
+                              py: 0.5,
+                              borderRadius: 1,
+                              ...(() => {
+                                const totalMiles = formik.values.stateEntries.reduce((sum, entry) =>
+                                  sum + (parseFloat(entry.miles) || 0), 0);
+                                const totalGallons = formik.values.stateEntries.reduce((sum, entry) =>
+                                  sum + (parseFloat(entry.gallons) || 0), 0) || 1;
+                                const mpg = Math.round((totalMiles / totalGallons) * 100) / 100; // Ensure exactly 2 decimal places
+                                
+                                // Calculate color based on distance from 5 (optimal value)
+                                const distanceFromOptimal = Math.abs(mpg - 5);
+                                // Normalize to 0-1 range where 0 is optimal (5) and 1 is max distance (5+)
+                                const normalized = Math.min(distanceFromOptimal / 5, 1);
+                                // Invert so 0 distance = green, max distance = red
+                                const hue = ((1 - normalized) * 120).toString(10);
+                                
+                                return {
+                                  bgcolor: `hsla(${hue}, 80%, 90%, 0.5)`,
+                                  color: `hsl(${hue}, 70%, 30%)`,
+                                  fontWeight: 600,
+                                  transition: 'all 0.3s ease',
+                                  '&:hover': {
+                                    transform: 'scale(1.03)',
+                                    boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                                  }
+                                };
+                              })()
+                            }}
+                          >
+                            {(formik.values.stateEntries.reduce((sum, entry) => 
+                              sum + (parseFloat(entry.miles) || 0), 0) / 
+                              (formik.values.stateEntries.reduce((sum, entry) => 
+                                sum + (parseFloat(entry.gallons) || 0), 0) || 1)).toFixed(2)}
+                          </Box>
                         </Box>
-                      </Box>
-                    </Grid>
+                      </Grid>
+                    )}
                   </Grid>
                 </Box>
               )}

@@ -1,6 +1,7 @@
 const { sequelize } = require('../models');
 const { Op } = require('sequelize');
 const AppError = require('../utils/appError');
+const { IftaQuarterlyReport, IftaReport } = require('../models');
 
 /**
  * Obtiene todos los reportes agrupados por compañía y trimestre
@@ -27,12 +28,12 @@ exports.getGroupedQuarterlyReports = async (req, res, next) => {
         SELECT ir.id 
         FROM ifta_reports ir 
         WHERE ir.quarterly_report_id = iqr.id 
-        AND ir.status IN ('sent', 'in_progress')
+        AND ir.status IN ('sent', 'in_progress', 'completed')
       ) AS valid_report_ids,
       (SELECT COUNT(*) 
        FROM ifta_reports ir 
        WHERE ir.quarterly_report_id = iqr.id 
-       AND ir.status IN ('sent', 'in_progress')
+       AND ir.status IN ('sent', 'in_progress', 'completed')
       ) AS valid_report_count
     FROM 
       ifta_quarterly_reports iqr
@@ -140,7 +141,7 @@ exports.getIndividualReports = async (req, res, next) => {
         r.company_id = :companyId
         AND r.report_year = :year
         AND qr.quarter = :quarter
-        AND r.status IN ('sent', 'in_progress')
+        AND r.status IN ('sent', 'in_progress', 'completed')
       GROUP BY 
         r.id
       ORDER BY 
@@ -701,7 +702,7 @@ exports.getQuarterlyReportDetails = async (req, res, next) => {
       WHERE qr.company_id = :companyId
         AND qr.quarter = :quarter
         AND qr.year = :year
-        AND r.status IN ('sent', 'in_progress')
+        AND r.status IN ('sent', 'in_progress', 'completed')
       GROUP BY r.report_month, irs.state_code
       ORDER BY r.report_month, irs.state_code
     `;
@@ -726,7 +727,7 @@ exports.getQuarterlyReportDetails = async (req, res, next) => {
       WHERE qr.company_id = :companyId
         AND qr.quarter = :quarter
         AND qr.year = :year
-        AND r.status IN ('sent', 'in_progress')
+        AND r.status IN ('sent', 'in_progress', 'completed')
       GROUP BY irs.state_code
       ORDER BY total_miles DESC
     `;
@@ -753,7 +754,7 @@ exports.getQuarterlyReportDetails = async (req, res, next) => {
         WHERE qr.company_id = :companyId
           AND qr.quarter = :quarter
           AND qr.year = :year
-          AND r.status IN ('sent', 'in_progress')
+          AND r.status IN ('sent', 'in_progress', 'completed')
       )
       SELECT 
         r.id,
@@ -783,7 +784,7 @@ exports.getQuarterlyReportDetails = async (req, res, next) => {
       WHERE qr.company_id = :companyId
         AND qr.quarter = :quarter
         AND qr.year = :year
-        AND r.status IN ('sent', 'in_progress')
+        AND r.status IN ('sent', 'in_progress', 'completed')
       GROUP BY r.id
       ORDER BY r.vehicle_plate, r.report_month
     `;
@@ -832,3 +833,62 @@ exports.getQuarterlyReportDetails = async (req, res, next) => {
   }
 };
 
+/**
+ * Actualiza el estado de un reporte trimestral
+ * @param {Object} req - Objeto de solicitud de Express
+ * @param {Object} res - Objeto de respuesta de Express
+ * @param {Function} next - Función de middleware de Express
+ */
+exports.updateQuarterlyReportStatus = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    if (!status) {
+      return next(new AppError('El estado es requerido', 400));
+    }
+
+    // Validar que el estado sea uno de los permitidos
+    const validStatuses = ['pending', 'in_progress', 'completed', 'approved', 'rejected'];
+    if (!validStatuses.includes(status)) {
+      return next(new AppError('Estado no válido', 400));
+    }
+
+    // Buscar el reporte trimestral
+    const quarterlyReport = await IftaQuarterlyReport.findByPk(id);
+    if (!quarterlyReport) {
+      return next(new AppError('No se encontró el reporte trimestral', 404));
+    }
+
+    // Actualizar el estado del reporte trimestral
+    const updateData = { status };
+    
+    // Si el estado es 'completed', establecer la fecha de envío
+    if (status === 'completed') {
+      updateData.submitted_at = new Date();
+      
+      // Actualizar también los reportes individuales
+      await IftaReport.update(
+        { status: 'completed' },
+        { where: { quarterly_report_id: id } }
+      );
+    }
+    
+    // Si el estado es 'approved' o 'rejected', establecer la fecha de aprobación
+    if (status === 'approved' || status === 'rejected') {
+      updateData.approved_at = new Date();
+    }
+
+    await quarterlyReport.update(updateData);
+
+    res.status(200).json({
+      status: 'success',
+      data: {
+        quarterlyReport
+      }
+    });
+  } catch (error) {
+    console.error('Error al actualizar el estado del reporte:', error);
+    next(new AppError('Error al actualizar el estado del reporte', 500));
+  }
+};

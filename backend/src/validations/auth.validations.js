@@ -1,4 +1,5 @@
 const { body } = require('express-validator');
+const { companyValidation } = require('./company.validations');
 
 const passwordValidation = [
   body('password')
@@ -30,16 +31,13 @@ const registerSchema = [
     .withMessage('Please provide a valid email')
     .normalizeEmail(),
   
-  body('companyName')
-    .trim()
-    .notEmpty()
-    .withMessage('Company name is required')
-    .isLength({ min: 2, max: 100 })
-    .withMessage('Company name must be between 2 and 100 characters'),
+  // Validaciones de la compañía
+  ...companyValidation,
   
+  // Validaciones de contraseña
   ...passwordValidation,
   
-  body('passwordConfirm')
+  body('password_confirmation')
     .notEmpty()
     .withMessage('Please confirm your password')
     .custom((value, { req }) => {

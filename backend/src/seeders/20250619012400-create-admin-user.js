@@ -8,7 +8,6 @@ module.exports = {
     const [company] = await queryInterface.bulkInsert('companies', [{
       id: '00000000-0000-0000-0000-000000000001',
       name: 'Admin Company',
-      tax_id: '000000000',
       contact_email: 'admin@iftaeasytax.com',
       is_active: true,
       created_at: new Date(),

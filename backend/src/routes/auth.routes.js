@@ -14,6 +14,7 @@ const router = express.Router();
 
 // Public routes
 router.post('/login', validate(loginSchema), authController.login);
+router.post('/register', validate(registerSchema), authController.register);
 router.post(
     '/forgot-password',
     validate(forgotPasswordSchema),
@@ -39,7 +40,6 @@ router.patch(
 
 // Admin only routes
 router.use(authController.restrictTo('admin'));
-router.post('/register', validate(registerSchema), authController.register);
 // Add admin-only routes here
 
 module.exports = router;

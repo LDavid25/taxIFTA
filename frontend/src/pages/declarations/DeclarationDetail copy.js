@@ -3,13 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 import { format, parseISO, startOfMonth, endOfMonth, eachMonthOfInterval } from 'date-fns';
 import { es } from 'date-fns/locale';
-import {
-  getQuarterlyReportDetails,
-  updateQuarterlyReportStatus,
-  getGroupedQuarterlyReports,
-  exportToExcel,
-  getIndividualReports
-} from '../../services/quarterlyReportService';
+import { getQuarterlyReportDetails } from '../../services/quarterlyReportService';
 import {
   Box,
   Button,
@@ -35,12 +29,7 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
-  Grid,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogContentText,
-  DialogActions
+  Grid
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon,
@@ -58,10 +47,10 @@ import LoadingScreen from '../../components/common/LoadingScreen';
 const stateCodeToName = (code, full = false) => {
   try {
     if (!code) return 'Unknown';
-
+    
     // Manejar el caso especial 'TOTAL'
     if (String(code).toUpperCase() === 'TOTAL') return 'TOTAL';
-
+    
     const states = {
       'AL': 'Alabama', 'AK': 'Alaska', 'AZ': 'Arizona', 'AR': 'Arkansas', 'CA': 'California',
       'CO': 'Colorado', 'CT': 'Connecticut', 'DE': 'Delaware', 'FL': 'Florida', 'GA': 'Georgia',
@@ -77,11 +66,11 @@ const stateCodeToName = (code, full = false) => {
       'PR': 'Puerto Rico', 'GU': 'Guam', 'VI': 'Virgin Islands', 'MP': 'Northern Mariana Islands',
       'AS': 'American Samoa'
     };
-
+    
     // Convertir a string y buscar directamente
     const codeStr = String(code).toUpperCase();
     const stateName = states[codeStr] || codeStr;
-
+    
     // Si se solicita el formato completo, devolver 'CODE - Name', de lo contrario solo el nombre
     return full ? `${codeStr} - ${stateName}` : stateName;
   } catch (error) {
@@ -92,14 +81,14 @@ const stateCodeToName = (code, full = false) => {
 
 const getStatusColor = (status) => {
   if (!status) return 'default';
-
+  
   // Usar un mapeo directo en lugar de switch con toLowerCase
   const colorMap = {
     'approved': 'success',
     'rejected': 'error',
     'pending': 'warning'
   };
-
+  
   // Convertir a string y buscar en el mapa
   const statusStr = String(status);
   return colorMap[statusStr] || 'default';
@@ -107,13 +96,13 @@ const getStatusColor = (status) => {
 
 const getStatusText = (status) => {
   if (!status) return 'Desconocido';
-
+  
   const statusMap = {
     'approved': 'Aprobado',
     'rejected': 'Rechazado',
     'pending': 'Pendiente'
   };
-
+  
   // Convertir a string y buscar en el mapa
   const statusStr = String(status);
   return statusMap[statusStr] || status;
@@ -144,9 +133,8 @@ const DeclarationDetail = () => {
   const navigate = useNavigate();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-
+  
   // State
-  const [updatingStatus, setUpdatingStatus] = useState(false);
   const [loading, setLoading] = useState(true);
   const [reportData, setReportData] = useState({
     reports: [],
@@ -158,20 +146,12 @@ const DeclarationDetail = () => {
   const [companyInfo, setCompanyInfo] = useState(null);
   const [activeTab, setActiveTab] = useState(0);
   const [alert, setAlert] = useState({ open: false, message: '', severity: 'info' });
-  const [confirmDialog, setConfirmDialog] = useState({
-    open: false,
-    title: 'Confirmar acción',
-    content: '¿Está seguro que desea marcar esta declaración como completada? Esta acción no se puede deshacer.',
-    onConfirm: null
-  });
-
-
-  // Initialize filters state with the quarter from URL
   const [filters, setFilters] = useState({
     vehicle: 'all',
     quarter: quarter // Use the quarter from URL
   });
-
+  const [declarationReports, setDeclarationReports] = useState([]); // Estado para almacenar los reportes asociados a la declaración
+  
   // Update filters when URL changes
   useEffect(() => {
     setFilters(prev => ({
@@ -179,11 +159,11 @@ const DeclarationDetail = () => {
       quarter: quarter
     }));
   }, [quarter]);
-
+  
   // Fetch available quarters for the current year and company
   const fetchAvailableQuarters = useCallback(async () => {
     if (!companyId || !year) return;
-
+    
     try {
       const response = await api.get(`/v1/quarterly-reports/company/${companyId}/year/${year}/quarters`);
       if (response.data && response.data.quarters) {
@@ -199,36 +179,23 @@ const DeclarationDetail = () => {
   // Fetch report data
   const fetchReportData = useCallback(async () => {
     if (!companyId || !quarter || !year) return;
-
+    
     setLoading(true);
     try {
       const response = await getQuarterlyReportDetails(companyId, quarter, year);
-
+      
       // Set report data
       const reportData = {
-        id: response.data?.id, // Asegurarse de incluir el ID del reporte trimestral
-        quarter: response.data?.quarter,
-        year: response.data?.year,
-        status: response.data?.status,
         reports: response.data?.reports || [],
         monthly_breakdown: response.data?.monthly_breakdown || [],
         state_totals: response.data?.state_totals || [],
         individual_reports: response.data?.individual_reports || []
       };
       
-      console.log('Datos del reporte trimestral:', {
-        id: reportData.id,
-        quarter: reportData.quarter,
-        year: reportData.year
-      });
-
-      console.log('IDEEEEEEEEEEEEEE',reportData);
-        
-
-      // console.log('Datos de la API - individual_reports:', reportData.individual_reports);
-
+      console.log('Datos de la API - individual_reports:', reportData.individual_reports);
+      
       setReportData(reportData);
-
+      
       // Set company info if available
       if (response.data?.company_name) {
         setCompanyInfo({
@@ -257,14 +224,14 @@ const DeclarationDetail = () => {
   // Process state summary from API data
   const stateSummary = useMemo(() => {
     if (!reportData.state_totals || reportData.state_totals.length === 0) return [];
-
+    
     // Calculate totals
-    const totalMiles = reportData.state_totals.reduce((sum, state) =>
+    const totalMiles = reportData.state_totals.reduce((sum, state) => 
       sum + (parseFloat(state.total_miles) || 0), 0);
-
-    const totalGallons = reportData.state_totals.reduce((sum, state) =>
+      
+    const totalGallons = reportData.state_totals.reduce((sum, state) => 
       sum + (parseFloat(state.total_gallons) || 0), 0);
-
+    
     // Create summary array from state_totals
     const summary = reportData.state_totals.map(state => ({
       state: state.state_code,
@@ -298,17 +265,17 @@ const DeclarationDetail = () => {
   // Process monthly data from API
   const monthlyData = useMemo(() => {
     if (!reportData.monthly_breakdown?.length) return [];
-
+    
     // Group by month and state
     const monthsMap = new Map();
-
+    
     reportData.monthly_breakdown.forEach(item => {
       const date = new Date(item.report_date);
       const year = date.getFullYear();
       const month = date.getMonth();
       const monthKey = `${year}-${String(month + 1).padStart(2, '0')}`;
       const stateCode = item.state_code;
-
+      
       if (!monthsMap.has(monthKey)) {
         monthsMap.set(monthKey, {
           month,
@@ -324,7 +291,7 @@ const DeclarationDetail = () => {
           gallons: 0
         };
       }
-
+      
       // Sum up the values
       const monthStates = monthsMap.get(monthKey).states[stateCode];
       monthStates.miles += parseFloat(item.total_miles) || 0;
@@ -356,7 +323,7 @@ const DeclarationDetail = () => {
       { month: startMonth + 1, name: monthNames[startMonth + 1], year },
       { month: startMonth + 2, name: monthNames[startMonth + 2], year }
     ];
-    // console.log(`Meses para Q${quarter} ${year}:`, months.map(m => m.name));
+    console.log(`Meses para Q${quarter} ${year}:`, months.map(m => m.name));
     return months;
   };
 
@@ -365,11 +332,11 @@ const DeclarationDetail = () => {
     if (!reportData.individual_reports) {
       return { vehicles: [], months: [], quarters: [], generalTotal: { miles: 0, gallons: 0, mpg: '0.00' } };
     }
-
-    const reportsToProcess = filters.vehicle !== 'all'
+    
+    const reportsToProcess = filters.vehicle !== 'all' 
       ? reportData.individual_reports.filter(r => r.vehicle_plate === filters.vehicle)
       : reportData.individual_reports;
-
+    
     if (reportsToProcess.length === 0) {
       return { vehicles: [], months: [], quarters: [], generalTotal: { miles: 0, gallons: 0, mpg: '0.00' } };
     }
@@ -382,31 +349,30 @@ const DeclarationDetail = () => {
     let generalTotalGallons = 0;
 
     // Process each report
-    // console.log('Procesando informes individuales. Total:', reportsToProcess.length);
-
+    console.log('Procesando informes individuales. Total:', reportsToProcess.length);
+    
     reportsToProcess.forEach((report, index) => {
-      // console.log(`Procesando informe ${index + 1}:`, report);
-
+      console.log(`Procesando informe ${index + 1}:`, report);
+      
       const vehiclePlate = report.vehicle_plate || 'SIN PLACA';
       const month = report.report_month - 1; // Convert to 0-based month
       const year = report.report_year;
       const monthKey = `${year}-${String(month + 1).padStart(2, '0')}`;
-
-      // console.log(`Vehículo: ${vehiclePlate}, Mes: ${month + 1}, Año: ${year}, Clave de mes: ${monthKey}`);
-
+      
+      console.log(`Vehículo: ${vehiclePlate}, Mes: ${month + 1}, Año: ${year}, Clave de mes: ${monthKey}`);
+      
       // Track unique months and quarters
       if (!monthsMap.has(monthKey)) {
         const quarter = getQuarterFromMonth(month);
         const quarterKey = `Q${quarter}-${year}`;
-
+        
         monthsMap.set(monthKey, {
           month,
-          monthName: monthNames[month],
           year,
           quarter,
           quarterKey
         });
-
+        
         // Track unique quarters
         if (!quartersMap.has(quarterKey)) {
           quartersMap.set(quarterKey, {
@@ -416,10 +382,10 @@ const DeclarationDetail = () => {
           });
         }
       }
-
+      
       // Verificar si hay datos de estados
       if (!report.state_data || !Array.isArray(report.state_data)) {
-        // console.log(`  No hay datos de estados para el informe ${index + 1}`);
+        console.log(`  No hay datos de estados para el informe ${index + 1}`);
         return; // Saltar este reporte si no tiene datos de estados
       }
 
@@ -435,14 +401,14 @@ const DeclarationDetail = () => {
       }
 
       const vehicle = vehiclesMap.get(vehiclePlate);
-
+      
       // Procesar cada estado en el reporte
-      // console.log(`  Estados en el informe ${index + 1}:`, report.state_data);
-
+      console.log(`  Estados en el informe ${index + 1}:`, report.state_data);
+      
       report.state_data.forEach((state, stateIndex) => {
         const stateCode = state.state_code;
-        // console.log(`  Procesando estado ${stateIndex + 1}: ${stateCode}, Millas: ${state.miles}, Galones: ${state.gallons}`);
-
+        console.log(`  Procesando estado ${stateIndex + 1}: ${stateCode}, Millas: ${state.miles}, Galones: ${state.gallons}`);
+        
         // Initialize state if not exists
         if (!vehicle.states.has(stateCode)) {
           vehicle.states.set(stateCode, {
@@ -453,83 +419,83 @@ const DeclarationDetail = () => {
             mpg: 0
           });
         }
-
+        
         const stateData = vehicle.states.get(stateCode);
-
+        
         // Initialize month data if not exists
         if (!stateData.months.has(monthKey)) {
           stateData.months.set(monthKey, { miles: 0, gallons: 0, hasData: false });
         }
-
+        
         // Add values
         const monthData = stateData.months.get(monthKey);
         const miles = parseFloat(state.miles) || 0;
         const gallons = parseFloat(state.gallons) || 0;
-
+        
         monthData.miles += miles;
         monthData.gallons += gallons;
         monthData.hasData = true;
-
+        
         // Update state totals
         stateData.totalMiles += miles;
         stateData.totalGallons += gallons;
-        stateData.mpg = stateData.totalGallons > 0 ?
+        stateData.mpg = stateData.totalGallons > 0 ? 
           (stateData.totalMiles / stateData.totalGallons).toFixed(2) : '0.00';
-
+        
         // Update vehicle totals
         vehicle.totalMiles += miles;
         vehicle.totalGallons += gallons;
-
+        
         // Update general totals
         generalTotalMiles += miles;
         generalTotalGallons += gallons;
       });
-
+      
       // Calculate vehicle MPG
-      vehicle.mpg = vehicle.totalGallons > 0 ?
+      vehicle.mpg = vehicle.totalGallons > 0 ? 
         (vehicle.totalMiles / vehicle.totalGallons).toFixed(2) : '0.00';
     });
-
+    
     // Ordenar meses cronológicamente (de más antiguo a más reciente)
     const sortedMonths = Array.from(monthsMap.values()).sort((a, b) => {
       if (a.year !== b.year) return a.year - b.year;
       return a.month - b.month;
     });
-
-    // console.log('Meses ordenados:', sortedMonths.map(m => `${m.monthName} ${m.year}`));
-
+    
+    console.log('Meses ordenados:', sortedMonths.map(m => `${m.monthName} ${m.year}`));
+    
     // Ordenar cuartos cronológicamente
     const sortedQuarters = Array.from(quartersMap.values()).sort((a, b) => {
       if (a.year !== b.year) return a.year - b.year;
       return a.quarter - b.quarter;
     });
-
-    // console.log('Meses únicos encontrados:', sortedMonths);
-
+    
+    console.log('Meses únicos encontrados:', sortedMonths);
+    
     // Convertir el mapa de vehículos a un array y ordenar por placa
-    const vehicles = Array.from(vehiclesMap.values()).sort((a, b) =>
+    const vehicles = Array.from(vehiclesMap.values()).sort((a, b) => 
       a.plate.localeCompare(b.plate)
     );
-
-    // console.log('Vehículos encontrados:', vehicles.map(v => v.plate));
-
+    
+    console.log('Vehículos encontrados:', vehicles.map(v => v.plate));
+    
     // Convertir los mapas de estados a arrays y ordenar por código de estado
     vehicles.forEach(vehicle => {
-      vehicle.states = Array.from(vehicle.states.values()).sort((a, b) =>
+      vehicle.states = Array.from(vehicle.states.values()).sort((a, b) => 
         a.code.localeCompare(b.code)
       );
-
+      
       // Calcular MPG para cada vehículo
-      vehicle.mpg = vehicle.totalGallons > 0 ?
+      vehicle.mpg = vehicle.totalGallons > 0 ? 
         (vehicle.totalMiles / vehicle.totalGallons).toFixed(2) : '0.00';
-
-      // console.log(`Estados para el vehículo ${vehicle.plate}:`, vehicle.states.map(s => s.code));
+      
+      console.log(`Estados para el vehículo ${vehicle.plate}:`, vehicle.states.map(s => s.code));
     });
-
+    
     // Calcular MPG general
-    const generalMPG = generalTotalGallons > 0 ?
+    const generalMPG = generalTotalGallons > 0 ? 
       (generalTotalMiles / generalTotalGallons).toFixed(2) : '0.00';
-
+    
     const result = {
       vehicles,
       months: sortedMonths,
@@ -541,9 +507,20 @@ const DeclarationDetail = () => {
       },
       hasMultipleQuarters: sortedQuarters.length > 1
     };
-
-
-
+    
+    console.log('Datos procesados para la tabla:', {
+      totalVehicles: vehicles.length,
+      totalMonths: sortedMonths.length,
+      generalTotal: result.generalTotal,
+      sampleVehicle: vehicles.length > 0 ? {
+        plate: vehicles[0].plate,
+        states: vehicles[0].states.map(s => s.code),
+        totalMiles: vehicles[0].totalMiles,
+        totalGallons: vehicles[0].totalGallons,
+        mpg: vehicles[0].mpg
+      } : 'No hay vehículos'
+    });
+    
     return result;
   }, [reportData.individual_reports, filters.vehicle]);
 
@@ -575,7 +552,7 @@ const DeclarationDetail = () => {
       navigate(`/declarations/company/${companyId}/quarter/${value}/year/${year}`);
       return;
     }
-
+    
     // For other filters (like vehicle), update the local state
     setFilters(prev => ({
       ...prev,
@@ -583,129 +560,18 @@ const DeclarationDetail = () => {
     }));
   };
 
-  // Handle complete declaration
-  const handleCompleteDeclaration = async (e) => {
-    // Prevent default form submission and stop event propagation
-    if (e) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-    
-    console.log('=== INICIO handleCompleteDeclaration ===');
-    console.log('1. Estado actual de reportData:', reportData);
-    
-    // Verificar si hay reportes individuales
-    if (!reportData.individual_reports || reportData.individual_reports.length === 0) {
-      console.log('2. No hay reportes individuales');
-      setAlert({
-        open: true,
-        message: 'No se encontraron reportes individuales',
-        severity: 'error'
-      });
-      return;
-    }
 
-    // Obtener todos los IDs de los reportes individuales y el ID del reporte trimestral
-    const reportIds = reportData.individual_reports.map(report => report.id);
-    const quarterlyReportId = reportData.id; // ID del reporte trimestral
-    
-   
-    console.log('3. Información de la Declaración:', {
-      quarterlyReportId,
-      reportIds,
-      reportCount: reportIds.length
-    });
-
-    // Mostrar el diálogo de confirmación
-    setConfirmDialog({
-      ...confirmDialog,
-      open: true,
-      onConfirm: async () => {
-        console.log('5. Usuario confirmó la acción');
-        
-        try {
-          console.log('6. Actualizando estado a cargando...');
-          setUpdatingStatus(true);
-          
-          console.log('7. Actualizando estado del reporte trimestral...');
-          // 1. Actualizar el estado del reporte trimestral en ifta_quarterly_reports
-          const quarterlyUpdateResponse = await updateQuarterlyReportStatus(quarterlyReportId, 'completed');
-          console.log('8. Respuesta de actualización del reporte trimestral:', quarterlyUpdateResponse);
-          
-          console.log('9. Actualizando estados de reportes individuales...');
-          // 2. Actualizar el estado de los reportes individuales en ifta_reports
-          const individualUpdates = await Promise.all(
-            reportIds.map(reportId => {
-              console.log(`   - Actualizando reporte ${reportId}`);
-              return api.patch(`/v1/ifta-reports/${reportId}/status`, { status: 'completed' })
-                .then(res => {
-                  console.log(`   - Reporte ${reportId} actualizado`);
-                  return res;
-                })
-                .catch(error => {
-                  console.error(`   - Error actualizando reporte ${reportId}:`, error);
-                  throw error;
-                });
-            })
-          );
-          
-          console.log('10. Actualizando estado local...');
-          // Actualizar el estado local para reflejar los cambios
-          const updatedAt = new Date().toISOString();
-          setReportData(prev => {
-            console.log('11. Estado anterior:', prev);
-            const newState = {
-              ...prev,
-              status: 'completed',
-              updated_at: updatedAt,
-              submitted_at: new Date().toISOString(),
-              individual_reports: prev.individual_reports.map(report => ({
-                ...report,
-                status: 'completed',
-                updated_at: updatedAt
-              }))
-            };
-            console.log('12. Nuevo estado:', newState);
-            return newState;
-          });
-          
-          console.log('13. Mostrando mensaje de éxito');
-          // Mostrar mensaje de éxito
-          setAlert({
-            open: true,
-            message: 'La declaración y sus reportes individuales han sido marcados como completados exitosamente',
-            severity: 'success'
-          });
-          
-          console.log('14. Recargando página...');
-          // Recargar la página para mostrar el estado actualizado
-          window.location.reload();
-          
-        } catch (error) {
-          console.error('15. Error durante la actualización:', error);
-          setAlert({
-            open: true,
-            message: 'Error al actualizar la declaración: ' + (error.response?.data?.message || error.message),
-            severity: 'error'
-          });
-        } finally {
-          console.log('16. Finalizando proceso, desactivando estado de carga');
-          setUpdatingStatus(false);
-        }
-      }
-    });
-  };
 
   // Filter reports based on selected filters
   const filteredReports = useMemo(() => {
     if (!reportData.individual_reports) return [];
-
+    
     return reportData.individual_reports.filter(report => {
       // Filter by vehicle
       if (filters.vehicle !== 'all' && report.vehicle_plate !== filters.vehicle) {
         return false;
       }
-
+      
 
       return true;
     });
@@ -714,11 +580,11 @@ const DeclarationDetail = () => {
   // Calculate totals from filtered reports
   const filteredTotals = useMemo(() => {
     if (!reportData.individual_reports) return { totalMiles: 0, totalGallons: 0, avgMPG: 0 };
-
-    const reportsToProcess = filters.vehicle !== 'all'
+    
+    const reportsToProcess = filters.vehicle !== 'all' 
       ? reportData.individual_reports.filter(r => r.vehicle_plate === filters.vehicle)
       : reportData.individual_reports;
-
+    
     return reportsToProcess.reduce((acc, report) => {
       const miles = parseFloat(report.total_miles) || 0;
       const gallons = parseFloat(report.total_gallons) || 0;
@@ -732,24 +598,24 @@ const DeclarationDetail = () => {
 
   // Calculate report summary
   const reportSummary = useMemo(() => {
-    const totalMiles = reportData.state_totals?.reduce((sum, state) =>
+    const totalMiles = reportData.state_totals?.reduce((sum, state) => 
       sum + (parseFloat(state?.total_miles) || 0), 0) || 0;
-
-    const totalGallons = reportData.state_totals?.reduce((sum, state) =>
+      
+    const totalGallons = reportData.state_totals?.reduce((sum, state) => 
       sum + (parseFloat(state?.total_gallons) || 0), 0) || 0;
-
+      
     const avgMPG = totalGallons > 0 ? (totalMiles / totalGallons).toFixed(2) : 0;
 
     // Get date range for the report
     const reportDates = (reportData.individual_reports || [])
       .map(r => r?.report_date ? new Date(r.report_date) : null)
       .filter(Boolean);
-
-    const startDate = reportDates.length > 0
+    
+    const startDate = reportDates.length > 0 
       ? format(Math.min(...reportDates), 'PP', { locale: es })
       : 'N/A';
-
-    const endDate = reportDates.length > 0
+      
+    const endDate = reportDates.length > 0 
       ? format(Math.max(...reportDates), 'PP', { locale: es })
       : 'N/A';
 
@@ -762,7 +628,7 @@ const DeclarationDetail = () => {
       report_count: reportData.individual_reports?.length || 0
     };
   }, [reportData]);
-
+  
   // Set initial loading state
   useEffect(() => {
     if (reportData.individual_reports.length > 0) {
@@ -787,7 +653,7 @@ const DeclarationDetail = () => {
   // Helper function to calculate state totals from filtered reports
   const calculateStateTotals = (reports) => {
     const stateMap = new Map();
-
+    
     reports.forEach(report => {
       if (report.state_data?.length) {
         report.state_data.forEach(state => {
@@ -805,7 +671,7 @@ const DeclarationDetail = () => {
         });
       }
     });
-
+    
     return Array.from(stateMap.values());
   };
 
@@ -960,22 +826,22 @@ const DeclarationDetail = () => {
 
   // Render the vehicle/state monthly table
   const renderVehicleStateTable = () => {
-    // console.log('Renderizando tabla con vehicleStateTableData:', vehicleStateTableData);
-
+    console.log('Renderizando tabla con vehicleStateTableData:', vehicleStateTableData);
+    
     if (!vehicleStateTableData.vehicles.length) {
-      // console.log('No hay vehículos en vehicleStateTableData');
+      console.log('No hay vehículos en vehicleStateTableData');
       return <Box sx={{ p: 2, textAlign: 'center', color: 'text.secondary' }}>No hay datos disponibles</Box>;
     }
-
+    
     // Agrupar meses por trimestre
     const quarters = groupMonthsByQuarter(vehicleStateTableData.months);
     const quarterEntries = Object.entries(quarters);
-
+    
     // Calcular el ancho total necesario para la tabla
     const totalColumns = 2 + (vehicleStateTableData.months.length * 2) + 2; // Vehicle + State + (Months * 2) + Total + MPG
     const columnWidth = 120; // px
     const tableWidth = totalColumns * columnWidth;
-
+    
     // Función para formatear números con separadores de miles
     const formatCellNumber = (num) => {
       if (num === undefined || num === null) return '0.00';
@@ -986,9 +852,9 @@ const DeclarationDetail = () => {
     };
 
     return (
-      <TableContainer
-        component={Paper}
-        sx={{
+      <TableContainer 
+        component={Paper} 
+        sx={{ 
           ...tableStyles.container,
           '& .MuiTable-root': {
             minWidth: 'max-content',
@@ -1007,10 +873,10 @@ const DeclarationDetail = () => {
           },
         }}
       >
-        <Table
-          size="small"
-          stickyHeader
-          sx={{
+        <Table 
+          size="small" 
+          stickyHeader 
+          sx={{ 
             ...tableStyles.table,
             width: 'auto',
             minWidth: '100%',
@@ -1019,13 +885,13 @@ const DeclarationDetail = () => {
           <TableHead>
             {/* Fila de encabezado con trimestres */}
             <TableRow>
-              <TableCell
-                rowSpan={2}
-                align="center"
-                sx={{
-                  position: 'sticky',
-                  left: 0,
-                  zIndex: 4,
+              <TableCell 
+                rowSpan={2} 
+                align="center" 
+                sx={{ 
+                  position: 'sticky', 
+                  left: 0, 
+                  zIndex: 4, 
                   backgroundColor: '#f5f5f5',
                   minWidth: '100px',
                   textAlign: 'center',
@@ -1036,14 +902,14 @@ const DeclarationDetail = () => {
               >
                 # UNIT
               </TableCell>
-
-              <TableCell
-                rowSpan={2}
-                align="center"
-                sx={{
-                  position: 'sticky',
+              
+              <TableCell 
+                rowSpan={2} 
+                align="center" 
+                sx={{ 
+                  position: 'sticky', 
                   left: 100,
-                  zIndex: 4,
+                  zIndex: 4, 
                   backgroundColor: '#f5f5f5',
                   minWidth: '120px',
                   textAlign: 'center',
@@ -1054,7 +920,7 @@ const DeclarationDetail = () => {
               >
                 STATES
               </TableCell>
-
+              
               {/* Encabezados de trimestres */}
               {quarterEntries.map(([quarter, months]) => {
                 // Calcular total de millas y galones para el trimestre
@@ -1062,7 +928,7 @@ const DeclarationDetail = () => {
                   miles: 0,
                   gallons: 0
                 };
-
+                
                 months.forEach(month => {
                   const monthKey = `${month.year}-${String(month.month + 1).padStart(2, '0')}`;
                   vehicleStateTableData.vehicles.forEach(vehicle => {
@@ -1073,12 +939,12 @@ const DeclarationDetail = () => {
                     });
                   });
                 });
-
+                
                 const mpg = quarterTotal.gallons > 0 ? (quarterTotal.miles / quarterTotal.gallons).toFixed(2) : '0.00';
-
+                
                 return (
                   <React.Fragment key={quarter}>
-                    <TableCell
+                    <TableCell 
                       colSpan={months.length * 2}
                       align="center"
                       sx={{
@@ -1091,7 +957,7 @@ const DeclarationDetail = () => {
                         padding: '4px 8px',
                         borderBottom: '1px solid #e0e0e0',
                         position: 'relative'
-                      }}
+                      }} 
                     >
                       {quarter}
                       {/* Removed duplicate quarter totals */}
@@ -1099,11 +965,11 @@ const DeclarationDetail = () => {
                   </React.Fragment>
                 );
               })}
-
-              <TableCell
-                rowSpan={2}
-                align="center"
-                sx={{
+              
+              <TableCell 
+                rowSpan={2} 
+                align="center" 
+                sx={{ 
                   fontWeight: 'bold',
                   backgroundColor: '#e3f2fd',
                   minWidth: '100px',
@@ -1114,11 +980,11 @@ const DeclarationDetail = () => {
               >
                 TOTAL MILES
               </TableCell>
-
-              <TableCell
-                rowSpan={2}
-                align="center"
-                sx={{
+              
+              <TableCell 
+                rowSpan={2} 
+                align="center" 
+                sx={{ 
                   fontWeight: 'bold',
                   backgroundColor: '#e3f2fd',
                   minWidth: '100px',
@@ -1129,14 +995,14 @@ const DeclarationDetail = () => {
               >
                 TOTAL GALLONS
               </TableCell>
-
-              <TableCell
-                rowSpan={2}
-                align="center"
-                sx={{
+              
+              <TableCell 
+                rowSpan={2} 
+                align="center" 
+                sx={{ 
                   position: 'sticky',
                   right: 0,
-                  zIndex: 4,
+                  zIndex: 4, 
                   backgroundColor: '#f5f5f5',
                   minWidth: '80px',
                   textAlign: 'center',
@@ -1148,15 +1014,15 @@ const DeclarationDetail = () => {
                 MPG
               </TableCell>
             </TableRow>
-
+            
             {/* Month names with MILES and GAL headers */}
             <TableRow>
               {vehicleStateTableData.months.map((month, idx) => (
-                <TableCell
+                <TableCell 
                   key={`month-header-${month.month}-${month.year}`}
                   colSpan={2}
                   align="center"
-                  sx={{
+                  sx={{ 
                     fontWeight: 'bold',
                     backgroundColor: '#f5f5f5',
                     minWidth: '160px',
@@ -1185,40 +1051,40 @@ const DeclarationDetail = () => {
               ))}
             </TableRow>
           </TableHead>
-
+          
           <TableBody>
-            {vehicleStateTableData.vehicles.flatMap((vehicle, vIdx) => {
-              const vehicleRows = [];
-              let isFirstState = true;
-
-              // Add a row for each state
-              // console.log(`Procesando vehículo ${vIdx + 1}: ${vehicle.plate}, Estados:`, vehicle.states);
-
-              // Ordenar estados por código
-              const sortedStates = [...vehicle.states].sort((a, b) =>
-                a.code.localeCompare(b.code)
-              );
-
-              sortedStates.forEach((state, sIdx) => {
-                // console.log(`  Estado ${sIdx + 1} para ${vehicle.plate}:`, state.code, 'Meses:', state.months);
-
-                vehicleRows.push(
-                  <TableRow
-                    key={`${vIdx}-${sIdx}`}
-                    sx={{
-                      '&:hover': {
-                        backgroundColor: 'rgba(0, 0, 0, 0.02)',
-                        '& td': {
-                          backgroundColor: 'rgba(0, 0, 0, 0.01)'
-                        }
+          {vehicleStateTableData.vehicles.flatMap((vehicle, vIdx) => {
+            const vehicleRows = [];
+            let isFirstState = true;
+            
+            // Add a row for each state
+            console.log(`Procesando vehículo ${vIdx + 1}: ${vehicle.plate}, Estados:`, vehicle.states);
+            
+            // Ordenar estados por código
+            const sortedStates = [...vehicle.states].sort((a, b) => 
+              a.code.localeCompare(b.code)
+            );
+            
+            sortedStates.forEach((state, sIdx) => {
+              console.log(`  Estado ${sIdx + 1} para ${vehicle.plate}:`, state.code, 'Meses:', state.months);
+              
+              vehicleRows.push(
+                <TableRow 
+                  key={`${vIdx}-${sIdx}`}
+                  sx={{
+                    '&:hover': { 
+                      backgroundColor: 'rgba(0, 0, 0, 0.02)',
+                      '& td': {
+                        backgroundColor: 'rgba(0, 0, 0, 0.01)'
                       }
-                    }}
+                    }
+                  }}
                   >
                     {/* Vehicle Plate (only in first row) */}
                     {isFirstState && (
-                      <TableCell
-                        className="vehicle-cell"
-                        rowSpan={sortedStates.length}
+                      <TableCell 
+                      className="vehicle-cell"
+                      rowSpan={sortedStates.length}
                         sx={{
                           position: 'sticky',
                           left: 0,
@@ -1250,9 +1116,9 @@ const DeclarationDetail = () => {
                         </Box>
                       </TableCell>
                     )}
-
+                    
                     {/* State Code */}
-                    <TableCell
+                    <TableCell 
                       key={`${vIdx}-${sIdx}-state`}
                       align="center"
                       sx={{
@@ -1283,17 +1149,17 @@ const DeclarationDetail = () => {
                         {state.code}
                       </Box>
                     </TableCell>
-
+                    
                     {/* Monthly data for this state */}
                     {vehicleStateTableData.months.flatMap(month => {
                       const monthKey = `${month.year}-${String(month.month + 1).padStart(2, '0')}`;
                       const monthData = state.months.get(monthKey) || { miles: 0, gallons: 0 };
                       const mpg = monthData.gallons > 0 ? (monthData.miles / monthData.gallons).toFixed(2) : '0.00';
-
-                      // console.log(`    Datos para ${vehicle.plate} - ${state.code} - ${monthKey}:`, monthData);
-
+                      
+                      console.log(`    Datos para ${vehicle.plate} - ${state.code} - ${monthKey}:`, monthData);
+                      
                       return [
-                        <TableCell
+                        <TableCell 
                           key={`${vIdx}-${sIdx}-${monthKey}-miles`}
                           sx={{
                             backgroundColor: sIdx % 2 === 0 ? '#ffffff' : '#f9f9f9',
@@ -1308,7 +1174,7 @@ const DeclarationDetail = () => {
                         >
                           {monthData.miles > 0 ? formatCellNumber(monthData.miles) : '-'}
                         </TableCell>,
-                        <TableCell
+                        <TableCell 
                           key={`${vIdx}-${sIdx}-${monthKey}-gal`}
                           sx={{
                             backgroundColor: sIdx % 2 === 0 ? '#ffffff' : '#f9f9f9',
@@ -1325,9 +1191,9 @@ const DeclarationDetail = () => {
                         </TableCell>
                       ];
                     })}
-
+                    
                     {/* State totals */}
-                    <TableCell
+                    <TableCell 
                       sx={{
                         fontWeight: 'bold',
                         backgroundColor: sIdx % 2 === 0 ? '#f8f9fa' : '#f1f3f5',
@@ -1342,7 +1208,7 @@ const DeclarationDetail = () => {
                     >
                       {state.totalMiles > 0 ? formatCellNumber(state.totalMiles) : '-'}
                     </TableCell>
-                    <TableCell
+                    <TableCell 
                       sx={{
                         fontWeight: 'bold',
                         backgroundColor: sIdx % 2 === 0 ? '#f8f9fa' : '#f1f3f5',
@@ -1357,9 +1223,9 @@ const DeclarationDetail = () => {
                     >
                       {state.totalGallons > 0 ? formatCellNumber(state.totalGallons) : '-'}
                     </TableCell>
-
+                    
                     {/* MPG for this state */}
-                    <TableCell
+                    <TableCell 
                       sx={{
                         fontWeight: 'bold',
                         backgroundColor: sIdx % 2 === 0 ? '#f8f9fa' : '#f1f3f5',
@@ -1379,20 +1245,20 @@ const DeclarationDetail = () => {
                     </TableCell>
                   </TableRow>
                 );
-
+                
                 isFirstState = false;
               });
-
+              
               return vehicleRows;
             })}
-
+            
             {/* General Total Row */}
             {vehicleStateTableData.vehicles.length > 0 && (
               <TableRow sx={{ backgroundColor: '#e8f5e9' }}>
-                <TableCell
+                <TableCell 
                   colSpan={2}
                   align="right"
-                  sx={{
+                  sx={{ 
                     fontWeight: 'bold',
                     borderRight: '1px solid #e0e0e0',
                     position: 'sticky',
@@ -1405,11 +1271,11 @@ const DeclarationDetail = () => {
                 >
                   TOTAL GENERAL
                 </TableCell>
-
+                
                 {/* Monthly general totals */}
                 {vehicleStateTableData.months.map(month => {
                   const monthKey = `${month.year}-${String(month.month + 1).padStart(2, '0')}`;
-
+                  
                   // Calculate total miles and gallons for this month across all vehicles and states
                   const monthTotal = vehicleStateTableData.vehicles.reduce(
                     (acc, vehicle) => {
@@ -1423,7 +1289,7 @@ const DeclarationDetail = () => {
                         },
                         { miles: 0, gallons: 0 }
                       );
-
+                      
                       return {
                         miles: acc.miles + vehicleMonthTotal.miles,
                         gallons: acc.gallons + vehicleMonthTotal.gallons
@@ -1431,10 +1297,10 @@ const DeclarationDetail = () => {
                     },
                     { miles: 0, gallons: 0 }
                   );
-
+                  
                   return (
                     <React.Fragment key={`total-${monthKey}`}>
-                      <TableCell
+                      <TableCell 
                         align="right"
                         sx={{
                           fontFamily: 'monospace',
@@ -1447,7 +1313,7 @@ const DeclarationDetail = () => {
                       >
                         {formatNumber(monthTotal.miles)}
                       </TableCell>
-                      <TableCell
+                      <TableCell 
                         align="right"
                         sx={{
                           fontFamily: 'monospace',
@@ -1463,9 +1329,9 @@ const DeclarationDetail = () => {
                     </React.Fragment>
                   );
                 })}
-
+                
                 {/* General totals */}
-                <TableCell
+                <TableCell 
                   align="right"
                   sx={{
                     fontFamily: 'monospace',
@@ -1478,7 +1344,7 @@ const DeclarationDetail = () => {
                 >
                   {formatNumber(vehicleStateTableData.generalTotal.miles)}
                 </TableCell>
-                <TableCell
+                <TableCell 
                   align="right"
                   sx={{
                     fontFamily: 'monospace',
@@ -1491,9 +1357,9 @@ const DeclarationDetail = () => {
                 >
                   {formatNumber(vehicleStateTableData.generalTotal.gallons)}
                 </TableCell>
-
+                
                 {/* General MPG */}
-                <TableCell
+                <TableCell 
                   align="center"
                   sx={{
                     fontFamily: 'monospace',
@@ -1511,7 +1377,7 @@ const DeclarationDetail = () => {
               </TableRow>
             )}
           </TableBody>
-
+          
 
         </Table>
       </TableContainer>
@@ -1528,12 +1394,33 @@ const DeclarationDetail = () => {
 
   // Get company name from companyInfo or use a default
   const companyName = companyInfo?.name || 'Nombre de la Compañía';
-
+  
   // Use filtered reports count if a filter is active
-  const validReportsCount = filters.vehicle !== 'all'
-    ? filteredReports.length
+  const validReportsCount = filters.vehicle !== 'all' 
+    ? filteredReports.length 
     : reportData?.individual_reports?.length || 0;
-
+    
+  // Función para manejar la acción de completar declaración
+  const handleCompleteDeclaration = () => {
+    // Obtener los reportes según los filtros actuales
+    const reportsToSave = filters.vehicle !== 'all' 
+      ? filteredReports 
+      : reportData?.individual_reports || [];
+    
+    // Guardar los reportes en el estado
+    setDeclarationReports(reportsToSave);
+    
+    // Mostrar mensaje de confirmación
+    setAlert({
+      open: true,
+      message: `Se han guardado ${reportsToSave.length} reportes para completar la declaración`,
+      severity: 'success'
+    });
+    
+    // Aquí podrías agregar lógica adicional, como llamar a una API
+    console.log('Reportes guardados para completar declaración:', reportsToSave);
+  };
+  
   // Get quarter name in Spanish
   const getQuarterName = (q) => {
     const quarters = {
@@ -1559,10 +1446,10 @@ const DeclarationDetail = () => {
                 {getQuarterName(parseInt(quarter))} {year}
               </Typography>
             </Box>
-            <Box sx={{
-              backgroundColor: '#e8f4fd',
-              borderRadius: '4px',
-              px: 2,
+            <Box sx={{ 
+              backgroundColor: '#e8f4fd', 
+              borderRadius: '4px', 
+              px: 2, 
               py: 1,
               display: 'flex',
               alignItems: 'center',
@@ -1571,11 +1458,11 @@ const DeclarationDetail = () => {
               <Typography variant="subtitle2" sx={{ color: '#2c3e50', fontWeight: '500' }}>
                 Reportes Válidos:
               </Typography>
-              <Box sx={{
-                backgroundColor: '#4caf50',
-                color: 'white',
-                borderRadius: '12px',
-                px: 1.5,
+              <Box sx={{ 
+                backgroundColor: '#4caf50', 
+                color: 'white', 
+                borderRadius: '12px', 
+                px: 1.5, 
                 py: 0.5,
                 fontWeight: 'bold',
                 fontSize: '0.85rem'
@@ -1586,14 +1473,14 @@ const DeclarationDetail = () => {
           </Box>
         </CardContent>
       </Card>
-
+      
       {/* Filters */}
       <Card sx={{ mb: 3 }}>
         <CardContent>
           <Typography variant="h5" gutterBottom>
             DECLARACIÓN IFTA - Q{quarter} {year}
           </Typography>
-
+          
           {/* Filters */}
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2, mt: 2 }}>
             <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
@@ -1608,11 +1495,11 @@ const DeclarationDetail = () => {
                   {Array.from(new Set(reportData.individual_reports
                     ?.map(r => r.vehicle_plate)
                     ?.filter(Boolean) || [])).sort().map(plate => (
-                      <MenuItem key={plate} value={plate}>{plate}</MenuItem>
-                    ))}
+                    <MenuItem key={plate} value={plate}>{plate}</MenuItem>
+                  ))}
                 </Select>
               </FormControl>
-
+              
               <FormControl size="small" sx={{ minWidth: 120 }}>
                 <InputLabel>Trimestre</InputLabel>
                 <Select
@@ -1626,34 +1513,20 @@ const DeclarationDetail = () => {
                 </Select>
               </FormControl>
             </Box>
-
-            <Button
-              variant="contained"
-              color="primary"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleCompleteDeclaration();
-              }}
-              disabled={updatingStatus || reportData?.status === 'completed'}
-              sx={{
-                backgroundColor: reportData?.status === 'completed' ? '#4caf50' : '#1976d2',
-                '&:hover': {
-                  backgroundColor: reportData?.status === 'completed' ? '#43a047' : '#1565c0'
-                },
+            
+            <Button 
+              variant="contained" 
+              onClick={handleCompleteDeclaration}
+              sx={{ 
+                backgroundColor: '#1976d2',
+                '&:hover': { backgroundColor: '#1565c0' },
                 textTransform: 'none',
                 fontWeight: 'bold',
                 minWidth: '200px',
-                height: '40px',
-                position: 'relative',
-                zIndex: 1000,
-                '&:disabled': {
-                  backgroundColor: '#bdbdbd',
-                  color: '#757575'
-                }
+                height: '40px'
               }}
-              startIcon={updatingStatus ? <CircularProgress size={20} color="inherit" /> : null}
             >
-              {reportData?.status === 'completed' ? 'Declaración Completada' : 'Completar Declaración'}
+              Completar Declaración
             </Button>
           </Box>
         </CardContent>
@@ -1667,16 +1540,16 @@ const DeclarationDetail = () => {
               <TableHead>
                 <TableRow>
                   {/* Fixed Columns */}
-                  <TableCell align="center" rowSpan={2} sx={{
-                    fontWeight: 'bold',
+                  <TableCell align="center" rowSpan={2} sx={{ 
+                    fontWeight: 'bold', 
                     position: 'sticky',
                     left: 0,
                     backgroundColor: 'white',
                     zIndex: 3,
                     minWidth: '80px'
                   }}># UNIT</TableCell>
-
-                  <TableCell align="center" rowSpan={2} sx={{
+                  
+                  <TableCell align="center" rowSpan={2} sx={{ 
                     fontWeight: 'bold',
                     position: 'sticky',
                     left: 80,
@@ -1685,16 +1558,16 @@ const DeclarationDetail = () => {
                     minWidth: '100px',
                     borderRight: '1px solid #e0e0e0'
                   }}>STATES</TableCell>
-
+                  
                   {/* Month Headers */}
                   {vehicleStateTableData.months.length > 0 ? (
                     vehicleStateTableData.months.map((month, idx) => (
                       <React.Fragment key={`${month.month}-${month.year}`}>
-                        <TableCell
-                          align="center"
+                        <TableCell 
+                          align="center" 
                           colSpan={2}
-                          sx={{
-                            fontWeight: 'bold',
+                          sx={{ 
+                            fontWeight: 'bold', 
                             minWidth: '160px',
                             borderRight: idx === vehicleStateTableData.months.length - 1 ? '1px solid #e0e0e0' : 'none',
                             backgroundColor: '#f5f5f5'
@@ -1708,11 +1581,11 @@ const DeclarationDetail = () => {
                     // Fallback en caso de que no haya meses definidos
                     ['Abr', 'May', 'Jun'].map((month, idx) => (
                       <React.Fragment key={month}>
-                        <TableCell
-                          align="center"
+                        <TableCell 
+                          align="center" 
                           colSpan={2}
-                          sx={{
-                            fontWeight: 'bold',
+                          sx={{ 
+                            fontWeight: 'bold', 
                             minWidth: '160px',
                             borderRight: idx === 2 ? '1px solid #e0e0e0' : 'none',
                             backgroundColor: '#f5f5f5'
@@ -1723,9 +1596,9 @@ const DeclarationDetail = () => {
                       </React.Fragment>
                     ))
                   )}
-
+                  
                   {/* Fixed Total Columns */}
-                  <TableCell align="center" rowSpan={2} sx={{
+                  <TableCell align="center" rowSpan={2} sx={{ 
                     fontWeight: 'bold',
                     position: 'sticky',
                     right: 100,
@@ -1734,8 +1607,8 @@ const DeclarationDetail = () => {
                     minWidth: '100px',
                     borderLeft: '1px solid #e0e0e0'
                   }}>TOTAL MILES</TableCell>
-
-                  <TableCell align="center" rowSpan={2} sx={{
+                  
+                  <TableCell align="center" rowSpan={2} sx={{ 
                     fontWeight: 'bold',
                     position: 'sticky',
                     right: 0,
@@ -1746,12 +1619,12 @@ const DeclarationDetail = () => {
                   }}>TOTAL GALLONS</TableCell>
                 </TableRow>
               </TableHead>
-
+              
               <TableBody>
                 {(() => {
                   // Usamos los datos ya procesados en vehicleStateTableData
                   const { vehicles, months } = vehicleStateTableData;
-
+                  
                   // Si no hay vehículos, mostramos un mensaje
                   if (vehicles.length === 0) {
                     return (
@@ -1762,14 +1635,14 @@ const DeclarationDetail = () => {
                       </TableRow>
                     );
                   }
-
+                  
                   // Creamos un array plano con todas las filas a mostrar
                   const allRows = [];
-
+                  
                   // Recorremos cada vehículo
                   vehicles.forEach((vehicle, vIdx) => {
                     const vehicleStates = Array.from(vehicle.states.values());
-
+                    
                     // Si el vehículo no tiene estados, mostramos una fila con totales
                     if (vehicleStates.length === 0) {
                       allRows.push({
@@ -1790,7 +1663,7 @@ const DeclarationDetail = () => {
                       });
                       return;
                     }
-
+                    
                     // Agregamos el vehículo con sus estados
                     allRows.push({
                       isVehicle: true,
@@ -1799,28 +1672,28 @@ const DeclarationDetail = () => {
                       states: vehicleStates
                     });
                   });
-
+                  
                   // Calculate grand totals for miles and gallons
                   let grandTotalMiles = 0;
                   let grandTotalGallons = 0;
-
+                  
                   allRows.forEach(vehicle => {
                     vehicle.states.forEach(state => {
                       grandTotalMiles += state.totalMiles || 0;
                       grandTotalGallons += state.totalGallons || 0;
                     });
                   });
-
+                  
                   // Render the rows
                   const rows = allRows.flatMap((vehicle, vIdx) => {
                     return vehicle.states.map((state, sIdx) => (
                       <TableRow key={`${vIdx}-${sIdx}`}>
                         {/* Columna #UNIT - solo visible en la primera fila del grupo */}
                         {sIdx === 0 && (
-                          <TableCell
-                            align="center"
+                          <TableCell 
+                            align="center" 
                             rowSpan={vehicle.rowSpan}
-                            sx={{
+                            sx={{ 
                               position: 'sticky',
                               left: 0,
                               backgroundColor: 'white',
@@ -1836,11 +1709,11 @@ const DeclarationDetail = () => {
                             {vehicle.plate}
                           </TableCell>
                         )}
-
+                        
                         {/* Columna STATES */}
-                        <TableCell
-                          align="center"
-                          sx={{
+                        <TableCell 
+                          align="center" 
+                          sx={{ 
                             position: 'sticky',
                             left: 80,
                             backgroundColor: sIdx % 2 === 0 ? '#ffffff' : '#f9f9f9',
@@ -1856,21 +1729,21 @@ const DeclarationDetail = () => {
                         >
                           {stateCodeToName(state.code, true) || '-'}
                         </TableCell>
-
+                        
                         {/* Datos mensuales */}
                         {months.map((month, mIdx) => {
                           // Asegurarse de que el formato de monthKey coincida con el usado en el procesamiento
                           const monthKey = `${month.year}-${String(month.month + 1).padStart(2, '0')}`;
                           const monthData = state.months.get(monthKey) || { miles: 0, gallons: 0, hasData: false };
-
+                          
                           // Depuración
-                          // console.log(`Mostrando datos para ${monthKey}:`, monthData);
-
+                          console.log(`Mostrando datos para ${monthKey}:`, monthData);
+                          
                           return (
                             <React.Fragment key={monthKey}>
-                              <TableCell
+                              <TableCell 
                                 align="center"
-                                sx={{
+                                sx={{ 
                                   minWidth: '80px',
                                   backgroundColor: sIdx % 2 === 0 ? '#ffffff' : '#f9f9f9',
                                   fontFamily: 'monospace',
@@ -1882,9 +1755,9 @@ const DeclarationDetail = () => {
                               >
                                 {monthData.hasData ? formatNumber(monthData.miles) : '-'}
                               </TableCell>
-                              <TableCell
+                              <TableCell 
                                 align="center"
-                                sx={{
+                                sx={{ 
                                   minWidth: '80px',
                                   backgroundColor: sIdx % 2 === 0 ? '#ffffff' : '#f9f9f9',
                                   borderRight: mIdx === months.length - 1 ? '1px solid #e0e0e0' : 'none',
@@ -1900,11 +1773,11 @@ const DeclarationDetail = () => {
                             </React.Fragment>
                           );
                         })}
-
+                        
                         {/* Columnas fijas de totales */}
-                        <TableCell
-                          align="center"
-                          sx={{
+                        <TableCell 
+                          align="center" 
+                          sx={{ 
                             fontWeight: 'bold',
                             position: 'sticky',
                             right: 100,
@@ -1917,10 +1790,10 @@ const DeclarationDetail = () => {
                         >
                           {formatNumber(state.totalMiles)}
                         </TableCell>
-
-                        <TableCell
-                          align="center"
-                          sx={{
+                        
+                        <TableCell 
+                          align="center" 
+                          sx={{ 
                             fontWeight: 'bold',
                             position: 'sticky',
                             right: 0,
@@ -1936,14 +1809,14 @@ const DeclarationDetail = () => {
                       </TableRow>
                     ));
                   });
-
+                  
                   // Add the grand total row at the end
                   rows.push(
                     <TableRow key="grand-total" sx={{ '&:last-child td': { borderBottom: 0 }, backgroundColor: 'action.hover' }}>
-                      <TableCell
-                        colSpan={2 + vehicleStateTableData.months.length * 2}
+                      <TableCell 
+                        colSpan={2 + vehicleStateTableData.months.length * 2} 
                         align="right"
-                        sx={{
+                        sx={{ 
                           fontWeight: 'bold',
                           borderRight: '1px solid #e0e0e0',
                           padding: '8px 16px',
@@ -1953,9 +1826,9 @@ const DeclarationDetail = () => {
                       >
                         TOTAL GENERAL
                       </TableCell>
-                      <TableCell
+                      <TableCell 
                         align="right"
-                        sx={{
+                        sx={{ 
                           fontWeight: 'bold',
                           borderRight: '1px solid #e0e0e0',
                           padding: '8px 16px',
@@ -1964,9 +1837,9 @@ const DeclarationDetail = () => {
                       >
                         {formatNumber(grandTotalMiles)}
                       </TableCell>
-                      <TableCell
+                      <TableCell 
                         align="right"
-                        sx={{
+                        sx={{ 
                           fontWeight: 'bold',
                           padding: '8px 16px',
                           backgroundColor: '#e8f5e9'
@@ -1976,7 +1849,7 @@ const DeclarationDetail = () => {
                       </TableCell>
                     </TableRow>
                   );
-
+                  
                   return rows;
                 })()}
               </TableBody>
@@ -2005,11 +1878,11 @@ const DeclarationDetail = () => {
                 {(() => {
                   // Group reports by vehicle
                   const vehicles = {};
-
-                  // console.log('=== REGISTROS INDIVIDUALES DE REPORTES ===', reportData.individual_reports);
-
+                  
+                  console.log('=== REGISTROS INDIVIDUALES DE REPORTES ===', reportData.individual_reports);
+                  
                   const reportsToProcess = filters.vehicle !== 'all' ? filteredReports : reportData.individual_reports;
-
+                  
                   reportsToProcess.forEach(report => {
                     const plate = report.vehicle_plate || 'SIN PLACA';
                     if (!vehicles[plate]) {
@@ -2017,17 +1890,17 @@ const DeclarationDetail = () => {
                         Q1: 0, Q2: 0, Q3: 0, Q4: 0, total: 0
                       };
                     }
-
+                    
                     // Determine quarter (1-4)
                     const quarter = Math.ceil((report.report_month || 1) / 3);
                     const quarterKey = `Q${quarter}`;
                     const miles = parseFloat(report.total_miles) || 0;
-
+                    
                     // Add to quarter total
                     vehicles[plate][quarterKey] += miles;
                     vehicles[plate].total += miles;
                   });
-
+                  
                   // Convert to array and sort by plate
                   return Object.entries(vehicles)
                     .sort(([plateA], [plateB]) => plateA.localeCompare(plateB))
@@ -2044,21 +1917,21 @@ const DeclarationDetail = () => {
                       </TableRow>
                     ));
                 })()}
-
+                
                 {/* Total Row */}
                 {(() => {
                   // Calculate totals for each quarter
                   const totals = { Q1: 0, Q2: 0, Q3: 0, Q4: 0, total: 0 };
-
+                  
                   reportData.individual_reports?.forEach(report => {
                     const quarter = Math.ceil((report.report_month || 1) / 3);
                     const quarterKey = `Q${quarter}`;
                     const miles = parseFloat(report.total_miles) || 0;
-
+                    
                     totals[quarterKey] += miles;
                     totals.total += miles;
                   });
-
+                  
                   return (
                     <TableRow sx={{ '&:last-child td, &:last-child th': { border: 0 }, backgroundColor: '#f5f5f5' }}>
                       <TableCell component="th" scope="row" sx={{ fontWeight: 'bold' }}>TOTAL</TableCell>
@@ -2090,7 +1963,7 @@ const DeclarationDetail = () => {
           {renderVehicleStateTable()}
         </Box>
       </Card>
-
+      
 
 
       {/* Tab Content */}
@@ -2201,56 +2074,7 @@ const DeclarationDetail = () => {
         </Card>
       )}
 
-      {/* Action Buttons */}
-      <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, mt: 3, mb: 3 }}>
-        {reportData.status !== 'completed' && (
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={handleCompleteDeclaration}
-            disabled={updatingStatus}
-            startIcon={updatingStatus ? <CircularProgress size={20} /> : null}
-            sx={{ minWidth: '200px' }}
-          >
-            {updatingStatus ? 'Procesando...' : 'Completar Declaración'}
-          </Button>
-        )}
-      </Box>
-
-      {/* Confirmation Dialog */}
-      <Dialog
-        open={confirmDialog.open}
-        onClose={() => setConfirmDialog({ ...confirmDialog, open: false })}
-        aria-labelledby="alert-dialog-title"
-        aria-describedby="alert-dialog-description"
-      >
-        <DialogTitle id="alert-dialog-title">
-          {confirmDialog.title}
-        </DialogTitle>
-        <DialogContent>
-          <DialogContentText id="alert-dialog-description">
-            {confirmDialog.content}
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button 
-            onClick={() => setConfirmDialog({ ...confirmDialog, open: false })}
-            color="primary"
-          >
-            Cancelar
-          </Button>
-          <Button 
-            onClick={() => {
-              setConfirmDialog({ ...confirmDialog, open: false });
-              if (confirmDialog.onConfirm) confirmDialog.onConfirm();
-            }} 
-            color="primary" 
-            autoFocus
-          >
-            Confirmar
-          </Button>
-        </DialogActions>
-      </Dialog>
+      {/* Navigation buttons removed */}
     </Box>
   );
 };

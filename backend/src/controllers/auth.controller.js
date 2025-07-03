@@ -2,7 +2,10 @@ const jwt = require('jsonwebtoken');
 const { promisify } = require('util');
 const crypto = require('crypto');
 const { StatusCodes } = require('http-status-codes');
-const { User } = require('../models');
+const { User, Company, sequelize } = require('../models');
+
+// Configuración de Sequelize
+sequelize.options.logging = console.log; // Habilitar logging de consultas SQL
 const AppError = require('../utils/appError');
 const sendEmail = require('../utils/email');
 
@@ -51,29 +54,158 @@ const createSendToken = (user, statusCode, res) => {
 };
 
 exports.register = async (req, res, next) => {
+  console.log('=== Iniciando registro de usuario ===');
+  console.log('Datos recibidos:', JSON.stringify(req.body, null, 2));
+  
+  const transaction = await sequelize.transaction();
   try {
-    const { name, email, password, companyName } = req.body;
+    const { 
+      name, 
+      email, 
+      password, 
+      password_confirmation, 
+      role = 'cliente',
+      company_name,
+      company_phone,
+      company_email,
+      company_address,
+      company_distribution_emails = []
+    } = req.body;
 
-    // 1) Check if user already exists
-    const existingUser = await User.findOne({ where: { email } });
+    // 1) Verificar si el usuario ya existe
+    const existingUser = await User.findOne({ where: { email }, transaction });
     if (existingUser) {
+      await transaction.rollback();
       return next(
-        new AppError('User with this email already exists', StatusCodes.BAD_REQUEST)
+        new AppError('Ya existe un usuario con este correo electrónico', StatusCodes.BAD_REQUEST)
       );
     }
 
-    // 2) Create new user
-    const newUser = await User.create({
-      name,
-      email,
-      password,
-      companyName,
-    });
+    // 2) Crear la compañía
+    let company;
+    if (role === 'cliente') {
+      console.log('Datos de la compañía recibidos:', {
+        company_name,
+        company_phone,
+        company_email
+      });
 
-    // 3) Generate token and send response
-    createSendToken(newUser, StatusCodes.CREATED, res);
+      // Validar campos requeridos
+      if (!company_name) {
+        await transaction.rollback();
+        return next(
+          new AppError('El nombre de la compañía es requerido para usuarios cliente', StatusCodes.BAD_REQUEST)
+        );
+      }
+
+      try {
+        // Crear la compañía con los campos simplificados
+        const companyData = {
+          name: company_name,
+          ...(company_phone && { phone: company_phone }),
+          ...(company_email && { contact_email: company_email }),
+          // Guardar la dirección completa como un string simple
+          address: company_address || '',
+          settings: {}
+        };
+
+        // Agregar correos de distribución si existen
+        if (company_distribution_emails && company_distribution_emails.length > 0) {
+          // Filtrar correos válidos
+          const validEmails = company_distribution_emails
+            .filter(email => email && typeof email === 'string' && email.trim() !== '')
+            .map(email => email.trim());
+          
+          if (validEmails.length > 0) {
+            companyData.settings.distribution_emails = validEmails;
+          }
+        }
+
+        company = await Company.create(companyData, { transaction });
+        console.log('Compañía creada exitosamente:', company.id);
+      } catch (error) {
+        console.error('Error al crear la compañía:', error);
+        await transaction.rollback();
+        return next(
+          new AppError(
+            `Error al crear la compañía: ${error.message}`, 
+            StatusCodes.INTERNAL_SERVER_ERROR
+          )
+        );
+      }
+    } else {
+      // Para administradores, usar la compañía por defecto
+      console.log('Buscando compañía por defecto para administrador...');
+      company = await Company.findOne({ 
+        where: { name: 'Sistema' },
+        transaction 
+      });
+      
+      if (!company) {
+        console.log('Creando nueva compañía por defecto...');
+        company = await Company.create({
+          name: 'Sistema',
+          contact_email: email || 'sistema@iftaeasytax.com',
+          address: 'Sistema',
+          settings: {}
+        }, { transaction });
+      }
+    }
+
+    // 3) Crear el usuario
+    console.log('Creando usuario para la compañía:', company.id);
+    let newUser;
+    try {
+      newUser = await User.create({
+        name,
+        email,
+        password,
+        role,
+        company_id: company.id
+        // is_active tiene un valor por defecto en la base de datos
+      }, { transaction });
+      
+      console.log('Usuario creado exitosamente:', newUser.id);
+    } catch (error) {
+      console.error('Error al crear el usuario:', error);
+      await transaction.rollback();
+      return next(
+        new AppError(`Error al crear el usuario: ${error.message}`, StatusCodes.INTERNAL_SERVER_ERROR)
+      );
+    }
+
+    // Si todo salió bien, hacer commit de la transacción
+    await transaction.commit();
+    
+    // No enviar la contraseña en la respuesta
+    newUser.password = undefined;
+    
+    // Enviar respuesta exitosa
+    res.status(StatusCodes.CREATED).json({
+      status: 'success',
+      data: {
+        user: newUser,
+        company: role === 'cliente' ? company : undefined
+      }
+    });
+    
   } catch (error) {
-    next(error);
+    console.error('Error en el registro:', error);
+    
+    // Hacer rollback en caso de error
+    await transaction.rollback();
+    
+    // Manejar errores específicos de validación
+    if (error.name === 'SequelizeValidationError' || error.name === 'SequelizeUniqueConstraintError') {
+      const messages = error.errors ? error.errors.map(err => err.message) : [error.message];
+      return next(new AppError(messages.join('. '), StatusCodes.BAD_REQUEST));
+    }
+    
+    // Para otros errores, devolver un mensaje genérico
+    next(new AppError(
+      error.message || 'Error al procesar la solicitud de registro', 
+      error.statusCode || StatusCodes.INTERNAL_SERVER_ERROR
+    ));
   }
 };
 

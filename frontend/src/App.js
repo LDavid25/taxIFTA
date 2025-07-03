@@ -44,6 +44,9 @@ import ConsumptionDetail from './pages/consumption/ConsumptionDetail';
 // Páginas de compañías
 import CompanyListPage from './pages/companies/CompanyListPage';
 
+// Páginas de administración
+import UserRegister from './pages/admin/UserRegister';
+
 // Páginas de error
 import NotFound from './pages/errors/NotFound';
 import Unauthorized from './pages/errors/Unauthorized';
@@ -185,6 +188,9 @@ function App() {
                 <Route path="create" element={<ConsumptionCreate />} />
                 <Route path=":id" element={<ConsumptionDetail />} />
               </Route>
+              
+              {/* Registro de usuarios (solo admin) */}
+              <Route path="register-user" element={<UserRegister />} />
             </Route>
             
             {/* Rutas protegidas - Cliente */}

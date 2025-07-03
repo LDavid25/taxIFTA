@@ -23,9 +23,9 @@ import {
   Menu as MenuIcon,
   ChevronLeft as ChevronLeftIcon,
   Dashboard as DashboardIcon,
-
   Description as DescriptionIcon,
   Person as PersonIcon,
+  PersonAdd as PersonAddIcon,
   Brightness4 as DarkModeIcon,
   Brightness7 as LightModeIcon,
   Logout as LogoutIcon,
@@ -89,7 +89,7 @@ const DrawerHeader = styled('div')(({ theme }) => ({
 
 const MainLayout = () => {
   const navigate = useNavigate();
-  const { currentUser, logout } = useAuth();
+  const { currentUser, logout, isAdmin } = useAuth();
   const { mode, toggleTheme } = useTheme();
   const isMobile = useMediaQuery((theme) => theme.breakpoints.down('md'));
   
@@ -139,6 +139,9 @@ const MainLayout = () => {
     { text: 'Declaraciones', icon: <DescriptionIcon />, path: '/declarations' },
     { text: 'Historial de Consumo', icon: <HistoryIcon />, path: '/consumption' },
     { text: 'Compañías', icon: <BusinessIcon />, path: '/companies' },
+    ...(isAdmin ? [
+      { text: 'Registro de Usuarios', icon: <PersonAddIcon />, path: '/register-user' }
+    ] : [])
   ];
   
   return (

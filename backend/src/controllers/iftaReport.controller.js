@@ -341,11 +341,32 @@ const getReportById = async (req, res, next) => {
 const getCompanyReports = async (req, res, next) => {
   try {
     const { company_id } = req;
-    const { year, month, status, page = 1, limit = 10, includeInactive = 'false' } = req.query;
+    const { 
+      year, 
+      month, 
+      startMonth, 
+      endMonth, 
+      status, 
+      page = 1, 
+      limit = 10, 
+      includeInactive = 'false' 
+    } = req.query;
 
     const where = { company_id };
+    
+    // Filtrar por año
     if (year) where.report_year = year;
-    if (month) where.report_month = month;
+    
+    // Filtrar por mes o rango de meses (para trimestres)
+    if (startMonth && endMonth) {
+      where.report_month = {
+        [Op.between]: [startMonth, endMonth]
+      };
+    } else if (month) {
+      where.report_month = month;
+    }
+    
+    // Filtrar por estado
     if (status) where.status = status;
 
     const offset = (page - 1) * limit;

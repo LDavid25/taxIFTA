@@ -10,13 +10,27 @@ module.exports = (sequelize, DataTypes) => {
     allowNull: false,
     unique: true
   },
-  address: {
-    type: DataTypes.JSONB,
-    allowNull: true
-  },
   phone: {
     type: DataTypes.STRING(20),
     allowNull: true
+  },
+  // Dirección como string simple
+  address: {
+    type: DataTypes.TEXT,
+    allowNull: true
+  },
+  // Configuración adicional de la compañía
+  settings: {
+    type: DataTypes.JSONB,
+    allowNull: true,
+    defaultValue: {},
+    get() {
+      const rawValue = this.getDataValue('settings');
+      return rawValue || {};
+    },
+    set(value) {
+      this.setDataValue('settings', value || {});
+    }
   },
   contact_email: {
     type: DataTypes.STRING,

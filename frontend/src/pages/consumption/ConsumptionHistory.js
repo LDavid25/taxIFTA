@@ -38,7 +38,6 @@ import {
   ExpandMore as ExpandMoreIcon,
   Visibility as VisibilityIcon
 } from '@mui/icons-material';
-import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { format, parseISO } from 'date-fns';
@@ -154,7 +153,14 @@ const getQuarter = (dateString) => {
   }
 };
 
-const statusFilters = ['All', 'Completed', 'Pending', 'Rejected'];
+// Status mapping: { display: 'UI Text', value: 'api_value' }
+const statusOptions = [
+  { display: 'All', value: 'All' },
+  { display: 'Completed', value: 'Completed' },
+  { display: 'Rejected', value: 'Rejected' },
+  { display: 'In progress', value: 'In_progress' }
+];
+const statusFilters = statusOptions.map(opt => opt.display);
 
 // Componente para mostrar una fila en vista móvil
 const MobileTableRow = ({ row, onViewReceipt }) => {
@@ -237,11 +243,20 @@ const ConsumptionHistory = () => {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   
   // Estados para los filtros
-  const [startDate, setStartDate] = useState(null);
-  const [endDate, setEndDate] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [companyFilter, setCompanyFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
+  
+  // Opciones de años (últimos 5 años y el actual)
+  const currentYear = new Date().getFullYear();
+  const yearOptions = Array.from({ length: 6 }, (_, i) => currentYear - i);
+  
+  // Opciones de trimestres
+  const quarterOptions = [1, 2, 3, 4];
+  
+  // Estados para año y trimestre seleccionados
+  const [selectedYear, setSelectedYear] = useState('');
+  const [selectedQuarter, setSelectedQuarter] = useState('');
   
   // Estados para los datos
   const [reports, setReports] = useState([]);
@@ -270,14 +285,40 @@ const ConsumptionHistory = () => {
         };
 
         if (statusFilter !== 'All') {
-          params.status = statusFilter.toLowerCase();
+          // Find the corresponding status value from statusOptions
+          const statusOption = statusOptions.find(opt => opt.display === statusFilter);
+          if (statusOption) {
+            params.status = statusOption.value.toLowerCase();
+          }
         }
-        if (startDate) {
-          params.startDate = format(startDate, 'yyyy-MM-dd');
+        
+        if (selectedYear) {
+          params.year = selectedYear;
+          
+          // Si se seleccionó un trimestre, convertir a rango de meses
+          if (selectedQuarter) {
+            const quarterToMonthMap = {
+              '1': { startMonth: '01', endMonth: '03' },
+              '2': { startMonth: '04', endMonth: '06' },
+              '3': { startMonth: '07', endMonth: '09' },
+              '4': { startMonth: '10', endMonth: '12' }
+            };
+            
+            const { startMonth, endMonth } = quarterToMonthMap[selectedQuarter];
+            params.startMonth = startMonth;
+            params.endMonth = endMonth;
+            
+            console.log('Filtering by year and quarter:', { 
+              year: selectedYear, 
+              quarter: selectedQuarter,
+              startMonth,
+              endMonth 
+            });
+          } else {
+            console.log('Filtering by year only:', { year: selectedYear });
+          }
         }
-        if (endDate) {
-          params.endDate = format(endDate, 'yyyy-MM-dd');
-        }
+        
         if (searchTerm) {
           params.search = searchTerm;
         }
@@ -285,7 +326,9 @@ const ConsumptionHistory = () => {
           params.company = companyFilter;
         }
 
+        console.log('API Params:', params);
         const response = await getConsumptionReports(params);
+        console.log('API Response:', response.data);
         setReports(response.data?.reports || []);
         
         // Actualizar paginación
@@ -307,7 +350,7 @@ const ConsumptionHistory = () => {
     };
 
     fetchData();
-  }, [pagination.page, pagination.rowsPerPage, statusFilter, startDate, endDate, searchTerm, companyFilter, enqueueSnackbar, currentUser]);
+  }, [pagination.page, pagination.rowsPerPage, statusFilter, searchTerm, companyFilter, enqueueSnackbar, currentUser, selectedQuarter, selectedYear]);
 
   const handleAddConsumption = () => {
     navigate('/consumption/new');
@@ -369,7 +412,11 @@ const ConsumptionHistory = () => {
       milesTraveled: totalMiles,
       totalGallons: totalGallons,
       mpg: parseFloat(mpg) || 0,
-      status: report.status ? report.status.charAt(0).toUpperCase() + report.status.slice(1) : 'Pending',
+      status: report.status ? (() => {
+        const statusValue = report.status.charAt(0).toUpperCase() + report.status.slice(1).toLowerCase();
+        const statusOption = statusOptions.find(opt => opt.value.toLowerCase() === statusValue.toLowerCase());
+        return statusOption ? statusOption.display : statusValue;
+      })() : 'Pending',
       states: states || 'N/A',
       receiptId: report.id,
       taxPaid: 0, // Esto debería venir del backend
@@ -519,32 +566,62 @@ const ConsumptionHistory = () => {
                   />
                 </Grid>
               )}
-              <Grid item xs={12} md={3}>
-                <DatePicker
-                  label="Start Date"
-                  value={startDate}
-                  onChange={(newValue) => setStartDate(newValue)}
-                  renderInput={(params) => <TextField {...params} fullWidth size="small" />}
-                />
-              </Grid>
-              <Grid item xs={12} md={3}>
-                <DatePicker
-                  label="End Date"
-                  value={endDate}
-                  onChange={(newValue) => setEndDate(newValue)}
-                  renderInput={(params) => <TextField {...params} fullWidth size="small" />}
-                />
-              </Grid>
               <Grid item xs={6} md={2}>
-                <Button
-                  variant="outlined"
+                <TextField
+                  select
                   fullWidth
-                  startIcon={<FilterListIcon />}
-                  sx={{ height: '40px' }}
+                  size="small"
+                  label="Year"
+                  value={selectedYear}
+                  onChange={(e) => {
+                    setSelectedYear(e.target.value);
+                    setPagination(prev => ({ ...prev, page: 0 }));
+                  }}
+                  variant="outlined"
+                  InputLabelProps={{
+                    shrink: true,
+                  }}
+                  SelectProps={{ 
+                    native: true,
+                  }}
                 >
-                  Filter
-                </Button>
+                  <option value="">All Years</option>
+                  {yearOptions.map((year) => (
+                    <option key={year} value={year}>
+                      {year}
+                    </option>
+                  ))}
+                </TextField>
               </Grid>
+              <Grid item xs={6} md={1}>
+                <TextField
+                  select
+                  fullWidth
+                  size="small"
+                  label="Q"
+                  value={selectedQuarter}
+                  onChange={(e) => {
+                    setSelectedQuarter(e.target.value);
+                    setPagination(prev => ({ ...prev, page: 0 }));
+                  }}
+                  disabled={!selectedYear}
+                  variant="outlined"
+                  InputLabelProps={{
+                    shrink: true,
+                  }}
+                  SelectProps={{ 
+                    native: true,
+                  }}
+                >
+                  <option value="">All</option>
+                  {quarterOptions.map((quarter) => (
+                    <option key={quarter} value={quarter}>
+                      Q{quarter}
+                    </option>
+                  ))}
+                </TextField>
+              </Grid>
+
             </Grid>
           </Paper>
         </Container>
@@ -586,7 +663,7 @@ const ConsumptionHistory = () => {
                       <TableCell>Quarter</TableCell>
                       <TableCell align="right">Miles Traveled</TableCell>
                       <TableCell align="right">Total Gallons</TableCell>
-                      <TableCell align="right">MPG</TableCell>
+                      {isAdmin(currentUser) && <TableCell align="right">MPG</TableCell>}
                       <TableCell>Status</TableCell>
                       <TableCell>Actions</TableCell>
                     </TableRow>
@@ -602,7 +679,7 @@ const ConsumptionHistory = () => {
                           <TableCell>{getQuarter(row.date)}</TableCell>
                           <TableCell align="right">{row.milesTraveled.toLocaleString(undefined, {maximumFractionDigits: 2})}</TableCell>
                           <TableCell align="right">{row.totalGallons.toFixed(2)}</TableCell>
-                          <TableCell align="right">{row.mpg}</TableCell>
+                          {isAdmin(currentUser) && <TableCell align="right">{row.mpg}</TableCell>}
                           <TableCell>
                             <Chip
                               label={row.status}

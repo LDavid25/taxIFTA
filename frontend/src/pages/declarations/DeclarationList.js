@@ -364,13 +364,26 @@ const DeclarationList = () => {
 
   // Filtros para los reportes
   useEffect(() => {
+    console.log('individualReports:', individualReports);
     if (groupedReports && groupedReports.length > 0) {
-      // console.log('Aplicando filtros...');
-      // console.log('Total de reportes agrupados:', groupedReports.length);
+      console.log('Aplicando filtros...');
+      console.log('Total de reportes agrupados:', groupedReports.length);
       
       const filtered = groupedReports.filter(report => {
         // Aplicar filtros
-        const statusMatch = statusFilter === 'all' || report.status === statusFilter;
+        // Asegurarse de que el estado esté en minúsculas para la comparación
+        const currentStatus = (report.status || '').toLowerCase();
+        const statusMatch = statusFilter === 'all' || 
+                          (statusFilter === 'in_progress' && currentStatus === 'in_progress') ||
+                          (statusFilter === 'completed' && (currentStatus === 'completed' || currentStatus === 'success'));
+        
+        console.log('Filtro:', { 
+          statusFilter, 
+          currentStatus, 
+          statusMatch,
+          reportId: report.id 
+        });
+        
         const quarterMatch = quarterFilter === 'all' || report.quarter.toString() === quarterFilter.toString();
         const yearMatch = yearFilter === 'all' || report.year.toString() === yearFilter.toString();
         const companyMatch = companyFilter === 'all' || report.company_id.toString() === companyFilter.toString();
@@ -445,11 +458,9 @@ const DeclarationList = () => {
                 onChange={(e) => setStatusFilter(e.target.value)}
                 label="Estado"
               >
-                <MenuItem value="all">Todos</MenuItem>
-                <MenuItem value="approved">Aprobados</MenuItem>
-                <MenuItem value="pending">Pendientes</MenuItem>
-                <MenuItem value="submitted">Enviados</MenuItem>
-                <MenuItem value="rejected">Rechazados</MenuItem>
+                <MenuItem value="all">All</MenuItem>
+                <MenuItem value="in_progress">In Progress</MenuItem>
+                <MenuItem value="completed">Completed</MenuItem>
               </Select>
             </FormControl>
           </Grid>
@@ -534,11 +545,7 @@ const DeclarationList = () => {
                             Reportes: 
                           </Typography>
                           <Typography variant="h6" component="span">
-                            {statusFilter === 'all' 
-                              ? report.valid_report_count 
-                              : individualReports[`${report.company_id}_${report.quarter}_${report.year}`]?.filter(
-                                  r => r.status === statusFilter
-                                ).length || 0}
+                            {report.valid_report_count}
                           </Typography>
                         </Grid>
                       </Grid>

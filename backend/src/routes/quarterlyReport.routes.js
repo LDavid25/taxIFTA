@@ -65,4 +65,14 @@ router.get(
   quarterlyReportController.getQuarterlyReportDetails
 );
 
+// Obtener detalles completos de un reporte trimestral
+router.get('/:id/details', quarterlyReportController.getQuarterlyReportDetails);
+
+// Actualizar el estado de un reporte trimestral
+router.patch(
+  '/:id/status',
+  authController.protect,
+  quarterlyReportController.updateQuarterlyReportStatus
+);
+
 module.exports = router;
