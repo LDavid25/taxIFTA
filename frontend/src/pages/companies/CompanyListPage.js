@@ -97,19 +97,12 @@ const CompanyListPage = () => {
         
         // La respuesta ya viene con la estructura de usuarios y sus compañías
         // Solo aseguramos que cada usuario tenga los campos necesarios
-        const formattedCompanies = companiesData.map(user => ({
-          id: user.id || '',
-          name: user.name || 'Sin nombre',
-          email: user.email || 'Sin email',
-          role: user.role || 'user',
-          is_active: user.is_active !== undefined ? user.is_active : true,
-          company: {
-            id: user.company?.id || '',
-            name: user.company?.name || 'Sin compañía',
-            phone: user.company?.phone || 'Sin teléfono',
-            contact_email: user.company?.contact_email || 'Sin email',
-            is_active: user.company?.is_active !== undefined ? user.company.is_active : true
-          }
+        const formattedCompanies = companiesData.map(company => ({
+          id: company.id || '',
+          name: company.name || 'Sin nombre',
+          contact_email: company.contact_email || 'Sin email',
+          phone: company.phone || 'Sin teléfono',
+          is_active: company.is_active !== undefined ? company.is_active : true
         }));
         
         // Asegurarse de que estamos guardando los datos de usuarios con sus compañías
@@ -175,14 +168,13 @@ const CompanyListPage = () => {
       setUpdatingStatus(prev => ({ ...prev, [companyId]: true }));
       await updateCompanyStatus(companyId, !currentStatus);
       
-      // Actualizar el estado local
+      // Actualizar el estado local con la nueva estructura de compañías
       setCompanies(prevCompanies => 
-        prevCompanies.map(user => ({
-          ...user,
-          company: user.company?.id === companyId 
-            ? { ...user.company, is_active: !currentStatus }
-            : user.company
-        }))
+        prevCompanies.map(company => 
+          company.id === companyId 
+            ? { ...company, is_active: !currentStatus }
+            : company
+        )
       );
       
       enqueueSnackbar(
@@ -275,21 +267,19 @@ const CompanyListPage = () => {
                   <TableHead>
                     <TableRow>
                       <TableCell>Compañía</TableCell>
+                      <TableCell>Email de contacto</TableCell>
                       <TableCell>Teléfono</TableCell>
-                      <TableCell>Usuario</TableCell>
-                      <TableCell>Email Usuario</TableCell>
                       <TableCell align="center">Estado</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {paginatedCompanies.map((user) => (
-                      <TableRow key={user.id} hover>
-                        <TableCell>{user.company?.name || 'N/A'}</TableCell>
-                        <TableCell>{user.company?.phone || 'N/A'}</TableCell>
-                        <TableCell>{user.name || 'N/A'}</TableCell>
-                        <TableCell>{user.email || 'N/A'}</TableCell>
+                    {paginatedCompanies.map((company) => (
+                      <TableRow key={company.id} hover>
+                        <TableCell>{company.name || 'N/A'}</TableCell>
+                        <TableCell>{company.contact_email || 'N/A'}</TableCell>
+                        <TableCell>{company.phone || 'N/A'}</TableCell>
                         <TableCell align="center">
-                          {user.company && renderStatusSwitch(user.company)}
+                          {renderStatusSwitch(company)}
                         </TableCell>
                       </TableRow>
                     ))}

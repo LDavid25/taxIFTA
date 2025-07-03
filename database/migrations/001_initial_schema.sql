@@ -31,12 +31,9 @@ $$ LANGUAGE plpgsql IMMUTABLE;
 CREATE TABLE IF NOT EXISTS companies (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name VARCHAR(255) NOT NULL,
-  address TEXT,
-  city VARCHAR(100),
-  state VARCHAR(2) NOT NULL,
-  zip_code VARCHAR(20),
+  address JSONB,
+  contact_email VARCHAR(255),
   phone VARCHAR(50),
-  email VARCHAR(255),
   distribution_emails JSONB CHECK (json_array_length(distribution_emails) BETWEEN 1 AND 10),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
@@ -48,8 +45,8 @@ CREATE TABLE IF NOT EXISTS users (
   email VARCHAR(255) UNIQUE NOT NULL,
   password VARCHAR(255) NOT NULL,
   name VARCHAR(255) NOT NULL,
-  role VARCHAR(50) NOT NULL CHECK (role IN ('admin', 'cliente')),
-  company_id UUID REFERENCES companies(id) ON DELETE CASCADE,
+  role VARCHAR(50) NOT NULL DEFAULT 'user' CHECK (role IN ('admin', 'user')),
+  company_id UUID REFERENCES companies(id) ON DELETE SET NULL,
   is_active BOOLEAN DEFAULT TRUE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP

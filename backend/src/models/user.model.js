@@ -34,17 +34,20 @@ module.exports = (sequelize, DataTypes) => {
   },
   company_id: {
     type: DataTypes.UUID,
-    allowNull: false,
+    allowNull: true,  // Hacer que sea opcional
     references: {
       model: 'companies',
       key: 'id'
     },
     onUpdate: 'CASCADE',
-    onDelete: 'RESTRICT'
+    onDelete: 'SET NULL'  // Cambiar a SET NULL para mantener la integridad referencial
   },
   role: {
-    type: DataTypes.ENUM('admin', 'cliente'),
-    defaultValue: 'cliente',
+    type: DataTypes.ENUM('admin', 'user'),
+    defaultValue: 'user',
+    validate: {
+      isIn: [['admin', 'user']]
+    }
   },
   isActive: {
     type: DataTypes.BOOLEAN,

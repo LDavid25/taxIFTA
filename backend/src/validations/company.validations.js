@@ -3,7 +3,7 @@ const validator = require('validator');
 
 const companyValidation = [
   body('company_name')
-    .if((value, { req }) => req.body.role === 'cliente')
+    .if((value, { req }) => req.body.role === 'user')
     .trim()
     .notEmpty()
     .withMessage('Company name is required for client users')
@@ -11,7 +11,7 @@ const companyValidation = [
     .withMessage('Company name must be between 2 and 100 characters'),
 
   body('company_distribution_emails')
-    .if((value, { req }) => req.body.role === 'cliente')
+    .if((value, { req }) => req.body.role === 'user')
     .optional()
     .isArray()
     .withMessage('Distribution emails must be an array')

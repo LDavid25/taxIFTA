@@ -140,7 +140,7 @@ const MainLayout = () => {
     { text: 'Historial de Consumo', icon: <HistoryIcon />, path: '/consumption' },
     { text: 'Compañías', icon: <BusinessIcon />, path: '/companies' },
     ...(isAdmin ? [
-      { text: 'Registro de Usuarios', icon: <PersonAddIcon />, path: '/register-user' }
+      { text: 'Registrar Usuario', icon: <PersonAddIcon />, path: '/admin/register-user' }
     ] : [])
   ];
   

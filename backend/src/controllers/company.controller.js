@@ -7,21 +7,17 @@ const CustomError = require('../utils/CustomError');
  */
 const getCompanies = async () => {
   try {
-    console.log('🔍 Iniciando consulta de usuarios con sus compañías...');
+    console.log('🔍 Iniciando consulta de compañías...');
     
-    // Consulta directa con join entre usuarios y compañías
-    const usersWithCompanies = await User.findAll({
-      attributes: ['id', 'name', 'email', 'role', 'is_active'],
-      include: [{
-        model: Company,
-        as: 'company',
-        attributes: ['id', 'name', 'contact_email', 'phone', 'is_active']
-      }],
-      order: [['name', 'ASC']]
+    // Consulta directa a la tabla de compañías
+    const companies = await Company.findAll({
+      attributes: ['id', 'name', 'contact_email', 'phone', 'is_active'],
+      order: [['name', 'ASC']],
+      distinct: true
     });
     
-    console.log(`✅ Se encontraron ${usersWithCompanies.length} usuarios con sus compañías`);
-    return usersWithCompanies;
+    console.log(`✅ Se encontraron ${companies.length} compañías`);
+    return companies;
   } catch (error) {
     console.error('❌ Error en getCompanies():');
     console.error('Tipo de error:', error.name);

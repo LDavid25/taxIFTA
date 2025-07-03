@@ -8,19 +8,6 @@ console.log('Company routes module loaded');
 // Aplicar autenticación a todas las rutas
 router.use(protect);
 
-// Ruta raíz para obtener todas las compañías
-router.get('/', async (req, res, next) => {
-  try {
-    const companies = await getCompanies();
-    res.json({
-      status: 'success',
-      data: companies
-    });
-  } catch (error) {
-    next(error);
-  }
-});
-
 /**
  * @swagger
  * /companies:
@@ -45,8 +32,17 @@ router.get('/', async (req, res, next) => {
  *                   items:
  *                     $ref: '#/components/schemas/Company'
  */
-router.get('/', getCompanies);
-
+router.get('/', async (req, res, next) => {
+  try {
+    const companies = await getCompanies();
+    res.json({
+      status: 'success',
+      data: companies
+    });
+  } catch (error) {
+    next(error);
+  }
+});
 /**
  * @swagger
  * /companies/{id}:

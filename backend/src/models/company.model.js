@@ -14,30 +14,34 @@ module.exports = (sequelize, DataTypes) => {
     type: DataTypes.STRING(20),
     allowNull: true
   },
-  // Dirección como string simple
+  // Dirección como JSONB
   address: {
-    type: DataTypes.TEXT,
-    allowNull: true
-  },
-  // Configuración adicional de la compañía
-  settings: {
     type: DataTypes.JSONB,
+    field: 'address',  // Explicitly set the field name
     allowNull: true,
-    defaultValue: {},
-    get() {
-      const rawValue = this.getDataValue('settings');
-      return rawValue || {};
-    },
-    set(value) {
-      this.setDataValue('settings', value || {});
-    }
+    defaultValue: {}
   },
   contact_email: {
     type: DataTypes.STRING,
-    field: 'contact_email',
+    field: 'contact_email',  // Explicitly set the field name
     allowNull: true,
     validate: {
       isEmail: true
+    }
+  },
+  distribution_emails: {
+    type: DataTypes.JSONB,  // Changed to JSONB to match database type
+    field: 'distribution_emails',  // Explicitly set the field name
+    allowNull: true,
+    validate: {
+      isValidEmails(value) {
+        if (value && !Array.isArray(value)) {
+          throw new Error('Los correos de distribución deben ser un arreglo');
+        }
+        if (value && value.length > 10) {
+          throw new Error('No se pueden tener más de 10 correos de distribución');
+        }
+      }
     }
   },
   is_active: {

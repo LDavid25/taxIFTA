@@ -3,6 +3,7 @@ const { promisify } = require('util');
 const crypto = require('crypto');
 const { StatusCodes } = require('http-status-codes');
 const { User, Company, sequelize } = require('../models');
+const { Op } = require('sequelize');
 
 // Configuración de Sequelize
 sequelize.options.logging = console.log; // Habilitar logging de consultas SQL
@@ -64,12 +65,14 @@ exports.register = async (req, res, next) => {
       email, 
       password, 
       password_confirmation, 
-      role = 'cliente',
+      role = 'user', // Valores permitidos: 'admin' o 'user'
+      company_id,
+      // Campos de la compañía
       company_name,
       company_phone,
       company_email,
       company_address,
-      company_distribution_emails = []
+      company_distribution_emails
     } = req.body;
 
     // 1) Verificar si el usuario ya existe
@@ -81,131 +84,125 @@ exports.register = async (req, res, next) => {
       );
     }
 
-    // 2) Crear la compañía
-    let company;
-    if (role === 'cliente') {
-      console.log('Datos de la compañía recibidos:', {
-        company_name,
-        company_phone,
-        company_email
-      });
+    let companyId = company_id;
 
-      // Validar campos requeridos
-      if (!company_name) {
-        await transaction.rollback();
-        return next(
-          new AppError('El nombre de la compañía es requerido para usuarios cliente', StatusCodes.BAD_REQUEST)
-        );
-      }
+    // 2) Si es un usuario regular (no admin) y no tiene company_id, crear una nueva compañía si se proporcionan datos
+    if (role === 'user' && !company_id && (company_name || company_phone || company_email)) {
+      // Solo validar si el correo ya existe si se proporciona
+      if (company_email) {
+        const existingCompany = await Company.findOne({
+          where: {
+            contact_email: company_email
+          },
+          transaction
+        });
 
-      try {
-        // Crear la compañía con los campos simplificados
-        const companyData = {
-          name: company_name,
-          ...(company_phone && { phone: company_phone }),
-          ...(company_email && { contact_email: company_email }),
-          // Guardar la dirección completa como un string simple
-          address: company_address || '',
-          settings: {}
-        };
-
-        // Agregar correos de distribución si existen
-        if (company_distribution_emails && company_distribution_emails.length > 0) {
-          // Filtrar correos válidos
-          const validEmails = company_distribution_emails
-            .filter(email => email && typeof email === 'string' && email.trim() !== '')
-            .map(email => email.trim());
-          
-          if (validEmails.length > 0) {
-            companyData.settings.distribution_emails = validEmails;
-          }
+        if (existingCompany) {
+          await transaction.rollback();
+          return next(
+            new AppError('Ya existe una compañía con este correo electrónico', StatusCodes.BAD_REQUEST)
+          );
         }
+      }
 
-        company = await Company.create(companyData, { transaction });
-        console.log('Compañía creada exitosamente:', company.id);
-      } catch (error) {
-        console.error('Error al crear la compañía:', error);
+      // Crear nueva compañía solo con los campos proporcionados
+      const companyData = {
+        name: company_name || 'Nueva Compañía',
+        is_active: true
+      };
+
+      // Agregar campos opcionales solo si están presentes
+      if (company_phone) companyData.phone = company_phone;
+      if (company_email) companyData.contact_email = company_email;
+      if (company_address) companyData.address = company_address;
+      if (company_distribution_emails) {
+        companyData.distribution_emails = Array.isArray(company_distribution_emails) ? 
+          company_distribution_emails : 
+          [company_distribution_emails].filter(Boolean);
+      }
+
+      const newCompany = await Company.create(companyData, { transaction });
+      companyId = newCompany.id;
+    } else if (role === 'user' && company_id) {
+      // Verificar que la compañía exista
+      const companyExists = await Company.findByPk(company_id, { transaction });
+      if (!companyExists) {
         await transaction.rollback();
         return next(
-          new AppError(
-            `Error al crear la compañía: ${error.message}`, 
-            StatusCodes.INTERNAL_SERVER_ERROR
-          )
+          new AppError('La compañía especificada no existe', StatusCodes.BAD_REQUEST)
         );
-      }
-    } else {
-      // Para administradores, usar la compañía por defecto
-      console.log('Buscando compañía por defecto para administrador...');
-      company = await Company.findOne({ 
-        where: { name: 'Sistema' },
-        transaction 
-      });
-      
-      if (!company) {
-        console.log('Creando nueva compañía por defecto...');
-        company = await Company.create({
-          name: 'Sistema',
-          contact_email: email || 'sistema@iftaeasytax.com',
-          address: 'Sistema',
-          settings: {}
-        }, { transaction });
       }
     }
 
-    // 3) Crear el usuario
-    console.log('Creando usuario para la compañía:', company.id);
-    let newUser;
-    try {
-      newUser = await User.create({
-        name,
-        email,
-        password,
-        role,
-        company_id: company.id
-        // is_active tiene un valor por defecto en la base de datos
-      }, { transaction });
-      
-      console.log('Usuario creado exitosamente:', newUser.id);
-    } catch (error) {
-      console.error('Error al crear el usuario:', error);
+    // 3) Validar que las contraseñas coincidan
+    if (password !== password_confirmation) {
       await transaction.rollback();
       return next(
-        new AppError(`Error al crear el usuario: ${error.message}`, StatusCodes.INTERNAL_SERVER_ERROR)
+        new AppError('Las contraseñas no coinciden', StatusCodes.BAD_REQUEST)
       );
     }
 
-    // Si todo salió bien, hacer commit de la transacción
+    // 4) Validar que la contraseña cumpla con los requisitos
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+    if (!passwordRegex.test(password)) {
+      await transaction.rollback();
+      return next(
+        new AppError(
+          'La contraseña debe tener al menos 8 caracteres, incluyendo una mayúscula, una minúscula, un número y un carácter especial',
+          StatusCodes.BAD_REQUEST
+        )
+      );
+    }
+    
+    // Validar el formato del correo electrónico
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      await transaction.rollback();
+      return next(
+        new AppError('El formato del correo electrónico no es válido', StatusCodes.BAD_REQUEST)
+      );
+    }
+
+    // 5) Crear el usuario
+    const newUser = await User.create({
+      name,
+      email,
+      password,
+      role,
+      company_id: companyId,
+      is_active: true // Asegurarse de que el campo coincida con la base de datos
+    }, { transaction });
+    
     await transaction.commit();
     
-    // No enviar la contraseña en la respuesta
-    newUser.password = undefined;
-    
-    // Enviar respuesta exitosa
-    res.status(StatusCodes.CREATED).json({
-      status: 'success',
-      data: {
-        user: newUser,
-        company: role === 'cliente' ? company : undefined
-      }
-    });
+    return createSendToken(newUser, StatusCodes.CREATED, res);
     
   } catch (error) {
     console.error('Error en el registro:', error);
     
-    // Hacer rollback en caso de error
-    await transaction.rollback();
+    // Si hay una transacción activa, hacer rollback
+    if (transaction && transaction.finished !== 'commit' && transaction.finished !== 'rollback') {
+      await transaction.rollback();
+    }
     
-    // Manejar errores específicos de validación
+    // Manejar errores específicos
     if (error.name === 'SequelizeValidationError' || error.name === 'SequelizeUniqueConstraintError') {
       const messages = error.errors ? error.errors.map(err => err.message) : [error.message];
-      return next(new AppError(messages.join('. '), StatusCodes.BAD_REQUEST));
+      return next(
+        new AppError(
+          `Error de validación: ${messages.join('. ')}`,
+          StatusCodes.BAD_REQUEST
+        )
+      );
     }
     
     // Para otros errores, devolver un mensaje genérico
-    next(new AppError(
-      error.message || 'Error al procesar la solicitud de registro', 
-      error.statusCode || StatusCodes.INTERNAL_SERVER_ERROR
-    ));
+    return next(
+      new AppError(
+        error.message || 'Ocurrió un error al procesar tu solicitud. Por favor, inténtalo de nuevo más tarde.',
+        error.statusCode || StatusCodes.INTERNAL_SERVER_ERROR
+      )
+    );
   }
 };
 
@@ -334,7 +331,7 @@ exports.isLoggedIn = async (req, res, next) => {
 
 exports.restrictTo = (...roles) => {
   return (req, res, next) => {
-    // roles ['admin', 'cliente']. role='cliente'
+    // roles ['admin', 'user']. role='user'
     if (!roles.includes(req.user.role)) {
       return next(
         new AppError('You do not have permission to perform this action', StatusCodes.FORBIDDEN)
