@@ -30,17 +30,34 @@ export const createConsumptionReport = async (formData) => {
 // Obtener todos los informes de consumo
 export const getConsumptionReports = async (filters = {}) => {
   try {
-    // Asegurarse de que los parámetros de búsqueda estén en el formato correcto
-    const params = {
-      ...filters,
-      company: filters.company || undefined // Solo incluir si existe
-    };
+    // Limpiar los parámetros para eliminar valores undefined
+    const cleanParams = Object.entries(filters).reduce((acc, [key, value]) => {
+      if (value !== undefined && value !== '') {
+        acc[key] = value;
+      }
+      return acc;
+    }, {});
 
-    const response = await api.get(API_URL, { params });
-    console.log('API Response:', response.data); // Log para inspeccionar la respuesta de la API
+    console.log('📤 Enviando parámetros a la API:', JSON.stringify(cleanParams, null, 2));
+    const response = await api.get(API_URL, { params: cleanParams });
+    
+    console.log('📥 Respuesta de la API:', {
+      status: response.status,
+      data: response.data
+    });
+    
     return response.data;
   } catch (error) {
-    throw error.response?.data || { message: 'Error al obtener los informes de consumo' };
+    console.error('❌ Error en getConsumptionReports:', {
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status
+    });
+    
+    throw error.response?.data || { 
+      message: 'Error al obtener los informes de consumo',
+      details: error.message
+    };
   }
 };
 

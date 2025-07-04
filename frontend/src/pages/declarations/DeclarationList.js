@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import {
   Box,
   Button,
@@ -44,6 +45,7 @@ import LoadingScreen from '../../components/common/LoadingScreen';
 
 const DeclarationList = () => {
   const navigate = useNavigate();
+  const { currentUser } = useAuth();
   const [loading, setLoading] = useState(true);
   const [groupedReports, setGroupedReports] = useState([]);
   const [alert, setAlert] = useState({ open: false, message: '', severity: 'info' });
@@ -221,7 +223,8 @@ const DeclarationList = () => {
 
   // Manejar visualización de reporte agrupado
   const handleView = (companyId, quarter, year) => {
-    navigate(`/declarations/company/${companyId}/quarter/${quarter}/year/${year}`);
+    const rolePrefix = currentUser?.role === 'admin' ? 'admin' : 'client';
+    navigate(`/${rolePrefix}/declarations/company/${companyId}/quarter/${quarter}/year/${year}`);
   };
 
   // Obtener color según el estado

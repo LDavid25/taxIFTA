@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate, Link as RouterLink, useLocation } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
+import { useAuth } from '../../context/AuthContext';
 import { updateReportStatus } from '../../services/iftaReportService';
 import {
   Box,
@@ -145,6 +146,7 @@ const ConsumptionDetail = () => {
   const location = useLocation();
   const { enqueueSnackbar } = useSnackbar();
   const muiTheme = useMuiTheme();
+  const { currentUser } = useAuth();
   
   // Estados del componente
   const [report, setReport] = useState(null);
@@ -547,7 +549,9 @@ const ConsumptionDetail = () => {
 
   const handleEdit = () => {
     if (id) {
-      navigate(`/consumption/edit/${id}`);
+      // Determinar la ruta base según el rol del usuario
+      const basePath = currentUser?.role === 'admin' ? '/admin' : '/client';
+      navigate(`${basePath}/consumption/edit/${id}`);
     } else {
       enqueueSnackbar('No se puede editar el informe sin un ID válido', { variant: 'error' });
     }
@@ -562,7 +566,8 @@ const ConsumptionDetail = () => {
     if (window.confirm('Are you sure you want to delete this consumption record?')) {
       console.log('Deleting consumption:', id);
       // Here would be the delete logic
-      navigate('/consumption');
+      const basePath = currentUser?.role === 'admin' ? '/admin' : '/client';
+      navigate(`${basePath}/consumption`);
     }
   };
 
@@ -602,7 +607,10 @@ const ConsumptionDetail = () => {
         <Button
           variant="contained"
           color="primary"
-          onClick={() => navigate('/consumption')}
+          onClick={() => {
+            const basePath = currentUser?.role === 'admin' ? '/admin' : '/client';
+            navigate(`${basePath}/consumption`);
+          }}
           startIcon={<ArrowBackIcon />}
           sx={{ mt: 2 }}
         >
@@ -631,7 +639,10 @@ const ConsumptionDetail = () => {
         <Box mb={4}>
           <Button
             startIcon={<ArrowBackIcon />}
-            onClick={() => navigate('/consumption')}
+            onClick={() => {
+            const basePath = currentUser?.role === 'admin' ? '/admin' : '/client';
+            navigate(`${basePath}/consumption`);
+          }}
             sx={{ mb: 2, textTransform: 'none' }}
           >
             Volver al Historial
@@ -640,10 +651,18 @@ const ConsumptionDetail = () => {
           <Grid container justifyContent="space-between" alignItems="center" mb={2}>
             <Grid item>
               <Breadcrumbs aria-label="breadcrumb">
-                <Link component={RouterLink} to="/dashboard" color="inherit">
+                <Link 
+                  component={RouterLink} 
+                  to={currentUser?.role === 'admin' ? '/admin/dashboard' : '/client/dashboard'} 
+                  color="inherit"
+                >
                   Inicio
                 </Link>
-                <Link component={RouterLink} to="/consumption" color="inherit">
+                <Link 
+                  component={RouterLink} 
+                  to={currentUser?.role === 'admin' ? '/admin/consumption' : '/client/consumption'} 
+                  color="inherit"
+                >
                   Historial de Consumo
                 </Link>
                 <Typography color="text.primary">Detalles del Informe</Typography>
@@ -722,7 +741,7 @@ const ConsumptionDetail = () => {
                             color={getStatusColor(safeConsumption.status || 'in_progress')}
                             endIcon={updatingStatus ? <CircularProgress size={16} color="inherit" /> : <ArrowDropDownIcon />}
                             onClick={handleStatusMenuOpen}
-                            disabled={updatingStatus}
+                            disabled={updatingStatus || currentUser?.role !== 'admin'}
                             sx={{ 
                               fontWeight: 'bold', 
                               textTransform: 'none',
@@ -730,8 +749,12 @@ const ConsumptionDetail = () => {
                               justifyContent: 'space-between',
                               '& .MuiButton-endIcon': {
                                 ml: 1
+                              },
+                              '&:disabled': {
+                                opacity: 0.7
                               }
                             }}
+                            title={currentUser?.role !== 'admin' ? 'Solo los administradores pueden cambiar el estado' : ''}
                           >
                             {translateStatus(safeConsumption.status) || 'Seleccionar estado'}
                           </Button>

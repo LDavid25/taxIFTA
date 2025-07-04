@@ -57,9 +57,10 @@ const Login = () => {
           console.log('Rol del usuario:', result.user?.role);
           
           // Redirigir según el rol del usuario
-          const targetRoute = result.user?.role === 'admin' ? '/dashboard' : '/dashboard-cliente';
-          console.log('Redirigiendo a:', targetRoute);
-          navigate(targetRoute);
+          const isAdmin = result.user?.role === 'admin';
+          const targetRoute = isAdmin ? '/admin' : '/client';
+          console.log('✅ Login exitoso. Redirigiendo a:', targetRoute, 'Rol:', result.user?.role);
+          navigate(targetRoute, { replace: true });
         } else {
           console.log('Error en login:', result.error);
           setAlert({

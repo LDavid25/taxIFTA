@@ -130,17 +130,41 @@ const MainLayout = () => {
   // Manejar navegación al perfil
   const handleProfile = () => {
     handleUserMenuClose();
-    navigate('/profile');
+    const profilePath = isAdmin ? '/admin/profile' : '/client/profile';
+    navigate(profilePath);
   };
   
   // Elementos del menú lateral
   const menuItems = [
-    { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
-    { text: 'Declaraciones', icon: <DescriptionIcon />, path: '/declarations' },
-    { text: 'Historial de Consumo', icon: <HistoryIcon />, path: '/consumption' },
-    { text: 'Compañías', icon: <BusinessIcon />, path: '/companies' },
+    // Elementos comunes para todos los usuarios autenticados
+    { 
+      text: 'Dashboard', 
+      icon: <DashboardIcon />, 
+      path: isAdmin ? '/admin/dashboard' : '/client/dashboard' 
+    },
+    { 
+      text: 'Historial de Consumo', 
+      icon: <HistoryIcon />, 
+      path: isAdmin ? '/admin/consumption' : '/client/consumption' 
+    },
+    
+    // Elementos solo para administradores
     ...(isAdmin ? [
-      { text: 'Registrar Usuario', icon: <PersonAddIcon />, path: '/admin/register-user' }
+      { 
+        text: 'Declaraciones', 
+        icon: <DescriptionIcon />, 
+        path: '/admin/declarations' 
+      },
+      { 
+        text: 'Compañías', 
+        icon: <BusinessIcon />, 
+        path: '/admin/companies' 
+      },
+      { 
+        text: 'Registrar Usuario', 
+        icon: <PersonAddIcon />, 
+        path: '/admin/register-user' 
+      }
     ] : [])
   ];
   
@@ -271,7 +295,7 @@ const MainLayout = () => {
           <ListItem 
             button 
             component={Link} 
-            to="/profile"
+            to={isAdmin ? "/admin/profile" : "/client/profile"}
             onClick={isMobile ? handleDrawerClose : undefined}
           >
             <ListItemIcon><PersonIcon /></ListItemIcon>

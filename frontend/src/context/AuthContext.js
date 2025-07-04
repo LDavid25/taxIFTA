@@ -51,8 +51,20 @@ export const AuthProvider = ({ children }) => {
         // Asegurarse de que el rol esté en minúsculas y sea consistente
         const userWithRole = {
           ...userData,
-          role: (userData.role || '').toLowerCase()
+          role: (userData.role || '').toLowerCase(),
+          // Asegurarse de que companyId esté disponible, ya sea como companyId o company_id
+          companyId: userData.company_id || userData.companyId,
+          // Mantener el company_id original para compatibilidad
+          company_id: userData.company_id || userData.companyId
         };
+        
+        console.log('🔍 Datos del usuario procesados:', {
+          id: userWithRole.id,
+          email: userWithRole.email,
+          role: userWithRole.role,
+          companyId: userWithRole.companyId,
+          company_id: userWithRole.company_id
+        });
         
         console.log('✅ Usuario autenticado con rol:', userWithRole.role, 'Datos completos:', {
           ...userWithRole,

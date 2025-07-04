@@ -15,7 +15,7 @@ import logo from '../../assets/img/dtp-logo.png';
 import { Link as RouterLink } from 'react-router-dom';
 import { Link } from '@mui/material';
 
-const AuthLayout = () => {
+const AuthLayout = ({ children }) => {
   const theme = useTheme();
   const { mode, toggleTheme } = useAppTheme();
 
@@ -39,28 +39,12 @@ const AuthLayout = () => {
         }}
       >
         <Typography variant="h6" component="div" sx={{ fontWeight: 600 }}>
-          <Link component={RouterLink} to="/Login">
-            <img src={logo} alt="Logotype DOT Truck Permits" width={`200px`} />
+          <Link component={RouterLink} to="/login">
+            <img src={logo} alt="Logotype DOT Truck Permits" width="200px" />
           </Link>
         </Typography>
         <Stack direction="row" spacing={1} alignItems="center">
-          <Button
-            color="inherit"
-            component="a"
-            href="/Login"
-            sx={{ textTransform: 'none', fontWeight: 500 }}
-          >
-            Log In
-          </Button>
-          <Button
-            color="inherit"
-            component="a"
-            href="/contact"
-            sx={{ textTransform: 'none', fontWeight: 500 }}
-          >
-            Request an account
-          </Button>
-          <Tooltip title={mode === 'light' ? 'Modo oscuro' : 'Modo claro'}>
+          <Tooltip title={`Cambiar a modo ${mode === 'light' ? 'oscuro' : 'claro'}`}>
             <IconButton onClick={toggleTheme} color="inherit">
               {mode === 'light' ? <DarkModeIcon /> : <LightModeIcon />}
             </IconButton>
@@ -73,13 +57,14 @@ const AuthLayout = () => {
         component="main"
         sx={{
           flexGrow: 1,
-          width: '100%',
           display: 'flex',
           flexDirection: 'column',
-          py: 0
+          justifyContent: 'center',
+          alignItems: 'center',
+          p: 3,
         }}
       >
-        <Outlet />
+        {children || <Outlet />}
       </Box>
 
       {/* Pie de página */}
@@ -89,12 +74,12 @@ const AuthLayout = () => {
           py: 3,
           px: 2,
           mt: 'auto',
+          backgroundColor: theme.palette.mode === 'light' ? theme.palette.grey[100] : theme.palette.grey[900],
           textAlign: 'center',
-          backgroundColor: theme.palette.background.paper,
         }}
       >
         <Typography variant="body2" color="text.secondary">
-          © {new Date().getFullYear()} IFTA Easy Tax System. All rights reserved.
+          {new Date().getFullYear()} DOT Truck Permits. Todos los derechos reservados.
         </Typography>
       </Box>
     </Box>

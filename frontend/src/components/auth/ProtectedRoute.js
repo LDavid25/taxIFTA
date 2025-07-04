@@ -33,10 +33,12 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
   const userRole = currentUser?.role;
   const hasRequiredRole = userRole && allowedRoles.includes(userRole);
 
-  // Si el usuario no tiene el rol requerido, redirigir al dashboard correspondiente
+  // Si el usuario no tiene el rol requerido, redirigir según su rol
   if (!hasRequiredRole) {
-    // Redirigir al dashboard según el rol del usuario
-    const redirectTo = userRole === 'admin' ? '/dashboard' : '/dashboard-cliente';
+    // Redirigir según el rol del usuario
+    const isAdmin = userRole === 'admin';
+    const redirectTo = isAdmin ? '/admin' : '/client';
+    console.log(`🔀 Redirigiendo usuario con rol '${userRole}' a:`, redirectTo, '(Rol no autorizado para esta ruta)');
     return <Navigate to={redirectTo} replace />;
   }
 

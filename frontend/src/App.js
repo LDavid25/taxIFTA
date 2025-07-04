@@ -27,6 +27,7 @@ import ContactPage from './pages/ContactPage';
 // Páginas privadas - Dashboard
 import Dashboard from './pages/dashboard/Dashboard';
 import DashboardCliente from './pages/dashboard/DashboardCliente';
+import AdminDashboard from './pages/dashboard/AdminDashboard';
 
 // Páginas privadas - Declaraciones
 import DeclarationList from './pages/declarations/DeclarationList';
@@ -68,15 +69,17 @@ export { ROLES };
 
 // Rutas públicas (solo para usuarios no autenticados)
 const PublicRoute = ({ children }) => {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, loading, currentUser } = useAuth();
   
   if (loading) {
     return <div>Cargando...</div>;
   }
   
   // Si el usuario ya está autenticado, redirigir según su rol
-  if (isAuthenticated) {
-    return <Navigate to="/" replace />;
+  if (isAuthenticated && currentUser) {
+    console.log('🔒 Usuario autenticado, redirigiendo...', currentUser.role);
+    const redirectTo = currentUser.role === 'admin' ? '/admin' : '/client';
+    return <Navigate to={redirectTo} replace />;
   }
   
   return children;
@@ -92,47 +95,46 @@ const RoleBasedRedirect = () => {
     return <div>Cargando...</div>;
   }
 
-  // Mostrar información detallada de depuración
   const roleInfo = {
     'currentUser': currentUser ? {
       id: currentUser.id,
       email: currentUser.email,
       role: currentUser.role,
-      roleType: typeof currentUser.role
-    } : 'No autenticado',
-    'ROLES': ROLES,
-    'isAdmin': isAdmin,
-    'window.location.pathname': window.location.pathname,
-    'localStorage.token': !!localStorage.getItem('token')
+      isAdmin: isAdmin,
+      rawRole: currentUser.role,
+      rawRoleType: typeof currentUser.role,
+      allowedRoles: [ROLES.ADMIN, ROLES.CLIENTE, 'user']
+    } : null,
+    'isAuthenticated': !!currentUser,
+    'isAdmin': isAdmin
   };
   
-  console.log('🔍 RoleBasedRedirect - Estado actual:', roleInfo);
+  console.log('🔍 RoleBasedRedirect - Debug Info:', roleInfo);
   
-  // Si no hay usuario, redirigir a login
+  // Si no hay usuario, redirigir al login
   if (!currentUser) {
     console.log('🔒 No hay usuario autenticado, redirigiendo a /login');
     return <Navigate to="/login" replace />;
   }
+
+  // Verificar si el rol del usuario es válido
+  const userRole = currentUser.role;
+  const isValidRole = [ROLES.ADMIN, ROLES.CLIENTE, 'user'].includes(userRole);
+  
+  if (!isValidRole) {
+    console.error('❌ Rol no válido:', userRole);
+    return <Navigate to="/unauthorized" replace />;
+  }
   
   // Redirigir según el rol del usuario
   if (isAdmin) {
-    console.log('✅ Usuario es administrador, redirigiendo a /dashboard');
-    console.log('🔍 Detalles del usuario admin:', {
-      role: currentUser.role,
-      roleType: typeof currentUser.role,
-      isAdmin: isAdmin,
-      isStrictEqual: currentUser.role === ROLES.ADMIN,
-      isLooseEqual: currentUser.role == ROLES.ADMIN,
-      lowerCase: currentUser.role?.toLowerCase() === ROLES.ADMIN.toLowerCase()
-    });
-    return <Navigate to="/dashboard" replace />;
+    console.log('✅ Usuario es administrador, redirigiendo a /admin');
+    return <Navigate to="/admin" replace />;
   }
   
-  console.log('ℹ️ Redirigiendo a /dashboard-cliente. Razón:', 
-    `Rol actual: "${currentUser.role}" (${typeof currentUser.role}), ` +
-    `ROL_ESPERADO: "${ROLES.ADMIN}" (${typeof ROLES.ADMIN})`
-  );
-  return <Navigate to="/dashboard-cliente" replace />;
+  // Para usuarios con rol 'cliente' o 'user', redirigir a /client
+  console.log(`ℹ️ Usuario con rol '${userRole}', redirigiendo a /client`);
+  return <Navigate to="/client" replace />;
 };
 
 function App() {
@@ -140,79 +142,81 @@ function App() {
   
   return (
     <MuiThemeProvider theme={theme}>
+      <CssBaseline />
       <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={es}>
-        <CssBaseline />
         <CompanyProvider>
           <Routes>
-            {/* Rutas públicas */}
-            <Route path="/" element={
+            {/* Ruta de login */}
+            <Route 
+              path="/login" 
+              element={
+                <PublicRoute>
+                  <AuthLayout>
+                    <Login />
+                  </AuthLayout>
+                </PublicRoute>
+              } 
+            />
+            <Route path="/forgot-password" element={
               <PublicRoute>
-                <AuthLayout />
+                <AuthLayout>
+                  <ForgotPassword />
+                </AuthLayout>
               </PublicRoute>
-            }>
-              <Route index element={<Login />} />
-              <Route path="login" element={<Login />} />
-              <Route path="forgot-password" element={<ForgotPassword />} />
-              <Route path="reset-password" element={<ResetPassword />} />
-              <Route path="contact" element={<ContactPage />} />
-            </Route>
+            } />
+            <Route path="/reset-password" element={
+              <PublicRoute>
+                <AuthLayout>
+                  <ResetPassword />
+                </AuthLayout>
+              </PublicRoute>
+            } />
+            <Route path="/contact" element={
+              <PublicRoute>
+                <ContactPage />
+              </PublicRoute>
+            } />
             
-            {/* Ruta raíz - Redirige según el rol */}
-            <Route index element={
-              <ProtectedRoute>
-                <RoleBasedRedirect />
-              </ProtectedRoute>
+            {/* Ruta raíz - Redirige al login */}
+            <Route path="/" element={
+              <Navigate to="/login" replace />
             } />
             
             {/* Rutas protegidas - Admin */}
-            <Route path="/" element={
+            <Route path="/admin" element={
               <ProtectedRoute allowedRoles={[ROLES.ADMIN]}>
                 <MainLayout />
               </ProtectedRoute>
             }>
-              <Route path="dashboard" element={<Dashboard />} />
+              <Route index element={<Navigate to="dashboard" replace />} />
+              <Route path="dashboard" element={<AdminDashboard />} />
               <Route path="profile" element={<Profile />} />
               <Route path="companies" element={<CompanyListPage />} />
-              
-              {/* Rutas de declaraciones */}
-              <Route path="declarations">
-                <Route index element={<DeclarationList />} />
-                <Route path="company/:companyId/quarter/:quarter/year/:year" element={<DeclarationDetail />} />
-                <Route path=":id" element={<DeclarationDetail />} />
-                <Route path=":id/edit" element={<DeclarationEdit />} />
-              </Route>
-              
-              {/* Historial de Consumo */}
-              <Route path="consumption">
-                <Route index element={<ConsumptionHistory />} />
-                <Route path="create" element={<ConsumptionCreate />} />
-                <Route path=":id" element={<ConsumptionDetail />} />
-              </Route>
-              
-              {/* Registro de usuarios (solo admin) */}
-              <Route path="admin/register-user" element={<RegisterUser />} />
+              <Route path="register-user" element={<RegisterUser />} />
+              <Route path="declarations" element={<DeclarationList />} />
+              <Route path="declarations/company/:companyId/quarter/:quarter/year/:year" element={<DeclarationDetail />} />
+              <Route path="declarations/:id" element={<DeclarationDetail />} />
+              <Route path="declarations/:id/edit" element={<DeclarationEdit />} />
+              <Route path="consumption" element={<ConsumptionHistory />} />
+              <Route path="consumption/create" element={<ConsumptionCreate />} />
+              <Route path="consumption/:id" element={<ConsumptionDetail />} />
             </Route>
             
-            {/* Rutas protegidas - Cliente */}
-            <Route path="/" element={
-              <ProtectedRoute allowedRoles={[ROLES.CLIENTE]}>
+            {/* Rutas protegidas - Cliente o Usuario */}
+            <Route path="/client" element={
+              <ProtectedRoute allowedRoles={[ROLES.CLIENTE, 'user']}>
                 <MainLayout />
               </ProtectedRoute>
             }>
-              <Route path="dashboard-cliente" element={<DashboardCliente />} />
+              <Route index element={<Navigate to="consumption" replace />} />
+              <Route path="dashboard" element={<DashboardCliente />} />
               <Route path="profile" element={<Profile />} />
-              
-              {/* Rutas de declaraciones para clientes */}
-              <Route path="declarations">
-                <Route index element={<DeclarationList />} />
-                <Route path=":id" element={<DeclarationDetail />} />
-              </Route>
-              
-              {/* Historial de Consumo para clientes */}
-              <Route path="consumption">
-                <Route index element={<ConsumptionHistory />} />
-                <Route path=":id" element={<ConsumptionDetail />} />
-              </Route>
+              <Route path="declarations" element={<DeclarationList />} />
+              <Route path="declarations/company/:companyId/quarter/:quarter/year/:year" element={<DeclarationDetail />} />
+              <Route path="declarations/:id" element={<DeclarationDetail />} />
+              <Route path="consumption" element={<ConsumptionHistory />} />
+              <Route path="consumption/create" element={<ConsumptionCreate />} />
+              <Route path="consumption/:id" element={<ConsumptionDetail />} />
             </Route>
             
             {/* Ruta de no autorizado */}

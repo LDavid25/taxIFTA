@@ -22,6 +22,7 @@ const iftaReportStateRoutes = require('./routes/iftaReportState.routes');
 const companyRoutes = require('./routes/company.routes');
 const testRoutes = require('./routes/test.routes');
 const quarterlyReportRoutes = require('./routes/quarterlyReport.routes');
+const dashboardRoutes = require('./routes/dashboard.routes');
 
 // Log route loading
 console.log('Routes being loaded:');
@@ -31,6 +32,7 @@ console.log('- iftaReportStateRoutes:', !!iftaReportStateRoutes);
 console.log('- companyRoutes:', !!companyRoutes);
 console.log('- testRoutes:', !!testRoutes);
 console.log('- quarterlyReportRoutes:', !!quarterlyReportRoutes);
+console.log('- dashboardRoutes:', !!dashboardRoutes);
 
 // Initialize express app
 const app = express();
@@ -123,6 +125,7 @@ const registerRoute = (path, router) => {
 registerRoute('/v1/auth', authRoutes);
 registerRoute('/v1/ifta-reports', iftaReportRoutes);
 registerRoute('/v1/ifta-report-states', iftaReportStateRoutes);
+registerRoute('/v1/dashboard', dashboardRoutes);
 registerRoute('/v1/companies', companyRoutes);
 registerRoute('/v1/test', testRoutes);
 registerRoute('/v1/quarterly-reports', quarterlyReportRoutes);

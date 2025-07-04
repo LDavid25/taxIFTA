@@ -408,9 +408,10 @@ const ConsumptionCreate = () => {
       setSelectedFiles([]);
       setUploadedFiles([]);
       
-      // Redirect after a short delay
+      // Redirect after a short delay based on user role
       setTimeout(() => {
-        navigate('/consumption');
+        const basePath = currentUser?.role === 'admin' ? '/admin' : '/client';
+        navigate(`${basePath}/consumption`);
       }, 2000);
       
     } catch (error) {

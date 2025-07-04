@@ -44,9 +44,10 @@ import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { getConsumptionReports } from '../../services/consumptionService';
 import { useSnackbar } from 'notistack';
-import { CircularProgress, Alert } from '@mui/material';
+import { CircularProgress, Alert, MenuItem } from '@mui/material';
 import { useAuth } from '../../context/AuthContext';
 import { isAdmin } from '../../constants/roles';
+import api from '../../services/api';
 import BusinessIcon from '@mui/icons-material/Business';
 
 // Mapeo de códigos de estado a nombres completos
@@ -246,6 +247,7 @@ const ConsumptionHistory = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [companyFilter, setCompanyFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
+  const [companies, setCompanies] = useState([]);
   
   // Opciones de años (últimos 5 años y el actual)
   const currentYear = new Date().getFullYear();
@@ -274,18 +276,144 @@ const ConsumptionHistory = () => {
   
 
   
+  // Cargar compañías para el filtro de admin
+  useEffect(() => {
+    const fetchCompanies = async () => {
+      if (isAdmin(currentUser)) {
+        try {
+          // Usar el endpoint correcto para obtener las compañías
+          const response = await api.get('/v1/companies');
+          setCompanies(response.data.data || []);
+        } catch (error) {
+          console.error('Error fetching companies:', error);
+          // No mostrar error si el usuario no es admin
+          if (isAdmin(currentUser)) {
+            enqueueSnackbar('Error al cargar las compañías', { variant: 'error' });
+          }
+        }
+      }
+    };
+    
+    fetchCompanies();
+  }, [currentUser, enqueueSnackbar]);
+
   // Cargar datos cuando cambian los filtros o la paginación
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
+        console.log('🔍 Usuario actual:', {
+          id: currentUser?.id,
+          email: currentUser?.email,
+          role: currentUser?.role,
+          companyId: currentUser?.companyId,
+          company: currentUser?.company
+        });
+        
+        // Si no hay usuario, salir
+        if (!currentUser) {
+          console.log('⚠️ No hay usuario autenticado');
+          setReports([]);
+          setFilteredData([]);
+          setPagination(prev => ({ ...prev, total: 0 }));
+          setLoading(false);
+          return;
+        }
+        
+        // Verificar si el usuario tiene un companyId válido
+        const hasValidCompanyId = currentUser?.companyId || currentUser?.company_id || currentUser?.company?.id;
+        
+        if (!isAdmin(currentUser) && !hasValidCompanyId) {
+          console.error('❌ Usuario no admin sin companyId, no se pueden cargar reportes', {
+            user: {
+              id: currentUser?.id,
+              email: currentUser?.email,
+              role: currentUser?.role,
+              companyId: currentUser?.companyId,
+              company_id: currentUser?.company_id,
+              company: currentUser?.company
+            }
+          });
+          
+          enqueueSnackbar('No se pudo cargar la información de su compañía. Por favor, contacte al administrador.', { 
+            variant: 'error',
+            autoHideDuration: 10000 // Mostrar por 10 segundos
+          });
+          
+          setReports([]);
+          setFilteredData([]);
+          setPagination(prev => ({ ...prev, total: 0 }));
+          setLoading(false);
+          return;
+        }
+
         const params = {
           page: pagination.page + 1, // La API usa base 1
           limit: pagination.rowsPerPage,
         };
 
+        console.log('👤 Usuario actual en fetchData:', {
+          userId: currentUser?.id,
+          companyId: currentUser?.companyId,
+          company: currentUser?.company,
+          role: currentUser?.role,
+          isAdmin: isAdmin(currentUser)
+        });
+
+        // Limpiar parámetros existentes
+        delete params.companyId;
+        delete params.userId;
+
+        // Obtener el ID de la compañía del usuario (de cualquier propiedad posible)
+        const userCompanyId = currentUser?.companyId || currentUser?.company_id || (currentUser?.company?.id);
+        
+        console.log('🔍 Parámetros de filtrado:', {
+          isAdmin: isAdmin(currentUser),
+          userCompanyId,
+          companyFilter,
+          userId: currentUser?.id,
+          userData: {
+            id: currentUser?.id,
+            email: currentUser?.email,
+            role: currentUser?.role,
+            companyId: currentUser?.companyId,
+            company_id: currentUser?.company_id,
+            company: currentUser?.company
+          }
+        });
+
+        if (isAdmin(currentUser)) {
+          // Para admin, filtrar por compañía si se selecciona una
+          if (companyFilter) {
+            params.companyId = companyFilter;
+            console.log('👔 Admin filtrando por compañía seleccionada:', companyFilter);
+          } else {
+            console.log('👔 Admin sin filtro de compañía, mostrando todos los reportes');
+          }
+        } else {
+          // Para usuarios no admin, forzar el filtro por su companyId
+          if (userCompanyId) {
+            params.companyId = userCompanyId;
+            console.log('👤 Usuario no admin, filtrando por su compañía:', userCompanyId);
+            
+            // Opcional: Agregar filtro por usuario si es necesario
+            if (currentUser?.id) {
+              params.userId = currentUser.id;
+              console.log('👤 Filtrando por userId:', currentUser.id);
+            }
+          } else {
+            console.error('❌ Usuario no admin sin companyId, no se puede cargar datos');
+            enqueueSnackbar('No se pudo cargar la información de su compañía. Por favor, contacte al administrador.', { 
+              variant: 'error',
+              autoHideDuration: 10000
+            });
+            setReports([]);
+            setLoading(false);
+            return;
+          }
+        }
+
         if (statusFilter !== 'All') {
-          // Find the corresponding status value from statusOptions
           const statusOption = statusOptions.find(opt => opt.display === statusFilter);
           if (statusOption) {
             params.status = statusOption.value.toLowerCase();
@@ -295,7 +423,6 @@ const ConsumptionHistory = () => {
         if (selectedYear) {
           params.year = selectedYear;
           
-          // Si se seleccionó un trimestre, convertir a rango de meses
           if (selectedQuarter) {
             const quarterToMonthMap = {
               '1': { startMonth: '01', endMonth: '03' },
@@ -307,35 +434,59 @@ const ConsumptionHistory = () => {
             const { startMonth, endMonth } = quarterToMonthMap[selectedQuarter];
             params.startMonth = startMonth;
             params.endMonth = endMonth;
-            
-            console.log('Filtering by year and quarter:', { 
-              year: selectedYear, 
-              quarter: selectedQuarter,
-              startMonth,
-              endMonth 
-            });
-          } else {
-            console.log('Filtering by year only:', { year: selectedYear });
           }
         }
         
         if (searchTerm) {
           params.search = searchTerm;
         }
-        if (companyFilter && isAdmin(currentUser)) {
-          params.company = companyFilter;
-        }
 
-        console.log('API Params:', params);
+        console.log('📤 Enviando parámetros a la API:', JSON.stringify(params, null, 2));
         const response = await getConsumptionReports(params);
-        console.log('API Response:', response.data);
-        setReports(response.data?.reports || []);
         
-        // Actualizar paginación
+        // Asegurarse de que response.data existe y tiene la estructura esperada
+        const responseData = response?.data || {};
+        
+        // Manejar diferentes formatos de respuesta
+        let reportsData = [];
+        if (Array.isArray(responseData)) {
+          reportsData = responseData;
+        } else if (responseData.data && Array.isArray(responseData.data)) {
+          reportsData = responseData.data;
+        } else if (responseData.reports && Array.isArray(responseData.reports)) {
+          reportsData = responseData.reports;
+        }
+        
+        console.log('📥 Respuesta de la API procesada:', {
+          rawData: responseData,
+          reportsCount: reportsData.length,
+          pagination: responseData.pagination || {},
+          reportsSample: reportsData.slice(0, 2) // Mostrar muestra de los primeros 2 reportes
+        });
+        
+        // Actualizar el estado con los reportes
+        setReports(reportsData);
+        
+        // Calcular la paginación
+        const totalItems = responseData.pagination?.total || 
+                          responseData.total || 
+                          reportsData.length;
+                          
+        const totalPages = responseData.pagination?.totalPages || 
+                          Math.ceil(totalItems / pagination.rowsPerPage) || 
+                          1;
+        
+        console.log('📊 Actualizando paginación:', {
+          totalItems,
+          totalPages,
+          currentPage: pagination.page,
+          rowsPerPage: pagination.rowsPerPage
+        });
+                          
         setPagination(prev => ({
           ...prev,
-          total: response.data?.pagination?.total || 0,
-          totalPages: response.data?.pagination?.totalPages || 1
+          total: totalItems,
+          totalPages: totalPages
         }));
         
         setError(null);
@@ -369,8 +520,9 @@ const ConsumptionHistory = () => {
   };
 
   const handleViewReceipt = (id, report) => {
+    const basePath = currentUser?.role === 'admin' ? '/admin' : '/client';
     // Pasar el informe completo como estado de ubicación
-    navigate(`/consumption/${id}`, { state: { report } });
+    navigate(`${basePath}/consumption/${id}`, { state: { report } });
   };
 
   // Función para formatear los datos del informe para la tabla
@@ -481,7 +633,10 @@ const ConsumptionHistory = () => {
             variant="contained"
             color="primary"
             startIcon={<AddTwoTone />}
-            onClick={() => navigate('/consumption/create')}
+            onClick={() => {
+              const basePath = currentUser?.role === 'admin' ? '/admin' : '/client';
+              navigate(`${basePath}/consumption/create`);
+            }}
             sx={{ textTransform: 'none' }}
           >
             Add Consumption Record
@@ -545,25 +700,23 @@ const ConsumptionHistory = () => {
                 />
               </Grid>
               {isAdmin(currentUser) && (
-                <Grid item xs={6} md={2}>
+                <Grid item xs={12} sm={6} md={3}>
                   <TextField
                     fullWidth
+                    label="Filtrar por compañía"
                     variant="outlined"
                     size="small"
-                    placeholder="Filter by company"
                     value={companyFilter}
-                    onChange={(e) => {
-                      setCompanyFilter(e.target.value);
-                      setPagination(prev => ({ ...prev, page: 0 })); // Reset to first page when filtering
-                    }}
-                    InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <BusinessIcon color="action" />
-                        </InputAdornment>
-                      ),
-                    }}
-                  />
+                    onChange={(e) => setCompanyFilter(e.target.value)}
+                    select
+                  >
+                    <MenuItem value="">Todas las compañías</MenuItem>
+                    {companies.map((company) => (
+                      <MenuItem key={company._id} value={company._id}>
+                        {company.name}
+                      </MenuItem>
+                    ))}
+                  </TextField>
                 </Grid>
               )}
               <Grid item xs={6} md={2}>

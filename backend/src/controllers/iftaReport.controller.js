@@ -352,7 +352,27 @@ const getCompanyReports = async (req, res, next) => {
       includeInactive = 'false' 
     } = req.query;
 
-    const where = { company_id };
+    console.log('🔍 Usuario en la solicitud:', {
+      userId: req.user?.id,
+      role: req.user?.role,
+      companyId: req.company_id, // Usando company_id del request
+      queryParams: req.query
+    });
+    
+    const where = {};
+    
+    // Para usuarios no admin, forzar el filtro por su company_id
+    if (req.user.role !== 'admin') {
+      console.log('👤 Usuario no admin, filtrando por company_id:', req.company_id);
+      where.company_id = req.company_id; // Usando company_id del request
+    } 
+    // Para admin, filtrar por companyId solo si se especifica
+    else if (req.query.companyId) {
+      console.log('👔 Admin filtrando por companyId:', req.query.companyId);
+      where.company_id = req.query.companyId;
+    } else {
+      console.log('👔 Admin sin filtro de compañía, mostrando todos los reportes');
+    }
     
     // Filtrar por año
     if (year) where.report_year = year;
