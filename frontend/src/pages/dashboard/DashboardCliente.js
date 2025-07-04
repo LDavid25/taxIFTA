@@ -47,7 +47,7 @@ const DashboardCliente = () => {
       title: 'Reportes',
       description: 'Genera y descarga reportes de consumo',
       icon: <ReportIcon fontSize="large" style={{ color: theme.palette.success.main }} />,
-      path: '/client/reports',
+      path: '/client/declarations',
       color: theme.palette.success.light
     },
     {

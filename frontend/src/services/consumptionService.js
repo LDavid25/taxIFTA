@@ -88,6 +88,7 @@ export const getConsumptionReportById = async (id) => {
     const formattedReport = {
       id: report.id,
       vehicle_plate: report.vehicle_plate,
+      company_name: report.company_name || report.vehicle?.company?.name || '', // Asegurar que company_name esté incluido
       report_year: report.report_year,
       report_month: report.report_month,
       status: report.status,
@@ -221,6 +222,28 @@ export const deleteConsumptionReport = async (id) => {
     return response.data;
   } catch (error) {
     throw error.response?.data || { message: 'Error al eliminar el informe de consumo' };
+  }
+};
+
+/**
+ * Obtiene los archivos adjuntos de un informe de consumo
+ * @param {string} reportId - ID del informe
+ * @returns {Promise<Array>} - Lista de archivos adjuntos
+ */
+export const getReportAttachments = async (reportId) => {
+  try {
+    if (!reportId) {
+      throw new Error('ID de informe no proporcionado');
+    }
+    
+    const response = await api.get(`/v1/reports/${reportId}/attachments`);
+    return response.data.data || [];
+  } catch (error) {
+    console.error('Error al obtener archivos adjuntos:', error);
+    throw error.response?.data || { 
+      message: 'Error al obtener los archivos adjuntos',
+      details: error.message 
+    };
   }
 };
 

@@ -76,3 +76,95 @@ code {
     width: 100%;
   }
 }
+
+/* Estilos para impresión */
+@media print {
+  /* Ocultar elementos que no deben imprimirse */
+  .no-print, 
+  .MuiAppBar-root,
+  .MuiDrawer-root,
+  .MuiButton-root,
+  .MuiTabs-root,
+  .MuiTabPanel-root:not([hidden]) {
+    display: none !important;
+  }
+
+  /* Establecer márgenes y fondo */
+  @page {
+    size: A4;
+    margin: 1.5cm;
+  }
+
+  /* Mejorar la legibilidad del texto */
+  body {
+    background-color: white;
+    color: #000;
+    font-size: 12pt;
+    line-height: 1.5;
+  }
+
+  /* Estilos para encabezados */
+  h1, h2, h3, h4, h5, h6 {
+    color: #000;
+    page-break-after: avoid;
+  }
+
+  /* Evitar que las tablas se corten entre páginas */
+  table {
+    page-break-inside: auto;
+    width: 100% !important;
+    border-collapse: collapse;
+  }
+  
+  tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
+  
+  td, th {
+    border: 1px solid #ddd;
+    padding: 8px;
+  }
+
+  /* Agregar encabezado y pie de página */
+  @page :first {
+    @top-center {
+      content: "Informe de Consumo";
+      font-size: 14pt;
+      font-weight: bold;
+    }
+  }
+
+  @page :right {
+    @bottom-right {
+      content: counter(page);
+      font-size: 10pt;
+    }
+  }
+
+  @page :left {
+    @bottom-left {
+      content: "© " attr(data-company);
+      font-size: 10pt;
+    }
+  }
+
+  /* Mejorar la apariencia de las tarjetas */
+  .MuiCard-root {
+    box-shadow: none;
+    border: 1px solid #ddd;
+    page-break-inside: avoid;
+    margin-bottom: 1cm;
+  }
+
+  /* Asegurar que los enlaces sean visibles */
+  a {
+    color: #000;
+    text-decoration: underline;
+  }
+
+  /* Evitar que los elementos se corten */
+  .no-break {
+    page-break-inside: avoid;
+  }
+}

@@ -147,14 +147,14 @@ const MainLayout = () => {
       icon: <HistoryIcon />, 
       path: isAdmin ? '/admin/consumption' : '/client/consumption' 
     },
+    { 
+      text: 'Declaraciones', 
+      icon: <DescriptionIcon />, 
+      path: isAdmin ? '/admin/declarations' : '/client/declarations' 
+    },
     
     // Elementos solo para administradores
     ...(isAdmin ? [
-      { 
-        text: 'Declaraciones', 
-        icon: <DescriptionIcon />, 
-        path: '/admin/declarations' 
-      },
       { 
         text: 'Compañías', 
         icon: <BusinessIcon />, 

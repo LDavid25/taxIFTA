@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import { format, parseISO, startOfMonth, endOfMonth, eachMonthOfInterval } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -48,11 +49,13 @@ import {
   Description as ExcelIcon,
   TableChart as TableChartIcon,
   ArrowBackIos as PrevIcon,
-  ArrowForwardIos as NextIcon
+  ArrowForwardIos as NextIcon,
+  Assignment as AssignmentIcon
 } from '@mui/icons-material';
 import { getDeclarationById } from '../../services/declarationService';
 import AlertMessage from '../../components/common/AlertMessage';
 import LoadingScreen from '../../components/common/LoadingScreen';
+ 
 
 // Helper functions
 const stateCodeToName = (code, full = false) => {
@@ -145,6 +148,9 @@ const DeclarationDetail = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
+  // Auth context
+  const { currentUser, isAdmin } = useAuth();
+
   // State
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -165,7 +171,6 @@ const DeclarationDetail = () => {
     onConfirm: null
   });
 
-
   // Initialize filters state with the quarter from URL
   const [filters, setFilters] = useState({
     vehicle: 'all',
@@ -179,6 +184,30 @@ const DeclarationDetail = () => {
       quarter: quarter
     }));
   }, [quarter]);
+
+  // Handle filter changes
+  const handleFilterChange = (field, value) => {
+    if (field === 'quarter') {
+      // Get user role from currentUser or default to 'user'
+      const userRole = currentUser?.role?.toLowerCase() || 'user';
+      const isAdmin = userRole === 'admin';
+      
+      // Set base path based on user role
+      const basePath = isAdmin 
+        ? `/admin/declarations/company/${companyId}`
+        : `/declarations/company/${companyId}`;
+      
+      // Navigate to the new quarter's URL with the correct path
+      navigate(`${basePath}/quarter/${value}/year/${year}`);
+      return;
+    }
+
+    // For other filters (like vehicle), update the local state
+    setFilters(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
 
   // Fetch available quarters for the current year and company
   const fetchAvailableQuarters = useCallback(async () => {
@@ -563,29 +592,8 @@ const DeclarationDetail = () => {
     'AS': '#ffc107'
   };
 
-  // Handle tab change
-  const handleTabChange = (event, newValue) => {
-    setActiveTab(newValue);
-  };
-
-  // Handle filter changes
-  const handleFilterChange = (field, value) => {
-    if (field === 'quarter') {
-      // Navigate to the new quarter's URL with the correct path
-      navigate(`/declarations/company/${companyId}/quarter/${value}/year/${year}`);
-      return;
-    }
-
-    // For other filters (like vehicle), update the local state
-    setFilters(prev => ({
-      ...prev,
-      [field]: value
-    }));
-  };
-
   // Handle complete declaration
   const handleCompleteDeclaration = async (e) => {
-    // Prevent default form submission and stop event propagation
     if (e) {
       e.preventDefault();
       e.stopPropagation();
@@ -609,7 +617,6 @@ const DeclarationDetail = () => {
     const reportIds = reportData.individual_reports.map(report => report.id);
     const quarterlyReportId = reportData.id; // ID del reporte trimestral
     
-   
     console.log('3. Información de la Declaración:', {
       quarterlyReportId,
       reportIds,
@@ -1627,361 +1634,67 @@ const DeclarationDetail = () => {
               </FormControl>
             </Box>
 
+            {reportData.status !== 'completed' && (
+              isAdmin ? (
+                // Botón para administradores
+                <Button
+                  variant="contained"
+                  color="primary"
+                  onClick={handleCompleteDeclaration}
+                  disabled={updatingStatus}
+                  startIcon={updatingStatus ? <CircularProgress size={20} /> : null}
+                  sx={{ minWidth: '200px' }}
+                >
+                  {updatingStatus ? 'Procesando...' : 'Completar Declaración'}
+                </Button>
+          ) : (
+            // Botón para usuarios no administradores
             <Button
               variant="contained"
               color="primary"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleCompleteDeclaration();
-              }}
-              disabled={updatingStatus || reportData?.status === 'completed'}
-              sx={{
-                backgroundColor: reportData?.status === 'completed' ? '#4caf50' : '#1976d2',
-                '&:hover': {
-                  backgroundColor: reportData?.status === 'completed' ? '#43a047' : '#1565c0'
-                },
-                textTransform: 'none',
-                fontWeight: 'bold',
-                minWidth: '200px',
-                height: '40px',
-                position: 'relative',
-                zIndex: 1000,
-                '&:disabled': {
-                  backgroundColor: '#bdbdbd',
-                  color: '#757575'
-                }
-              }}
-              startIcon={updatingStatus ? <CircularProgress size={20} color="inherit" /> : null}
+              disabled
+              sx={{ minWidth: '200px', backgroundColor: 'grey.400', '&:hover': { backgroundColor: 'grey.500' } }}
             >
-              {reportData?.status === 'completed' ? 'Declaración Completada' : 'Completar Declaración'}
+              En proceso de Declaración
             </Button>
+          )
+        )} 
           </Box>
         </CardContent>
       </Card>
 
-      {/* Combined Summary Table */}
-      <Card sx={{ mb: 3, width: '100%', overflow: 'hidden' }}>
-        <CardContent sx={{ p: 0, '&:last-child': { pb: 0 } }}>
-          <TableContainer component={Paper} sx={{ maxWidth: '100%', overflowX: 'auto' }}>
-            <Table size="small" sx={{ minWidth: 'max-content' }}>
-              <TableHead>
-                <TableRow>
-                  {/* Fixed Columns */}
-                  <TableCell align="center" rowSpan={2} sx={{
-                    fontWeight: 'bold',
-                    position: 'sticky',
-                    left: 0,
-                    backgroundColor: 'white',
-                    zIndex: 3,
-                    minWidth: '80px'
-                  }}># UNIT</TableCell>
-
-                  <TableCell align="center" rowSpan={2} sx={{
-                    fontWeight: 'bold',
-                    position: 'sticky',
-                    left: 80,
-                    backgroundColor: 'white',
-                    zIndex: 3,
-                    minWidth: '100px',
-                    borderRight: '1px solid #e0e0e0'
-                  }}>STATES</TableCell>
-
-                  {/* Month Headers */}
-                  {vehicleStateTableData.months.length > 0 ? (
-                    vehicleStateTableData.months.map((month, idx) => (
-                      <React.Fragment key={`${month.month}-${month.year}`}>
-                        <TableCell
-                          align="center"
-                          colSpan={2}
-                          sx={{
-                            fontWeight: 'bold',
-                            minWidth: '160px',
-                            borderRight: idx === vehicleStateTableData.months.length - 1 ? '1px solid #e0e0e0' : 'none',
-                            backgroundColor: '#f5f5f5'
-                          }}
-                        >
-                          {month.monthName}
-                        </TableCell>
-                      </React.Fragment>
-                    ))
-                  ) : (
-                    // Fallback en caso de que no haya meses definidos
-                    ['Abr', 'May', 'Jun'].map((month, idx) => (
-                      <React.Fragment key={month}>
-                        <TableCell
-                          align="center"
-                          colSpan={2}
-                          sx={{
-                            fontWeight: 'bold',
-                            minWidth: '160px',
-                            borderRight: idx === 2 ? '1px solid #e0e0e0' : 'none',
-                            backgroundColor: '#f5f5f5'
-                          }}
-                        >
-                          {month}
-                        </TableCell>
-                      </React.Fragment>
-                    ))
-                  )}
-
-                  {/* Fixed Total Columns */}
-                  <TableCell align="center" rowSpan={2} sx={{
-                    fontWeight: 'bold',
-                    position: 'sticky',
-                    right: 100,
-                    backgroundColor: 'white',
-                    zIndex: 3,
-                    minWidth: '100px',
-                    borderLeft: '1px solid #e0e0e0'
-                  }}>TOTAL MILES</TableCell>
-
-                  <TableCell align="center" rowSpan={2} sx={{
-                    fontWeight: 'bold',
-                    position: 'sticky',
-                    right: 0,
-                    backgroundColor: 'white',
-                    zIndex: 3,
-                    minWidth: '100px',
-                    borderRight: '1px solid #e0e0e0'
-                  }}>TOTAL GALLONS</TableCell>
-                </TableRow>
-              </TableHead>
-
-              <TableBody>
-                {(() => {
-                  // Usamos los datos ya procesados en vehicleStateTableData
-                  const { vehicles, months } = vehicleStateTableData;
-
-                  // Si no hay vehículos, mostramos un mensaje
-                  if (vehicles.length === 0) {
-                    return (
-                      <TableRow>
-                        <TableCell colSpan={10} align="center">
-                          No hay datos disponibles para mostrar
-                        </TableCell>
-                      </TableRow>
-                    );
-                  }
-
-                  // Creamos un array plano con todas las filas a mostrar
-                  const allRows = [];
-
-                  // Recorremos cada vehículo
-                  vehicles.forEach((vehicle, vIdx) => {
-                    const vehicleStates = Array.from(vehicle.states.values());
-
-                    // Si el vehículo no tiene estados, mostramos una fila con totales
-                    if (vehicleStates.length === 0) {
-                      allRows.push({
-                        isVehicle: true,
-                        plate: vehicle.plate,
-                        rowSpan: 1,
-                        states: [{
-                          code: 'TOTAL',
-                          months: months.map(m => ({
-                            month: m.month,
-                            year: m.year,
-                            miles: 0,
-                            gallons: 0
-                          })),
-                          totalMiles: vehicle.totalMiles,
-                          totalGallons: vehicle.totalGallons
-                        }]
-                      });
-                      return;
-                    }
-
-                    // Agregamos el vehículo con sus estados
-                    allRows.push({
-                      isVehicle: true,
-                      plate: vehicle.plate,
-                      rowSpan: vehicleStates.length,
-                      states: vehicleStates
-                    });
-                  });
-
-                  // Calculate grand totals for miles and gallons
-                  let grandTotalMiles = 0;
-                  let grandTotalGallons = 0;
-
-                  allRows.forEach(vehicle => {
-                    vehicle.states.forEach(state => {
-                      grandTotalMiles += state.totalMiles || 0;
-                      grandTotalGallons += state.totalGallons || 0;
-                    });
-                  });
-
-                  // Render the rows
-                  const rows = allRows.flatMap((vehicle, vIdx) => {
-                    return vehicle.states.map((state, sIdx) => (
-                      <TableRow key={`${vIdx}-${sIdx}`}>
-                        {/* Columna #UNIT - solo visible en la primera fila del grupo */}
-                        {sIdx === 0 && (
-                          <TableCell
-                            align="center"
-                            rowSpan={vehicle.rowSpan}
-                            sx={{
-                              position: 'sticky',
-                              left: 0,
-                              backgroundColor: 'white',
-                              zIndex: 2,
-                              borderBottom: '1px solid rgba(224, 224, 224, 1)',
-                              verticalAlign: 'top',
-                              padding: '8px 4px',
-                              minWidth: '80px',
-                              fontWeight: 'bold',
-                              backgroundColor: sIdx % 2 === 0 ? '#ffffff' : '#f9f9f9'
-                            }}
-                          >
-                            {vehicle.plate}
-                          </TableCell>
-                        )}
-
-                        {/* Columna STATES */}
-                        <TableCell
-                          align="center"
-                          sx={{
-                            position: 'sticky',
-                            left: 80,
-                            backgroundColor: sIdx % 2 === 0 ? '#ffffff' : '#f9f9f9',
-                            zIndex: 2,
-                            borderRight: '1px solid #e0e0e0',
-                            borderBottom: '1px solid rgba(224, 224, 224, 1)',
-                            whiteSpace: 'nowrap',
-                            padding: '8px 4px',
-                            fontSize: '0.9rem',
-                            minWidth: '100px',
-                            fontWeight: 'bold'
-                          }}
-                        >
-                          {stateCodeToName(state.code, true) || '-'}
-                        </TableCell>
-
-                        {/* Datos mensuales */}
-                        {months.map((month, mIdx) => {
-                          // Asegurarse de que el formato de monthKey coincida con el usado en el procesamiento
-                          const monthKey = `${month.year}-${String(month.month + 1).padStart(2, '0')}`;
-                          const monthData = state.months.get(monthKey) || { miles: 0, gallons: 0, hasData: false };
-
-                          // Depuración
-                          // console.log(`Mostrando datos para ${monthKey}:`, monthData);
-
-                          return (
-                            <React.Fragment key={monthKey}>
-                              <TableCell
-                                align="center"
-                                sx={{
-                                  minWidth: '80px',
-                                  backgroundColor: sIdx % 2 === 0 ? '#ffffff' : '#f9f9f9',
-                                  fontFamily: 'monospace',
-                                  fontSize: '0.85rem',
-                                  padding: '4px 2px',
-                                  color: monthData.hasData ? 'inherit' : '#999',
-                                  fontStyle: monthData.hasData ? 'normal' : 'italic'
-                                }}
-                              >
-                                {monthData.hasData ? formatNumber(monthData.miles) : '-'}
-                              </TableCell>
-                              <TableCell
-                                align="center"
-                                sx={{
-                                  minWidth: '80px',
-                                  backgroundColor: sIdx % 2 === 0 ? '#ffffff' : '#f9f9f9',
-                                  borderRight: mIdx === months.length - 1 ? '1px solid #e0e0e0' : 'none',
-                                  fontFamily: 'monospace',
-                                  fontSize: '0.85rem',
-                                  padding: '4px 2px',
-                                  color: monthData.hasData ? 'inherit' : '#999',
-                                  fontStyle: monthData.hasData ? 'normal' : 'italic'
-                                }}
-                              >
-                                {monthData.hasData ? formatNumber(monthData.gallons) : '-'}
-                              </TableCell>
-                            </React.Fragment>
-                          );
-                        })}
-
-                        {/* Columnas fijas de totales */}
-                        <TableCell
-                          align="center"
-                          sx={{
-                            fontWeight: 'bold',
-                            position: 'sticky',
-                            right: 100,
-                            backgroundColor: sIdx % 2 === 0 ? '#ffffff' : '#f9f9f9',
-                            zIndex: 2,
-                            borderLeft: '1px solid #e0e0e0',
-                            fontFamily: 'monospace',
-                            fontSize: '0.9rem'
-                          }}
-                        >
-                          {formatNumber(state.totalMiles)}
-                        </TableCell>
-
-                        <TableCell
-                          align="center"
-                          sx={{
-                            fontWeight: 'bold',
-                            position: 'sticky',
-                            right: 0,
-                            backgroundColor: sIdx % 2 === 0 ? '#ffffff' : '#f9f9f9',
-                            zIndex: 2,
-                            borderRight: '1px solid #e0e0e0',
-                            fontFamily: 'monospace',
-                            fontSize: '0.9rem'
-                          }}
-                        >
-                          {formatNumber(state.totalGallons)}
-                        </TableCell>
-                      </TableRow>
-                    ));
-                  });
-
-                  // Add the grand total row at the end
-                  rows.push(
-                    <TableRow key="grand-total" sx={{ '&:last-child td': { borderBottom: 0 }, backgroundColor: 'action.hover' }}>
-                      <TableCell
-                        colSpan={2 + vehicleStateTableData.months.length * 2}
-                        align="right"
-                        sx={{
-                          fontWeight: 'bold',
-                          borderRight: '1px solid #e0e0e0',
-                          padding: '8px 16px',
-                          textTransform: 'uppercase',
-                          fontSize: '0.8rem'
-                        }}
-                      >
-                        TOTAL GENERAL
-                      </TableCell>
-                      <TableCell
-                        align="right"
-                        sx={{
-                          fontWeight: 'bold',
-                          borderRight: '1px solid #e0e0e0',
-                          padding: '8px 16px',
-                          backgroundColor: '#e8f5e9'
-                        }}
-                      >
-                        {formatNumber(grandTotalMiles)}
-                      </TableCell>
-                      <TableCell
-                        align="right"
-                        sx={{
-                          fontWeight: 'bold',
-                          padding: '8px 16px',
-                          backgroundColor: '#e8f5e9'
-                        }}
-                      >
-                        {formatNumber(grandTotalGallons)}
-                      </TableCell>
-                    </TableRow>
-                  );
-
-                  return rows;
-                })()}
-              </TableBody>
-            </Table>
-          </TableContainer>
+      {/* Monthly Detail Table */}
+      <Card sx={{ 
+        mb: 3,
+        boxShadow: '0 4px 20px 0 rgba(0,0,0,0.05)',
+        borderRadius: 2,
+        border: '1px solid rgba(0, 0, 0, 0.05)'
+      }}>
+        <CardContent sx={{ p: 3 }}>
+          <Box sx={{ 
+            display: 'flex',
+            alignItems: 'center',
+            mb: 3,
+            pb: 2,
+            borderBottom: '1px solid rgba(0, 0, 0, 0.08)'
+          }}>
+            <AssignmentIcon color="primary" sx={{ mr: 1.5 }} />
+            <Typography variant="h6" sx={{ 
+              fontWeight: 600,
+              color: 'text.primary',
+              letterSpacing: '0.5px'
+            }}>
+              Detalle por Mes y Estado
+            </Typography>
+          </Box>
+          
+          <Box sx={{ 
+            borderRadius: 2,
+            overflow: 'hidden',
+            border: '1px solid rgba(0, 0, 0, 0.08)'
+          }}>
+            {renderVehicleStateTable()}
+          </Box>
         </CardContent>
       </Card>
 
@@ -2077,21 +1790,6 @@ const DeclarationDetail = () => {
           </TableContainer>
         </CardContent>
       </Card>
-
-      {/* Monthly Detail Table */}
-      <Card sx={{ mb: 3 }}>
-        <Box sx={{ p: 2 }}>
-          <Typography variant="h6" gutterBottom>
-            DETALLE POR MES Y ESTADO
-          </Typography>
-          <Box sx={{ mt: 2, mb: 2 }}>
-
-          </Box>
-          {renderVehicleStateTable()}
-        </Box>
-      </Card>
-
-
 
       {/* Tab Content */}
       {activeTab === 0 && (
@@ -2204,16 +1902,29 @@ const DeclarationDetail = () => {
       {/* Action Buttons */}
       <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, mt: 3, mb: 3 }}>
         {reportData.status !== 'completed' && (
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={handleCompleteDeclaration}
-            disabled={updatingStatus}
-            startIcon={updatingStatus ? <CircularProgress size={20} /> : null}
-            sx={{ minWidth: '200px' }}
-          >
-            {updatingStatus ? 'Procesando...' : 'Completar Declaración'}
-          </Button>
+          isAdmin ? (
+            // Botón para administradores
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={handleCompleteDeclaration}
+              disabled={updatingStatus}
+              startIcon={updatingStatus ? <CircularProgress size={20} /> : null}
+              sx={{ minWidth: '200px' }}
+            >
+              {updatingStatus ? 'Procesando...' : 'Completar Declaración'}
+            </Button>
+          ) : (
+            // Botón para usuarios no administradores
+            <Button
+              variant="contained"
+              color="primary"
+              disabled
+              sx={{ minWidth: '200px', backgroundColor: 'grey.400', '&:hover': { backgroundColor: 'grey.500' } }}
+            >
+              En proceso de Declaración
+            </Button>
+          )
         )}
       </Box>
 

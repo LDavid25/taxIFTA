@@ -45,7 +45,7 @@ import LoadingScreen from '../../components/common/LoadingScreen';
 
 const DeclarationList = () => {
   const navigate = useNavigate();
-  const { currentUser } = useAuth();
+  const { currentUser, isAdmin } = useAuth();
   const [loading, setLoading] = useState(true);
   const [groupedReports, setGroupedReports] = useState([]);
   const [alert, setAlert] = useState({ open: false, message: '', severity: 'info' });
@@ -101,13 +101,18 @@ const DeclarationList = () => {
         });
         
         // Obtener los reportes del servicio
-        // // console.log('Obteniendo reportes...');
-        const reports = await getGroupedQuarterlyReports();
+        // console.log('Obteniendo reportes...');
+        let reports = await getGroupedQuarterlyReports();
         
-        // // console.log('=== Reportes recibidos correctamente ===');
-        // // console.log('Cantidad de reportes:', reports.length);
-        // // console.log('Estructura del primer reporte:', JSON.stringify(reports[0], null, 2));
-        // // console.log('Todas las claves del primer reporte:', Object.keys(reports[0] || {}));
+        // Si el usuario no es administrador, filtrar por su compañía
+        if (!isAdmin && currentUser?.companyId) {
+          console.log('Filtrando reportes por compañía del usuario:', currentUser.companyId);
+          reports = reports.filter(report => 
+            report.company_id === currentUser.companyId || 
+            report.companyId === currentUser.companyId
+          );
+          console.log(`Reportes después del filtrado: ${reports.length} encontrados`);
+        }
         
         // Cargar reportes individuales para los reportes válidos
         const validReportsPromises = reports
@@ -139,7 +144,9 @@ const DeclarationList = () => {
         if (reports.length === 0) {
           setAlert({
             open: true,
-            message: 'No se encontraron reportes trimestrales',
+            message: isAdmin 
+              ? 'No se encontraron reportes trimestrales' 
+              : 'No se encontraron reportes para su compañía',
             severity: 'info'
           });
         }

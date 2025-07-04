@@ -38,7 +38,12 @@ import {
   Cancel as CancelIcon,
   Pending as PendingIcon,
   Check as CheckIcon,
-  Edit as EditIcon
+  Edit as EditIcon,
+  PictureAsPdf as PictureAsPdfIcon,
+  Image as ImageIcon,
+  InsertDriveFile as InsertDriveFileIcon,
+  Visibility as VisibilityIcon,
+  FolderOpen as FolderOpenIcon,
 } from '@mui/icons-material';
 import { useTheme as useMuiTheme } from '@mui/material/styles';
 import { format, parseISO, parse } from 'date-fns';
@@ -48,7 +53,8 @@ import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { 
   getConsumptionReportById, 
   updateConsumptionReport,
-  updateConsumptionReportStatus 
+  updateConsumptionReportStatus,
+  getReportAttachments
 } from '../../services/consumptionService';
 import { getStatesByReportId } from '../../services/iftaReportState.service';
 import { CircularProgress, Alert } from '@mui/material';
@@ -151,6 +157,8 @@ const ConsumptionDetail = () => {
   // Estados del componente
   const [report, setReport] = useState(null);
   const [reportStates, setReportStates] = useState([]);
+  const [attachments, setAttachments] = useState([]);
+  const [loadingAttachments, setLoadingAttachments] = useState(false);
   const [statusAnchorEl, setStatusAnchorEl] = useState(null);
   const [anchorEl, setAnchorEl] = useState(null);
   const [alert, setAlert] = useState({ open: false, message: '', severity: 'info' });
@@ -187,23 +195,26 @@ const ConsumptionDetail = () => {
 
   // Opciones de estado para el menú desplegable
   const consumption = report || {}; // Asegurar que siempre sea un objeto
-  
   // Crear un objeto seguro para consumo que nunca sea undefined
-  const safeConsumption = useMemo(() => ({
-    ...consumption,
-    states: Array.isArray(consumption.states) ? consumption.states : [],
-    notes: consumption.notes || '',
-    id: consumption.id || '',
-    status: consumption.status || 'in_progress',
-    statusLabel: consumption.statusLabel || 'En Progreso',
-    date: consumption.date || new Date(),
-    created_at: consumption.created_at || new Date().toISOString(),
-    vehicle_plate: consumption.vehicle_plate || 'N/A',
-    totalMiles: consumption.totalMiles || 0,
-    totalGallons: consumption.totalGallons || 0,
-    mpg: consumption.mpg || 0,
-    stateCodes: consumption.stateCodes || ''
-  }), [consumption]);
+  const safeConsumption = useMemo(() => {
+    return {
+      ...consumption,
+      states: Array.isArray(consumption.states) ? consumption.states : [],
+      notes: consumption.notes || '',
+      id: consumption.id || '',
+      status: consumption.status || 'in_progress',
+      files: attachments, // Incluir archivos adjuntos
+      statusLabel: consumption.statusLabel || 'En Progreso',
+      date: consumption.date || new Date(),
+      created_at: consumption.created_at || new Date().toISOString(),
+      vehicle_plate: consumption.vehicle_plate || 'N/A',
+
+      totalMiles: consumption.totalMiles || 0,
+      totalGallons: consumption.totalGallons || 0,
+      mpg: consumption.mpg || 0,
+      stateCodes: consumption.stateCodes || ''
+    };
+  }, [consumption, currentUser]);
 
   // Opciones de estado para el menú desplegable
   const statusOptions = [
@@ -212,12 +223,6 @@ const ConsumptionDetail = () => {
       label: 'In Progress', 
       icon: <EditIcon />,
       color: 'warning'
-    },
-    { 
-      value: 'sent', 
-      label: 'Sent', 
-      icon: <CloudUploadIcon />,
-      color: 'info'
     },
     { 
       value: 'completed', 
@@ -359,79 +364,22 @@ const ConsumptionDetail = () => {
 
   // Efecto para cargar los datos del informe
   useEffect(() => {
-    console.log('[useEffect] Iniciando carga de datos...');
-    
     const fetchReport = async () => {
       try {
-        console.log('[fetchReport] Iniciando...');
         setLoading(true);
-        setError(null);
-        setReportStates([]); // Resetear estados al cargar un nuevo reporte
-
-        // Si ya tenemos los datos en el estado de ubicación, los usamos
-        if (locationState) {
-          console.log('[fetchReport] Usando datos del estado de ubicación:', locationState);
-          // Asegurarse de que states sea un array
-          const reportWithStates = {
-            ...locationState,
-            states: Array.isArray(locationState.states) ? locationState.states : []
-          };
-          const formattedData = formatReportData(reportWithStates);
-          console.log('[fetchReport] Datos formateados:', formattedData);
-          setReport(formattedData);
-          
-          // Obtener los estados del reporte si existe un ID
-          if (reportWithStates?.id) {
-            console.log(`[fetchReport] Obteniendo estados para el reporte ID: ${reportWithStates.id}`);
-            await fetchReportStates(reportWithStates.id);
-          } else {
-            console.warn('[fetchReport] No se encontró ID en locationState');
-          }
-          
-          setLoading(false);
-          return;
-        }
-
-        console.log(`[fetchReport] Obteniendo datos del reporte con ID: ${id}`);
-        const response = await getConsumptionReportById(id);
-        console.log('[fetchReport] Respuesta de getConsumptionReportById:', response);
+        const reportData = await getConsumptionReportById(id);
+        setReport(reportData);
         
-        const reportData = response.data || response; // Manejar diferentes formatos de respuesta
-        console.log('[fetchReport] Datos del reporte procesados:', reportData);
-        
-        if (!reportData) {
-          const errorMsg = 'No se encontró el informe solicitado';
-          console.error(`[fetchReport] ${errorMsg}`);
-          throw new Error(errorMsg);
-        }
-        
-        // Asegurarse de que states sea un array
-        const reportWithStates = {
-          ...reportData,
-          states: Array.isArray(reportData.states) ? reportData.states : []
-        };
-        
-        const formattedData = formatReportData(reportWithStates);
-        console.log('[fetchReport] Datos formateados:', formattedData);
-        setReport(formattedData);
-        
-        // Obtener los estados del reporte si existe un ID
-        if (reportData?.id) {
-          console.log(`[fetchReport] Obteniendo estados para el reporte ID: ${reportData.id}`);
-          await fetchReportStates(reportData.id);
+        // Cargar estados del informe si es necesario
+        if (reportData.states && reportData.states.length > 0) {
+          setReportStates(reportData.states);
         } else {
-          console.warn('[fetchReport] No se encontró ID en reportData');
+          const states = await getStatesByReportId(id);
+          setReportStates(states);
         }
-        
       } catch (err) {
-        const errorMessage = err.response?.data?.message || err.message || 'Error al cargar el informe';
-        console.error('[fetchReport] Error:', errorMessage, err);
-        setError(errorMessage);
-        
-        enqueueSnackbar(errorMessage, { 
-          variant: 'error',
-          autoHideDuration: 5000
-        });
+        console.error('Error al cargar el informe:', err);
+        setError(err.message || 'Error al cargar el informe');
         
         // Redirigir a la lista de informes después de mostrar el error
         setTimeout(() => {
@@ -445,6 +393,29 @@ const ConsumptionDetail = () => {
 
     fetchReport();
   }, [id, locationState, enqueueSnackbar, navigate, fetchReportStates]);
+
+  // Efecto para cargar los archivos adjuntos cuando el ID del informe está disponible
+  useEffect(() => {
+    const fetchAttachments = async () => {
+      if (!id) return;
+      
+      try {
+        setLoadingAttachments(true);
+        const attachmentsData = await getReportAttachments(id);
+        setAttachments(attachmentsData);
+      } catch (err) {
+        console.error('Error al cargar archivos adjuntos:', err);
+        enqueueSnackbar('Error al cargar los archivos adjuntos', { 
+          variant: 'error',
+          autoHideDuration: 3000
+        });
+      } finally {
+        setLoadingAttachments(false);
+      }
+    };
+
+    fetchAttachments();
+  }, [id, enqueueSnackbar]);
 
   const handleAlertClose = () => {
     setAlert(prev => ({ ...prev, open: false }));
@@ -547,29 +518,6 @@ const ConsumptionDetail = () => {
     window.print();
   };
 
-  const handleEdit = () => {
-    if (id) {
-      // Determinar la ruta base según el rol del usuario
-      const basePath = currentUser?.role === 'admin' ? '/admin' : '/client';
-      navigate(`${basePath}/consumption/edit/${id}`);
-    } else {
-      enqueueSnackbar('No se puede editar el informe sin un ID válido', { variant: 'error' });
-    }
-  };
-
-  const handleDownload = () => {
-    console.log('Downloading consumption:', id);
-    // Here would be the download logic
-  };
-
-  const handleDelete = () => {
-    if (window.confirm('Are you sure you want to delete this consumption record?')) {
-      console.log('Deleting consumption:', id);
-      // Here would be the delete logic
-      const basePath = currentUser?.role === 'admin' ? '/admin' : '/client';
-      navigate(`${basePath}/consumption`);
-    }
-  };
 
   if (loading) {
     return (
@@ -667,28 +615,36 @@ const ConsumptionDetail = () => {
                 </Link>
                 <Typography color="text.primary">Detalles del Informe</Typography>
               </Breadcrumbs>
-              <Box display="flex" alignItems="center" mt={1}>
-                <Typography variant="h4" component="h1" sx={{ mr: 2 }}>
-                  Informe de Consumo: {safeConsumption.vehicle_plate}
+              
+              <Box mt={1}>
+                {safeConsumption.company_name && (
+                  <Typography variant="h6" component="div" color="text.primary" mb={1}>
+                    {safeConsumption.company_name}
+                  </Typography>
+                )}
+                <Box display="flex" alignItems="center" gap={2} mb={1}>
+                  <Typography variant="h4" component="h1">
+                    Informe de Consumo: {safeConsumption.vehicle_plate}
+                  </Typography>
+                  <Chip 
+                    key={`status-${safeConsumption.status}`}
+                    label={translateStatus(safeConsumption.status) || 'Unknown'}
+                    color={getStatusColor(safeConsumption.status)} 
+                    size="small"
+                    variant="outlined"
+                    sx={{ 
+                      textTransform: 'none',
+                      fontWeight: 'medium',
+                      '& .MuiChip-label': {
+                        textTransform: 'none'
+                      }
+                    }}
+                  />
+                </Box>
+                <Typography variant="subtitle1" color="text.secondary">
+                  Período: {reportDate} • Creado: {createdAt}
                 </Typography>
-                <Chip 
-                  key={`status-${safeConsumption.status}`} // Force re-render on status change
-                  label={translateStatus(safeConsumption.status) || 'Unknown'}
-                  color={getStatusColor(safeConsumption.status)} 
-                  size="small" 
-                  variant="outlined"
-                  sx={{ 
-                    textTransform: 'none',
-                    fontWeight: 'medium',
-                    '& .MuiChip-label': {
-                      textTransform: 'none'
-                    }
-                  }}
-                />
               </Box>
-              <Typography variant="subtitle1" color="text.secondary">
-                Período: {reportDate} • Creado: {createdAt}
-              </Typography>
             </Grid>
             <Grid item>
               <Box display="flex" gap={1}>
@@ -698,13 +654,6 @@ const ConsumptionDetail = () => {
                   onClick={handlePrint}
                 >
                   Imprimir
-                </Button>
-                <Button
-                  variant="outlined"
-                  startIcon={<DownloadIcon />}
-                  onClick={handleDownload}
-                >
-                  Exportar
                 </Button>
               </Box>
             </Grid>
@@ -725,7 +674,7 @@ const ConsumptionDetail = () => {
                     </TableRow>
                     <TableRow>
                       <TableCell component="th" scope="row" sx={{ fontWeight: 'bold', border: 'none' }}>Fecha</TableCell>
-                      <TableCell sx={{ border: 'none' }}>{formatDate(safeConsumption.date)}</TableCell>
+                      <TableCell sx={{ border: 'none' }}>{formatDate(safeConsumption.created_at)}</TableCell>
                     </TableRow>
                     <TableRow>
                       <TableCell component="th" scope="row" sx={{ fontWeight: 'bold', border: 'none' }}>Mes de Consumo</TableCell>
@@ -907,16 +856,6 @@ const ConsumptionDetail = () => {
                   </TableBody>
                 </Table>
               </TableContainer>
-
-              <Box mt={3} display="flex" justifyContent="flex-end" gap={2}>
-                <Button
-                  variant="contained"
-                  startIcon={<EditIcon />}
-                  onClick={handleEdit}
-                >
-                  Editar
-                </Button>
-              </Box>
             </Paper>
           </Grid>
 
@@ -926,13 +865,15 @@ const ConsumptionDetail = () => {
               <CardContent>
                 <Typography variant="h6" fontWeight="bold" gutterBottom>Resumen de Eficiencia</Typography>
                 <Divider sx={{ mb: 2 }} />
-                <Box mb={3}>
-                  <Typography variant="subtitle2" color="text.secondary">MPG Promedio</Typography>
-                  <Typography variant="h4" color="primary">
-                    {parseFloat(averageMPG).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} 
-                    <Typography component="span" variant="body2" color="text.secondary">mpg</Typography>
+                {currentUser?.role === 'admin' && (
+                  <Box mb={3}>
+                    <Typography variant="subtitle2" color="text.secondary">MPG Promedio</Typography>
+                    <Typography variant="h4" color="primary">
+                      {parseFloat(averageMPG).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} 
+                      <Typography component="span" variant="body2" color="text.secondary">mpg</Typography>
                   </Typography>
                 </Box>
+                )}
                 <Box mb={3}>
                   <Typography variant="subtitle2" color="text.secondary">Millas Totales</Typography>
                   <Typography variant="h5">
@@ -960,6 +901,148 @@ const ConsumptionDetail = () => {
                   value={safeConsumption.notes || 'Sin notas'} 
                   style={{ width: '100%', padding: '8px', border: '1px solid #e0e0e0', borderRadius: '4px' }}
                 />
+              </CardContent>
+            </Card>
+
+            {/* Archivos Adjuntos Section */}
+            <Card elevation={2} sx={{ mt: 3, mb: 3 }}>
+              <CardContent>
+                <Typography variant="h6" fontWeight="bold" gutterBottom>
+                  Archivos Adjuntos
+                  {loadingAttachments && (
+                    <CircularProgress size={20} sx={{ ml: 1 }} />
+                  )}
+                </Typography>
+                <Divider sx={{ mb: 2 }} />
+                {loadingAttachments ? (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
+                    <CircularProgress />
+                  </Box>
+                ) : error ? (
+                  <Alert severity="error" sx={{ mb: 2 }}>
+                    Error al cargar los archivos adjuntos
+                  </Alert>
+                ) : safeConsumption.files && safeConsumption.files.length > 0 ? (
+                  <Box sx={{ maxHeight: '300px', overflowY: 'auto' }}>
+                    {safeConsumption.files.map((file, index) => {
+                      const isImage = file.type?.startsWith('image/');
+                      const isPDF = file.name?.toLowerCase().endsWith('.pdf');
+                      
+                      return (
+                        <Box 
+                          key={index} 
+                          sx={{ 
+                            display: 'flex', 
+                            flexDirection: 'column',
+                            p: 2, 
+                            mb: 2, 
+                            border: '1px solid',
+                            borderColor: 'divider',
+                            borderRadius: 1,
+                            '&:hover': {
+                              backgroundColor: 'action.hover',
+                            }
+                          }}
+                        >
+                          <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                            {isPDF ? (
+                              <PictureAsPdfIcon color="error" sx={{ mr: 1 }} />
+                            ) : isImage ? (
+                              <ImageIcon color="primary" sx={{ mr: 1 }} />
+                            ) : (
+                              <InsertDriveFileIcon color="action" sx={{ mr: 1 }} />
+                            )}
+                            <Typography variant="body2" noWrap sx={{ flex: 1 }}>
+                              {file.name || `Archivo ${index + 1}`}
+                            </Typography>
+                            <IconButton 
+                              size="small"
+                              onClick={() => window.open(file.url, '_blank')}
+                              title="Ver archivo"
+                            >
+                              <VisibilityIcon fontSize="small" />
+                            </IconButton>
+                            <IconButton 
+                              size="small"
+                              onClick={() => {
+                                const link = document.createElement('a');
+                                link.href = file.url;
+                                link.download = file.name || 'descarga';
+                                document.body.appendChild(link);
+                                link.click();
+                                document.body.removeChild(link);
+                              }}
+                              title="Descargar archivo"
+                            >
+                              <DownloadIcon fontSize="small" />
+                            </IconButton>
+                          </Box>
+                          
+                          {isImage && (
+                            <Box 
+                              sx={{ 
+                                mt: 1, 
+                                width: '100%', 
+                                height: '200px', 
+                                overflow: 'hidden',
+                                display: 'flex',
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                                backgroundColor: '#f5f5f5',
+                                borderRadius: 1
+                              }}
+                            >
+                              <img 
+                                src={file.url} 
+                                alt={file.name || 'Imagen adjunta'}
+                                style={{ 
+                                  maxWidth: '100%', 
+                                  maxHeight: '100%',
+                                  objectFit: 'contain' 
+                                }}
+                              />
+                            </Box>
+                          )}
+                          
+                          {isPDF && (
+                            <Box 
+                              sx={{ 
+                                mt: 1, 
+                                width: '100%', 
+                                height: '200px',
+                                display: 'flex',
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                                backgroundColor: '#f5f5f5',
+                                borderRadius: 1,
+                                flexDirection: 'column',
+                                color: 'text.secondary'
+                              }}
+                            >
+                              <PictureAsPdfIcon sx={{ fontSize: 60, mb: 1, color: 'error.main' }} />
+                              <Typography variant="caption">Documento PDF</Typography>
+                            </Box>
+                          )}
+                        </Box>
+                      );
+                    })}
+                  </Box>
+                ) : (
+                  <Box 
+                    sx={{ 
+                      display: 'flex', 
+                      flexDirection: 'column', 
+                      alignItems: 'center', 
+                      justifyContent: 'center', 
+                      p: 3,
+                      textAlign: 'center',
+                      color: 'text.secondary'
+                    }}
+                  >
+                    <FolderOpenIcon sx={{ fontSize: 40, mb: 1, opacity: 0.6 }} />
+                    <Typography variant="body2">No hay archivos adjuntos</Typography>
+                  </Box>
+                )}
               </CardContent>
             </Card>
           </Grid>

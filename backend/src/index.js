@@ -23,6 +23,7 @@ const companyRoutes = require('./routes/company.routes');
 const testRoutes = require('./routes/test.routes');
 const quarterlyReportRoutes = require('./routes/quarterlyReport.routes');
 const dashboardRoutes = require('./routes/dashboard.routes');
+const attachmentRoutes = require('./routes/attachment.routes');
 
 // Log route loading
 console.log('Routes being loaded:');
@@ -82,14 +83,29 @@ app.use(
 
 // Enable CORS with specific origin
 const corsOptions = {
-  origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
+  origin: function (origin, callback) {
+    const allowedOrigins = ['http://localhost:3000', 'http://127.0.0.1:3000'];
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) === -1) {
+      const msg = `The CORS policy for this site does not allow access from the specified Origin: ${origin}`;
+      console.error(msg);
+      return callback(new Error(msg), false);
+    }
+    return callback(null, true);
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  optionsSuccessStatus: 200 // some legacy browsers (IE11, various SmartTVs) choke on 204
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Content-Length', 'Accept', 'Origin'],
+  exposedHeaders: ['Content-Length', 'X-Foo', 'X-Bar'],
+  optionsSuccessStatus: 200, // some legacy browsers (IE11, various SmartTVs) choke on 204
+  preflightContinue: false
 };
-app.use(cors(corsOptions));
+
+// Enable pre-flight across-the-board
 app.options('*', cors(corsOptions));
+app.use(cors(corsOptions));
 
 // Compression
 app.use(compression());
@@ -129,6 +145,7 @@ registerRoute('/v1/dashboard', dashboardRoutes);
 registerRoute('/v1/companies', companyRoutes);
 registerRoute('/v1/test', testRoutes);
 registerRoute('/v1/quarterly-reports', quarterlyReportRoutes);
+registerRoute('', attachmentRoutes); // Rutas de archivos adjuntos
 
 // Simple test route
 app.get('/api/ping', (req, res) => {
