@@ -1146,7 +1146,7 @@ const DeclarationDetail = () => {
                         textOverflow: 'ellipsis',
                         fontWeight: 500,
                       }}>
-                        {state.code}
+                        {`${state.code} - ${stateCodeToName(state.code)}`}
                       </Box>
                     </TableCell>
                     

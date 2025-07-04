@@ -225,28 +225,6 @@ export const deleteConsumptionReport = async (id) => {
   }
 };
 
-/**
- * Obtiene los archivos adjuntos de un informe de consumo
- * @param {string} reportId - ID del informe
- * @returns {Promise<Array>} - Lista de archivos adjuntos
- */
-export const getReportAttachments = async (reportId) => {
-  try {
-    if (!reportId) {
-      throw new Error('ID de informe no proporcionado');
-    }
-    
-    const response = await api.get(`/v1/reports/${reportId}/attachments`);
-    return response.data.data || [];
-  } catch (error) {
-    console.error('Error al obtener archivos adjuntos:', error);
-    throw error.response?.data || { 
-      message: 'Error al obtener los archivos adjuntos',
-      details: error.message 
-    };
-  }
-};
-
 // Verificar si ya existe un informe para la unidad y período
 export const checkExistingReport = async (vehiclePlate, year, month) => {
   try {

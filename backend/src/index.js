@@ -23,7 +23,6 @@ const companyRoutes = require('./routes/company.routes');
 const testRoutes = require('./routes/test.routes');
 const quarterlyReportRoutes = require('./routes/quarterlyReport.routes');
 const dashboardRoutes = require('./routes/dashboard.routes');
-const attachmentRoutes = require('./routes/attachment.routes');
 
 // Log route loading
 console.log('Routes being loaded:');
@@ -145,7 +144,6 @@ registerRoute('/v1/dashboard', dashboardRoutes);
 registerRoute('/v1/companies', companyRoutes);
 registerRoute('/v1/test', testRoutes);
 registerRoute('/v1/quarterly-reports', quarterlyReportRoutes);
-registerRoute('', attachmentRoutes); // Rutas de archivos adjuntos
 
 // Simple test route
 app.get('/api/ping', (req, res) => {

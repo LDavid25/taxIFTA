@@ -39,11 +39,6 @@ import {
   Pending as PendingIcon,
   Check as CheckIcon,
   Edit as EditIcon,
-  PictureAsPdf as PictureAsPdfIcon,
-  Image as ImageIcon,
-  InsertDriveFile as InsertDriveFileIcon,
-  Visibility as VisibilityIcon,
-  FolderOpen as FolderOpenIcon,
 } from '@mui/icons-material';
 import { useTheme as useMuiTheme } from '@mui/material/styles';
 import { format, parseISO, parse } from 'date-fns';
@@ -53,8 +48,7 @@ import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { 
   getConsumptionReportById, 
   updateConsumptionReport,
-  updateConsumptionReportStatus,
-  getReportAttachments
+  updateConsumptionReportStatus 
 } from '../../services/consumptionService';
 import { getStatesByReportId } from '../../services/iftaReportState.service';
 import { CircularProgress, Alert } from '@mui/material';
@@ -157,8 +151,6 @@ const ConsumptionDetail = () => {
   // Estados del componente
   const [report, setReport] = useState(null);
   const [reportStates, setReportStates] = useState([]);
-  const [attachments, setAttachments] = useState([]);
-  const [loadingAttachments, setLoadingAttachments] = useState(false);
   const [statusAnchorEl, setStatusAnchorEl] = useState(null);
   const [anchorEl, setAnchorEl] = useState(null);
   const [alert, setAlert] = useState({ open: false, message: '', severity: 'info' });
@@ -197,13 +189,15 @@ const ConsumptionDetail = () => {
   const consumption = report || {}; // Asegurar que siempre sea un objeto
   // Crear un objeto seguro para consumo que nunca sea undefined
   const safeConsumption = useMemo(() => {
+    // Obtener el nombre de la empresa del contexto de autenticación
+    
+    
     return {
       ...consumption,
       states: Array.isArray(consumption.states) ? consumption.states : [],
       notes: consumption.notes || '',
       id: consumption.id || '',
       status: consumption.status || 'in_progress',
-      files: attachments, // Incluir archivos adjuntos
       statusLabel: consumption.statusLabel || 'En Progreso',
       date: consumption.date || new Date(),
       created_at: consumption.created_at || new Date().toISOString(),
@@ -364,22 +358,81 @@ const ConsumptionDetail = () => {
 
   // Efecto para cargar los datos del informe
   useEffect(() => {
+    console.log('[useEffect] Iniciando carga de datos...');
+    
     const fetchReport = async () => {
       try {
+        console.log('[fetchReport] Iniciando...');
         setLoading(true);
-        const reportData = await getConsumptionReportById(id);
-        setReport(reportData);
-        
-        // Cargar estados del informe si es necesario
-        if (reportData.states && reportData.states.length > 0) {
-          setReportStates(reportData.states);
-        } else {
-          const states = await getStatesByReportId(id);
-          setReportStates(states);
+        setError(null);
+        setReportStates([]); // Resetear estados al cargar un nuevo reporte
+
+        // Si ya tenemos los datos en el estado de ubicación, los usamos
+        if (locationState) {
+          console.log('[fetchReport] Usando datos del estado de ubicación:', locationState);
+          // Asegurarse de que states sea un array
+          const reportWithStates = {
+            ...locationState,
+            states: Array.isArray(locationState.states) ? locationState.states : []
+          };
+          const formattedData = formatReportData(reportWithStates);
+          console.log('[fetchReport] Datos formateados:', formattedData);
+          setReport(formattedData);
+          
+          // Obtener los estados del reporte si existe un ID
+          if (reportWithStates?.id) {
+            console.log(`[fetchReport] Obteniendo estados para el reporte ID: ${reportWithStates.id}`);
+            await fetchReportStates(reportWithStates.id);
+          } else {
+            console.warn('[fetchReport] No se encontró ID en locationState');
+          }
+          
+          setLoading(false);
+          return;
         }
+
+        console.log(`[fetchReport] Obteniendo datos del reporte con ID: ${id}`);
+        const response = await getConsumptionReportById(id);
+        console.log('[fetchReport] Respuesta de getConsumptionReportById:', response);
+        
+        const reportData = response.data || response; // Manejar diferentes formatos de respuesta
+        console.log('[fetchReport] Datos del reporte procesados:', reportData);
+        console.log('[fetchReport] company_name en los datos:', reportData.company_name);
+        console.log('[fetchReport] Estructura completa del reporte:', JSON.stringify(reportData, null, 2));
+        
+        if (!reportData) {
+          const errorMsg = 'No se encontró el informe solicitado';
+          console.error(`[fetchReport] ${errorMsg}`);
+          throw new Error(errorMsg);
+        }
+        
+        // Asegurarse de que states sea un array
+        const reportWithStates = {
+          ...reportData,
+          states: Array.isArray(reportData.states) ? reportData.states : []
+        };
+        
+        const formattedData = formatReportData(reportWithStates);
+        console.log('[fetchReport] Datos formateados:', formattedData);
+        setReport(formattedData);
+        
+        // Obtener los estados del reporte si existe un ID
+        if (reportData?.id) {
+          console.log(`[fetchReport] Obteniendo estados para el reporte ID: ${reportData.id}`);
+          await fetchReportStates(reportData.id);
+        } else {
+          console.warn('[fetchReport] No se encontró ID en reportData');
+        }
+        
       } catch (err) {
-        console.error('Error al cargar el informe:', err);
-        setError(err.message || 'Error al cargar el informe');
+        const errorMessage = err.response?.data?.message || err.message || 'Error al cargar el informe';
+        console.error('[fetchReport] Error:', errorMessage, err);
+        setError(errorMessage);
+        
+        enqueueSnackbar(errorMessage, { 
+          variant: 'error',
+          autoHideDuration: 5000
+        });
         
         // Redirigir a la lista de informes después de mostrar el error
         setTimeout(() => {
@@ -393,29 +446,6 @@ const ConsumptionDetail = () => {
 
     fetchReport();
   }, [id, locationState, enqueueSnackbar, navigate, fetchReportStates]);
-
-  // Efecto para cargar los archivos adjuntos cuando el ID del informe está disponible
-  useEffect(() => {
-    const fetchAttachments = async () => {
-      if (!id) return;
-      
-      try {
-        setLoadingAttachments(true);
-        const attachmentsData = await getReportAttachments(id);
-        setAttachments(attachmentsData);
-      } catch (err) {
-        console.error('Error al cargar archivos adjuntos:', err);
-        enqueueSnackbar('Error al cargar los archivos adjuntos', { 
-          variant: 'error',
-          autoHideDuration: 3000
-        });
-      } finally {
-        setLoadingAttachments(false);
-      }
-    };
-
-    fetchAttachments();
-  }, [id, enqueueSnackbar]);
 
   const handleAlertClose = () => {
     setAlert(prev => ({ ...prev, open: false }));
@@ -901,148 +931,6 @@ const ConsumptionDetail = () => {
                   value={safeConsumption.notes || 'Sin notas'} 
                   style={{ width: '100%', padding: '8px', border: '1px solid #e0e0e0', borderRadius: '4px' }}
                 />
-              </CardContent>
-            </Card>
-
-            {/* Archivos Adjuntos Section */}
-            <Card elevation={2} sx={{ mt: 3, mb: 3 }}>
-              <CardContent>
-                <Typography variant="h6" fontWeight="bold" gutterBottom>
-                  Archivos Adjuntos
-                  {loadingAttachments && (
-                    <CircularProgress size={20} sx={{ ml: 1 }} />
-                  )}
-                </Typography>
-                <Divider sx={{ mb: 2 }} />
-                {loadingAttachments ? (
-                  <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
-                    <CircularProgress />
-                  </Box>
-                ) : error ? (
-                  <Alert severity="error" sx={{ mb: 2 }}>
-                    Error al cargar los archivos adjuntos
-                  </Alert>
-                ) : safeConsumption.files && safeConsumption.files.length > 0 ? (
-                  <Box sx={{ maxHeight: '300px', overflowY: 'auto' }}>
-                    {safeConsumption.files.map((file, index) => {
-                      const isImage = file.type?.startsWith('image/');
-                      const isPDF = file.name?.toLowerCase().endsWith('.pdf');
-                      
-                      return (
-                        <Box 
-                          key={index} 
-                          sx={{ 
-                            display: 'flex', 
-                            flexDirection: 'column',
-                            p: 2, 
-                            mb: 2, 
-                            border: '1px solid',
-                            borderColor: 'divider',
-                            borderRadius: 1,
-                            '&:hover': {
-                              backgroundColor: 'action.hover',
-                            }
-                          }}
-                        >
-                          <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                            {isPDF ? (
-                              <PictureAsPdfIcon color="error" sx={{ mr: 1 }} />
-                            ) : isImage ? (
-                              <ImageIcon color="primary" sx={{ mr: 1 }} />
-                            ) : (
-                              <InsertDriveFileIcon color="action" sx={{ mr: 1 }} />
-                            )}
-                            <Typography variant="body2" noWrap sx={{ flex: 1 }}>
-                              {file.name || `Archivo ${index + 1}`}
-                            </Typography>
-                            <IconButton 
-                              size="small"
-                              onClick={() => window.open(file.url, '_blank')}
-                              title="Ver archivo"
-                            >
-                              <VisibilityIcon fontSize="small" />
-                            </IconButton>
-                            <IconButton 
-                              size="small"
-                              onClick={() => {
-                                const link = document.createElement('a');
-                                link.href = file.url;
-                                link.download = file.name || 'descarga';
-                                document.body.appendChild(link);
-                                link.click();
-                                document.body.removeChild(link);
-                              }}
-                              title="Descargar archivo"
-                            >
-                              <DownloadIcon fontSize="small" />
-                            </IconButton>
-                          </Box>
-                          
-                          {isImage && (
-                            <Box 
-                              sx={{ 
-                                mt: 1, 
-                                width: '100%', 
-                                height: '200px', 
-                                overflow: 'hidden',
-                                display: 'flex',
-                                justifyContent: 'center',
-                                alignItems: 'center',
-                                backgroundColor: '#f5f5f5',
-                                borderRadius: 1
-                              }}
-                            >
-                              <img 
-                                src={file.url} 
-                                alt={file.name || 'Imagen adjunta'}
-                                style={{ 
-                                  maxWidth: '100%', 
-                                  maxHeight: '100%',
-                                  objectFit: 'contain' 
-                                }}
-                              />
-                            </Box>
-                          )}
-                          
-                          {isPDF && (
-                            <Box 
-                              sx={{ 
-                                mt: 1, 
-                                width: '100%', 
-                                height: '200px',
-                                display: 'flex',
-                                justifyContent: 'center',
-                                alignItems: 'center',
-                                backgroundColor: '#f5f5f5',
-                                borderRadius: 1,
-                                flexDirection: 'column',
-                                color: 'text.secondary'
-                              }}
-                            >
-                              <PictureAsPdfIcon sx={{ fontSize: 60, mb: 1, color: 'error.main' }} />
-                              <Typography variant="caption">Documento PDF</Typography>
-                            </Box>
-                          )}
-                        </Box>
-                      );
-                    })}
-                  </Box>
-                ) : (
-                  <Box 
-                    sx={{ 
-                      display: 'flex', 
-                      flexDirection: 'column', 
-                      alignItems: 'center', 
-                      justifyContent: 'center', 
-                      p: 3,
-                      textAlign: 'center',
-                      color: 'text.secondary'
-                    }}
-                  >
-                    <FolderOpenIcon sx={{ fontSize: 40, mb: 1, opacity: 0.6 }} />
-                    <Typography variant="body2">No hay archivos adjuntos</Typography>
-                  </Box>
-                )}
               </CardContent>
             </Card>
           </Grid>

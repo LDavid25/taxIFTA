@@ -50,7 +50,8 @@ import {
   TableChart as TableChartIcon,
   ArrowBackIos as PrevIcon,
   ArrowForwardIos as NextIcon,
-  Assignment as AssignmentIcon
+  Assignment as AssignmentIcon,
+  Print as PrintIcon
 } from '@mui/icons-material';
 import { getDeclarationById } from '../../services/declarationService';
 import AlertMessage from '../../components/common/AlertMessage';
@@ -231,45 +232,26 @@ const DeclarationDetail = () => {
 
     setLoading(true);
     try {
+      // Fetch quarterly report details
       const response = await getQuarterlyReportDetails(companyId, quarter, year);
-
-      // Set report data
-      const reportData = {
-        id: response.data?.id, // Asegurarse de incluir el ID del reporte trimestral
-        quarter: response.data?.quarter,
-        year: response.data?.year,
-        status: response.data?.status,
-        reports: response.data?.reports || [],
-        monthly_breakdown: response.data?.monthly_breakdown || [],
-        state_totals: response.data?.state_totals || [],
-        individual_reports: response.data?.individual_reports || []
-      };
       
-      console.log('Datos del reporte trimestral:', {
-        id: reportData.id,
-        quarter: reportData.quarter,
-        year: reportData.year
+      // Add empty attachments array to each report
+      const processedReports = (response.data?.individual_reports || []).map(report => ({
+        ...report,
+        attachments: [] // Initialize with empty attachments array
+      }));
+      
+      // Set report data with processed reports
+      setReportData({
+        ...response.data,
+        individual_reports: processedReports
       });
-
-      console.log('IDEEEEEEEEEEEEEE',reportData);
-        
-
-      // console.log('Datos de la API - individual_reports:', reportData.individual_reports);
-
-      setReportData(reportData);
-
-      // Set company info if available
-      if (response.data?.company_name) {
-        setCompanyInfo({
-          id: companyId,
-          name: response.data.company_name
-        });
-      }
+      
     } catch (error) {
-      console.error('Error loading report data:', error);
+      console.error('Error fetching report data:', error);
       setAlert({
         open: true,
-        message: error.message || 'Error al cargar los datos del reporte',
+        message: 'Error al cargar los datos del reporte: ' + (error.response?.data?.message || error.message),
         severity: 'error'
       });
     } finally {
@@ -590,6 +572,11 @@ const DeclarationDetail = () => {
     'VA': '#ff5722', 'WA': '#f44336', 'WV': '#e91e63', 'WI': '#9c27b0', 'WY': '#3f51b5',
     'DC': '#2196f3', 'PR': '#00bcd4', 'GU': '#4caf50', 'VI': '#8bc34a', 'MP': '#ffeb3b',
     'AS': '#ffc107'
+  };
+
+  // Handle print
+  const handlePrint = () => {
+    window.print();
   };
 
   // Handle complete declaration
@@ -1287,7 +1274,7 @@ const DeclarationDetail = () => {
                         textOverflow: 'ellipsis',
                         fontWeight: 500,
                       }}>
-                        {state.code}
+                        {`${state.code} - ${stateCodeToName(state.code)}`}
                       </Box>
                     </TableCell>
 
@@ -1634,31 +1621,42 @@ const DeclarationDetail = () => {
               </FormControl>
             </Box>
 
-            {reportData.status !== 'completed' && (
-              isAdmin ? (
-                // Botón para administradores
-                <Button
-                  variant="contained"
-                  color="primary"
-                  onClick={handleCompleteDeclaration}
-                  disabled={updatingStatus}
-                  startIcon={updatingStatus ? <CircularProgress size={20} /> : null}
-                  sx={{ minWidth: '200px' }}
-                >
-                  {updatingStatus ? 'Procesando...' : 'Completar Declaración'}
-                </Button>
-          ) : (
-            // Botón para usuarios no administradores
-            <Button
-              variant="contained"
-              color="primary"
-              disabled
-              sx={{ minWidth: '200px', backgroundColor: 'grey.400', '&:hover': { backgroundColor: 'grey.500' } }}
-            >
-              En proceso de Declaración
-            </Button>
-          )
-        )} 
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              <Button
+                variant="outlined"
+                color="primary"
+                onClick={handlePrint}
+                startIcon={<PrintIcon />}
+                sx={{ minWidth: '120px' }}
+              >
+                Imprimir
+              </Button>
+              {reportData.status !== 'completed' && (
+                isAdmin ? (
+                  // Botón para administradores
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    onClick={handleCompleteDeclaration}
+                    disabled={updatingStatus}
+                    startIcon={updatingStatus ? <CircularProgress size={20} /> : null}
+                    sx={{ minWidth: '200px' }}
+                  >
+                    {updatingStatus ? 'Procesando...' : 'Completar Declaración'}
+                  </Button>
+                ) : (
+                  // Botón para usuarios no administradores
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    disabled
+                    sx={{ minWidth: '200px', backgroundColor: 'grey.400', '&:hover': { backgroundColor: 'grey.500' } }}
+                  >
+                    En proceso de Declaración
+                  </Button>
+                )
+              )}
+            </Box>
           </Box>
         </CardContent>
       </Card>
