@@ -21,6 +21,7 @@ import { useFormik } from 'formik';
 import * as Yup from 'yup';
 import AlertMessage from '../../components/common/AlertMessage';
 import { useAuth } from '../../context/AuthContext';
+import { updatePassword } from '../../services/authService';
 
 // Validation schema for profile update
 const profileValidationSchema = Yup.object({
@@ -103,28 +104,35 @@ const Profile = () => {
       confirm_password: ''
     },
     validationSchema: passwordValidationSchema,
-    onSubmit: async (values) => {
+    onSubmit: async (values, { resetForm }) => {
       setLoading(true);
       try {
-        // In a real implementation, this would call the API
-        // await changePassword(values);
+        // Call the API to update the password
+        await updatePassword(values.current_password, values.new_password);
         
-        // Simulate a successful update
-        setTimeout(() => {
-          setAlert({
-            open: true,
-            message: 'Password updated successfully',
-            severity: 'success'
-          });
-          passwordFormik.resetForm();
-          setLoading(false);
-        }, 1000);
-      } catch (error) {
+        // Show success message
         setAlert({
           open: true,
-          message: error.message || 'Error updating password',
+          message: '¡Contraseña actualizada exitosamente!',
+          severity: 'success'
+        });
+        
+        // Reset the form
+        resetForm();
+        
+        // Reset password visibility
+        setShowCurrentPassword(false);
+        setShowNewPassword(false);
+        setShowConfirmPassword(false);
+        
+      } catch (error) {
+        console.error('Error updating password:', error);
+        setAlert({
+          open: true,
+          message: error.message || 'Error al actualizar la contraseña. Por favor, inténtalo de nuevo.',
           severity: 'error'
         });
+      } finally {
         setLoading(false);
       }
     }

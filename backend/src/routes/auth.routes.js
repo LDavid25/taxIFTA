@@ -32,6 +32,7 @@ router.use(authController.protect);
 // Obtener información del usuario autenticado
 router.get('/me', userController.getMe);
 
+// Allow all authenticated users to update their password
 router.patch(
     '/update-password',
     validate(updatePasswordSchema),

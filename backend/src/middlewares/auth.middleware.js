@@ -6,6 +6,10 @@ const AppError = require('../utils/appError');
 // Middleware para proteger rutas
 exports.protect = async (req, res, next) => {
   try {
+    console.log('=== Auth Middleware ===');
+    console.log('URL:', req.originalUrl);
+    console.log('Method:', req.method);
+    
     // 1) Obtener el token y verificar si existe
     let token;
     if (
@@ -13,11 +17,16 @@ exports.protect = async (req, res, next) => {
       req.headers.authorization.startsWith('Bearer')
     ) {
       token = req.headers.authorization.split(' ')[1];
+      console.log('Token from Authorization header:', token ? 'Present' : 'Missing');
     } else if (req.cookies.jwt) {
       token = req.cookies.jwt;
+      console.log('Token from cookie:', token ? 'Present' : 'Missing');
+    } else {
+      console.log('No token found in headers or cookies');
     }
 
     if (!token) {
+      console.log('No token provided');
       return next(
         new AppError('You are not logged in! Please log in to get access.', 401)
       );
@@ -55,12 +64,20 @@ exports.protect = async (req, res, next) => {
 // Middleware para restringir el acceso según el rol
 exports.restrictTo = (...roles) => {
   return (req, res, next) => {
+    console.log('=== RestrictTo Middleware ===');
+    console.log('Required roles:', roles);
+    console.log('User role:', req.user?.role);
+    console.log('User ID:', req.user?.id);
+    
     // roles ['admin', 'user']. role='user'
-    if (!roles.includes(req.user.role)) {
+    if (!roles.includes(req.user?.role)) {
+      console.log('Access denied - User role not in required roles');
       return next(
         new AppError('You do not have permission to perform this action', 403)
       );
     }
+    
+    console.log('Access granted');
     next();
   };
 };

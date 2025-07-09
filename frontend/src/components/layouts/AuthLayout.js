@@ -44,10 +44,12 @@ const AuthLayout = ({ children }) => {
           </Link>
         </Typography>
         <Stack direction="row" spacing={1} alignItems="center">
-          <Tooltip title={`Cambiar a modo ${mode === 'light' ? 'oscuro' : 'claro'}`}>
-            <IconButton onClick={toggleTheme} color="inherit">
-              {mode === 'light' ? <DarkModeIcon /> : <LightModeIcon />}
-            </IconButton>
+          <Tooltip title="Dark mode is currently disabled">
+            <span>
+              <IconButton disabled color="inherit">
+                {mode === 'light' ? <DarkModeIcon /> : <LightModeIcon />}
+              </IconButton>
+            </span>
           </Tooltip>
         </Stack>
       </Box>
@@ -79,7 +81,7 @@ const AuthLayout = ({ children }) => {
         }}
       >
         <Typography variant="body2" color="text.secondary">
-          {new Date().getFullYear()} DOT Truck Permits. Todos los derechos reservados.
+          {new Date().getFullYear()} DOT Truck Permits. All rights reserved.
         </Typography>
       </Box>
     </Box>

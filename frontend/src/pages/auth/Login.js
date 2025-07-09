@@ -162,9 +162,9 @@ const Login = () => {
         />
         
         <Box sx={{ mt: 1, textAlign: 'right' }}>
-          <Link component={RouterLink} to="/forgot-password" variant="body2">
+          <Typography variant="body2" color="text.disabled" sx={{ cursor: 'not-allowed' }}>
             Forgot Password?
-          </Link>
+          </Typography>
         </Box>
         
         <Button

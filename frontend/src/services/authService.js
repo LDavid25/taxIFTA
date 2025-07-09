@@ -128,14 +128,24 @@ export const forgotPassword = async (email) => {
 // Restablecer contraseña
 export const resetPassword = async (token, password) => {
   try {
-    const response = await api.post(`${API_URL}/reset-password/${token}`, { 
-      password,
-      passwordConfirm: password 
+    const response = await api.post(`${API_URL}/reset-password`, { token, password });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Error al restablecer la contraseña' };
+  }
+};
+
+// Actualizar contraseña del usuario actual
+export const updatePassword = async (currentPassword, newPassword) => {
+  try {
+    const response = await api.patch(`${API_URL}/update-password`, {
+      passwordCurrent: currentPassword,
+      password: newPassword,
+      passwordConfirm: newPassword
     });
     return response.data;
   } catch (error) {
-    throw error.response?.data || { 
-      message: 'Error al restablecer contraseña' 
-    };
+    console.error('Error en updatePassword:', error.response?.data || error.message);
+    throw error.response?.data || { message: 'Error al actualizar la contraseña' };
   }
 };
