@@ -32,14 +32,15 @@ import { useSnackbar } from 'notistack';
 import { getCompanies, updateCompanyStatus } from '../../services/companyService';
 
 const formatDate = (dateString) => {
-  if (!dateString) return 'Nunca';
+  if (!dateString) return 'Never';
   const date = new Date(dateString);
   return date.toLocaleDateString('es-ES', {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
     hour: '2-digit',
-    minute: '2-digit'
+    minute: '2-digit',
+    timeZone: 'America/New_York'
   });
 };
 
@@ -99,9 +100,9 @@ const CompanyListPage = () => {
         // Solo aseguramos que cada usuario tenga los campos necesarios
         const formattedCompanies = companiesData.map(company => ({
           id: company.id || '',
-          name: company.name || 'Sin nombre',
-          contact_email: company.contact_email || 'Sin email',
-          phone: company.phone || 'Sin teléfono',
+          name: company.name || 'No name',
+          contact_email: company.contact_email || 'No email',
+          phone: company.phone || 'No phone',
           is_active: company.is_active !== undefined ? company.is_active : true
         }));
         
@@ -110,13 +111,13 @@ const CompanyListPage = () => {
         setError('');
       } catch (err) {
         console.error('Error al cargar las compañías:', err);
-        setError('Error al cargar las compañías. Por favor, intente de nuevo más tarde.');
-        enqueueSnackbar('Error al cargar las compañías', { variant: 'error' });
+        setError('Error loading companies. Please try again later.');
+        enqueueSnackbar('Error loading companies', { variant: 'error' });
         
-        // Datos de ejemplo en caso de error
+        // Sample data in case of error
         const sampleData = [
-          { id: '1', name: 'Compañía de Prueba 1', contactName: 'Contacto 1', contactEmail: 'contacto1@ejemplo.com', status: 'active', lastAccess: new Date().toISOString() },
-          { id: '2', name: 'Compañía de Prueba 2', contactName: 'Contacto 2', contactEmail: 'contacto2@ejemplo.com', status: 'inactive', lastAccess: new Date().toISOString() },
+          { id: '1', name: 'Test Company 1', contactName: 'Contact 1', contactEmail: 'contact1@example.com', status: 'active', lastAccess: new Date().toISOString() },
+          { id: '2', name: 'Test Company 2', contactName: 'Contact 2', contactEmail: 'contact2@example.com', status: 'inactive', lastAccess: new Date().toISOString() },
         ];
         setCompanies(sampleData);
       } finally {
@@ -178,13 +179,13 @@ const CompanyListPage = () => {
       );
       
       enqueueSnackbar(
-        `Compañía ${!currentStatus ? 'activada' : 'desactivada'} exitosamente`,
+        `Company successfully ${!currentStatus ? 'activated' : 'deactivated'}`,
         { variant: 'success' }
       );
     } catch (error) {
-      console.error('Error al actualizar el estado:', error);
+      console.error('Error updating status:', error);
       enqueueSnackbar(
-        error.message || 'Error al actualizar el estado de la compañía',
+        error.message || 'Error updating company status',
         { variant: 'error' }
       );
     } finally {
@@ -208,7 +209,7 @@ const CompanyListPage = () => {
         }
         label={
           <Box component="span" ml={1}>
-            {company.is_active ? 'Activo' : 'Inactivo'}
+            {company.is_active ? 'Active' : 'Inactive'}
           </Box>
         }
         labelPlacement="end"
@@ -242,14 +243,14 @@ const CompanyListPage = () => {
             <CardContent>
               <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
                 <Typography variant="h5" component="h2">
-                  Listado de Compañías
+                  Company List
                 </Typography>
               </Box>
 
               <TextField
                 fullWidth
                 variant="outlined"
-                placeholder="Buscar por compañía o usuario..."
+                placeholder="Search by company or user..."
                 value={searchTerm}
                 onChange={handleSearchChange}
                 sx={{ mb: 3 }}
@@ -266,10 +267,10 @@ const CompanyListPage = () => {
                 <Table>
                   <TableHead>
                     <TableRow>
-                      <TableCell>Compañía</TableCell>
-                      <TableCell>Email de contacto</TableCell>
-                      <TableCell>Teléfono</TableCell>
-                      <TableCell align="center">Estado</TableCell>
+                      <TableCell>Company</TableCell>
+                      <TableCell>Contact Email</TableCell>
+                      <TableCell>Phone</TableCell>
+                      <TableCell align="center">Status</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -295,9 +296,9 @@ const CompanyListPage = () => {
                 page={page}
                 onPageChange={handleChangePage}
                 onRowsPerPageChange={handleChangeRowsPerPage}
-                labelRowsPerPage="Filas por página:"
+                labelRowsPerPage="Rows per page:"
                 labelDisplayedRows={({ from, to, count }) => 
-                  `${from}-${to} de ${count !== -1 ? count : `más de ${to}`}`
+                  `${from}-${to} of ${count !== -1 ? count : `more than ${to}`}`
                 }
               />
             </CardContent>

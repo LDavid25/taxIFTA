@@ -42,40 +42,40 @@ import CancelIcon from '@mui/icons-material/Cancel';
 // Validation Schema
 const validationSchema = Yup.object({
   unitNumber: Yup.string()
-    .required('El número de unidad es requerido')
-    .matches(/^[A-Z0-9-]+$/, 'Ingrese un número de unidad válido'),
+    .required('Unit number is required')
+    .matches(/^[A-Z0-9-]+$/, 'Please enter a valid unit number'),
   year: Yup.number()
-    .typeError('Debe ser un número')
-    .required('El año es requerido')
-    .integer('Debe ser un año válido')
-    .min(2000, 'El año debe ser 2000 o posterior')
-    .max(2100, 'El año no puede ser posterior a 2100'),
+    .typeError('Must be a number')
+    .required('Year is required')
+    .integer('Must be a valid year')
+    .min(2000, 'Year must be 2000 or later')
+    .max(2100, 'Year cannot be after 2100'),
   month: Yup.number()
-    .typeError('Debe ser un número')
-    .required('El mes es requerido')
-    .integer('Debe ser un mes válido')
-    .min(1, 'El mes debe estar entre 1 y 12')
-    .max(12, 'El mes debe estar entre 1 y 12'),
+    .typeError('Must be a number')
+    .required('Month is required')
+    .integer('Must be a valid month')
+    .min(1, 'Month must be between 1 and 12')
+    .max(12, 'Month must be between 1 and 12'),
   stateEntries: Yup.array()
     .of(
       Yup.object().shape({
         state: Yup.string()
-          .required('El estado es requerido')
-          .matches(/^[A-Z]{2}$/, 'Código de estado inválido'),
+          .required('State is required')
+          .matches(/^[A-Z]{2}$/, 'Invalid state code'),
         miles: Yup.number()
-          .typeError('Debe ser un número')
-          .required('Las millas son requeridas')
-          .min(0, 'Las millas no pueden ser negativas'),
+          .typeError('Must be a number')
+          .required('Miles are required')
+          .min(0, 'Miles cannot be negative'),
         gallons: Yup.number()
-          .typeError('Debe ser un número')
-          .required('Los galones son requeridos')
-          .min(0, 'Los galones no pueden ser negativos'),
+          .typeError('Must be a number')
+          .required('Gallons are required')
+          .min(0, 'Gallons cannot be negative'),
       })
     )
-    .min(1, 'Debe agregar al menos un estado')
+    .min(1, 'You must add at least one state')
     .test(
       'has-entries',
-      'Debe agregar al menos un estado con millas o galones',
+      'You must add at least one state with miles or gallons',
       (value) => value && value.some(entry => (entry.miles > 0 || entry.gallons > 0))
     ),
 });
@@ -158,7 +158,7 @@ const ConsumptionCreate = () => {
       if (!values.unitNumber || !values.year || !values.month) {
         setSnackbar({
           open: true,
-          message: 'Por favor complete todos los campos requeridos',
+          message: 'Please fill in all required fields',
           severity: 'error'
         });
         return false;
@@ -177,7 +177,7 @@ const ConsumptionCreate = () => {
         if (existingReport && existingReport.exists) {
           setSnackbar({
             open: true,
-            message: 'Ya existe un reporte para esta unidad en el período seleccionado',
+            message: 'A report already exists for this unit in the selected period',
             severity: 'error',
             autoHideDuration: 5000
           });
@@ -189,10 +189,10 @@ const ConsumptionCreate = () => {
         setFormData(values);
         setShowJurisdictions(true);
         
-        // Mostrar mensaje de confirmación
+        // Show confirmation message
         setSnackbar({
           open: true,
-          message: 'No se encontraron reportes existentes. Por favor, complete los detalles de las jurisdicciones.',
+          message: 'No existing reports found. Please complete the jurisdiction details.',
           severity: 'success',
           autoHideDuration: 5000
         });
@@ -225,19 +225,19 @@ const ConsumptionCreate = () => {
         if (status === 400 && data?.message) {
           errorMessage = data.message;
         } else if (status === 401) {
-          errorMessage = 'No autorizado. Por favor inicie sesión nuevamente.';
+          errorMessage = 'Unauthorized. Please log in again.';
           // Redirect to login after showing the error
           setTimeout(() => navigate('/login'), 2000);
         } else if (status === 403) {
-          errorMessage = 'No tiene permisos para realizar esta acción';
+          errorMessage = 'You do not have permission to perform this action';
         } else if (status === 404) {
-          errorMessage = 'Recurso no encontrado';
+          errorMessage = 'Resource not found';
         } else if (status >= 500) {
-          errorMessage = 'Error en el servidor. Por favor intente más tarde.';
+          errorMessage = 'Server error. Please try again later.';
         }
       } else if (error.request) {
         // The request was made but no response was received
-        errorMessage = 'No se pudo conectar con el servidor. Verifique su conexión a internet.';
+        errorMessage = 'Could not connect to the server. Please check your internet connection.';
       } else if (error.message) {
         // Something happened in setting up the request that triggered an Error
         errorMessage = error.message;
@@ -271,7 +271,7 @@ const ConsumptionCreate = () => {
       
       // Basic validation
       if (!values.unitNumber || !values.year || !values.month) {
-        throw new Error('Por favor complete todos los campos requeridos');
+        throw new Error('Please fill in all required fields');
       }
       
       // Initialize form data
@@ -292,7 +292,7 @@ const ConsumptionCreate = () => {
 
       // Add user and company info - ensure they are not null/undefined
       if (!currentUser || !currentUser.company_id || !currentUser.id) {
-        throw new Error('No se encontró la información completa del usuario autenticado');
+        throw new Error('Could not find complete authenticated user information');
       }
       
       // Add company and user references
@@ -339,7 +339,7 @@ const ConsumptionCreate = () => {
       
       // Validate at least one state has values
       if (stateEntries.length === 0) {
-        throw new Error('Debe ingresar al menos un estado con millas o galones');
+        throw new Error('You must enter at least one state with miles or gallons');
       }
       
       // Format states in the format expected by the backend
@@ -376,7 +376,7 @@ const ConsumptionCreate = () => {
       }
       
       // Log the form data for debugging
-      console.log('Enviando datos al servidor:', {
+      console.log('Sending data to server:', {
         vehicle_plate: values.unitNumber.trim().toUpperCase(),
         report_year: Number(values.year),
         report_month: Number(values.month),
@@ -398,7 +398,7 @@ const ConsumptionCreate = () => {
       // Handle successful response
       setSnackbar({
         open: true,
-        message: 'Reporte creado exitosamente',
+        message: 'Report created successfully',
         severity: 'success',
         autoHideDuration: 3000
       });
@@ -415,8 +415,8 @@ const ConsumptionCreate = () => {
       }, 2000);
       
     } catch (error) {
-      console.error('Error al crear el reporte:', error);
-      let errorMessage = 'Error al crear el reporte de consumo';
+      console.error('Error creating report:', error);
+      let errorMessage = 'Error creating the consumption report';
       
       // Handle different types of errors
       if (error.response) {
@@ -426,7 +426,7 @@ const ConsumptionCreate = () => {
         console.error('Error response data:', error.response.data);
       } else if (error.request) {
         // The request was made but no response was received
-        errorMessage = 'No se recibió respuesta del servidor. Por favor, intente nuevamente.';
+        errorMessage = 'No response received from the server. Please try again.';
         console.error('No response received:', error.request);
       } else {
         // Something happened in setting up the request that triggered an Error
@@ -453,7 +453,7 @@ const ConsumptionCreate = () => {
     if (!isReportValid) {
       setSnackbar({
         open: true,
-        message: 'Por favor verifique primero los datos del reporte',
+        message: 'Please verify the report data first',
         severity: 'warning'
       });
       return false;
@@ -483,7 +483,7 @@ const ConsumptionCreate = () => {
       );
       
       if (!hasValidState) {
-        errors.stateEntries = 'Debe ingresar al menos un estado con millas o galones';
+        errors.stateEntries = 'You must enter at least one state with miles or gallons';
       }
     }
     
@@ -538,18 +538,26 @@ const ConsumptionCreate = () => {
     <LocalizationProvider dateAdapter={AdapterDateFns}>
       <Box sx={{ p: 3 }}>
         <Breadcrumbs aria-label="breadcrumb" sx={{ mb: 3 }}>
-          <Link component={RouterLink} to="/dashboard" color="inherit">
-            Inicio
+          <Link 
+            component={RouterLink} 
+            to={currentUser?.role === 'admin' ? '/admin/dashboard' : '/client/dashboard'} 
+            color="inherit"
+          >
+            Home
           </Link>
-          <Link component={RouterLink} to="/consumption" color="inherit">
-            Consumo
+          <Link 
+            component={RouterLink} 
+            to={currentUser?.role === 'admin' ? '/admin/consumption' : '/client/consumption'} 
+            color="inherit"
+          >
+            Consumption
           </Link>
-          <Typography color="text.primary">Nuevo Reporte</Typography>
+          <Typography color="text.primary">New Report</Typography>
         </Breadcrumbs>
         
         {isReportValid && (
           <Alert severity="success" sx={{ mb: 3 }}>
-            Los datos del reporte han sido verificados. Puede continuar con el registro.
+            The report data has been verified. You can proceed with the registration.
           </Alert>
         )}
 
@@ -683,7 +691,7 @@ const ConsumptionCreate = () => {
                           disabled={!formik.values.unitNumber || !formik.values.year || !formik.values.month || isChecking}
                           sx={{ minWidth: 120 }}
                         >
-                          {isChecking ? <CircularProgress size={24} /> : 'Verificar'}
+                          {isChecking ? <CircularProgress size={24} /> : 'Verify'}
                         </Button>
                       ) : (
                         <Button
@@ -692,7 +700,7 @@ const ConsumptionCreate = () => {
                           color="success"
                           startIcon={<CheckCircleOutline />}
                         >
-                          Verificado
+                          Verified
                         </Button>
                       )}
                     </Grid>
@@ -727,7 +735,7 @@ const ConsumptionCreate = () => {
                             );
                           }}
                           renderInput={(params) => {
-                            // Extraer la propiedad key de params para no propagarla
+                            // Extract the key property from params to prevent propagation
                             const { key, ...paramsWithoutKey } = params;
                             return (
                               <TextField
@@ -1005,7 +1013,7 @@ const ConsumptionCreate = () => {
                           sum + (parseFloat(entry.gallons) || 0), 0).toFixed(3)}
                       </Typography>
                     </Grid>
-                    {/* MPG - Solo visible para Admin */}
+                    {/* MPG - Only visible for Admin */}
                     {currentUser?.role === 'admin' && (
                       <Grid item xs={12}>
                         <Box 
@@ -1083,7 +1091,7 @@ const ConsumptionCreate = () => {
                   to="/consumption"
                   variant="outlined"
                 >
-                  Cancelar
+                  Cancel
                 </Button>
                 <Button
                   type="submit"
@@ -1093,7 +1101,7 @@ const ConsumptionCreate = () => {
                   startIcon={isLoading ? null : <Save />}
                   sx={{ minWidth: 180 }}
                 >
-                  {isLoading ? <CircularProgress size={24} /> : 'Guardar Reporte'}
+                  {isLoading ? <CircularProgress size={24} /> : 'Save Report'}
                 </Button>
               </Box>
             </Paper>

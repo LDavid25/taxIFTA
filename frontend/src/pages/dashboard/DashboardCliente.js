@@ -30,29 +30,29 @@ const DashboardCliente = () => {
 
   const dashboardCards = [
     {
-      title: 'Registrar Consumo',
-      description: 'Agrega nuevos registros de consumo de combustible',
+      title: 'Record Consumption',
+      description: 'Add new fuel consumption records',
       icon: <FuelIcon fontSize="large" color="primary" />,
       path: '/client/consumption/create',
       color: theme.palette.primary.light
     },
     {
-      title: 'Historial de Consumo',
-      description: 'Revisa y gestiona tu historial de consumo',
+      title: 'Consumption History',
+      description: 'View and manage your consumption history',
       icon: <HistoryIcon fontSize="large" color="secondary" />,
       path: '/client/consumption',
       color: theme.palette.secondary.light
     },
     {
-      title: 'Reportes',
-      description: 'Genera y descarga reportes de consumo',
+      title: 'Reports',
+      description: 'Generate and download consumption reports',
       icon: <ReportIcon fontSize="large" style={{ color: theme.palette.success.main }} />,
       path: '/client/declarations',
       color: theme.palette.success.light
     },
     {
-      title: 'Mi Perfil',
-      description: 'Administra la información de tu cuenta',
+      title: 'My Profile',
+      description: 'Manage your account information',
       icon: <ProfileIcon fontSize="large" color="action" />,
       path: '/client/profile',
       color: theme.palette.grey[200]
@@ -65,14 +65,14 @@ const DashboardCliente = () => {
         {/* Welcome Section */}
         <Paper elevation={2} sx={{ p: 3, mb: 4, bgcolor: 'primary.main', color: 'white' }}>
           <Typography variant="h4" component="h1" gutterBottom>
-            Bienvenido, {currentUser?.name || 'Usuario'}
+            Welcome, {currentUser?.name || 'User'}
           </Typography>
           <Typography variant="h6" sx={{ mb: 2 }}>
-            Panel de Control de Consumo de Combustible
+            Fuel Consumption Control Panel
           </Typography>
           <Typography variant="body1" paragraph>
-            Este es tu centro de control donde puedes gestionar todos tus registros de consumo de combustible 
-            y generar reportes para el cumplimiento de IFTA.
+            This is your control center where you can manage all your fuel consumption records 
+            and generate reports for IFTA compliance.
           </Typography>
           <Button 
             variant="contained" 
@@ -81,13 +81,13 @@ const DashboardCliente = () => {
             onClick={() => navigate('/client/help')}
             sx={{ mt: 1 }}
           >
-            ¿Cómo funciona?
+            How does it work?
           </Button>
         </Paper>
 
         {/* Quick Actions */}
         <Typography variant="h6" gutterBottom sx={{ mb: 2 }}>
-          Acciones Rápidas
+          Quick Actions
         </Typography>
         
         <Grid container spacing={3} sx={{ mb: 4 }}>
@@ -144,7 +144,7 @@ const DashboardCliente = () => {
         {/* Quick Guide */}
         <Paper elevation={2} sx={{ p: 3, mb: 4 }}>
           <Typography variant="h6" gutterBottom>
-            Guía Rápida
+            Quick Guide
           </Typography>
           <Divider sx={{ mb: 2 }} />
           
@@ -165,9 +165,9 @@ const DashboardCliente = () => {
                   <Typography variant="body2" color="primary.contrastText">1</Typography>
                 </Box>
                 <Box>
-                  <Typography variant="subtitle2" gutterBottom>Registra tu consumo</Typography>
+                  <Typography variant="subtitle2" gutterBottom>Record Your Consumption</Typography>
                   <Typography variant="body2" color="text.secondary">
-                    Ingresa los datos de consumo de combustible de tus vehículos de forma regular.
+                    Regularly enter fuel consumption data for your vehicles.
                   </Typography>
                 </Box>
               </Box>
@@ -189,9 +189,9 @@ const DashboardCliente = () => {
                   <Typography variant="body2" color="primary.contrastText">2</Typography>
                 </Box>
                 <Box>
-                  <Typography variant="subtitle2" gutterBottom>Revisa tus reportes</Typography>
+                  <Typography variant="subtitle2" gutterBottom>Review Your Reports</Typography>
                   <Typography variant="body2" color="text.secondary">
-                    Monitorea tu historial y genera reportes detallados de consumo.
+                    Monitor your history and generate detailed consumption reports.
                   </Typography>
                 </Box>
               </Box>
@@ -213,9 +213,9 @@ const DashboardCliente = () => {
                   <Typography variant="body2" color="primary.contrastText">3</Typography>
                 </Box>
                 <Box>
-                  <Typography variant="subtitle2" gutterBottom>Cumple con IFTA</Typography>
+                  <Typography variant="subtitle2" gutterBottom>IFTA Compliance</Typography>
                   <Typography variant="body2" color="text.secondary">
-                    Obtén los informes necesarios para cumplir con los requisitos de IFTA.
+                    Get the necessary reports to meet IFTA requirements.
                   </Typography>
                 </Box>
               </Box>
@@ -226,17 +226,17 @@ const DashboardCliente = () => {
         {/* Support Section */}
         <Paper elevation={2} sx={{ p: 3, textAlign: 'center' }}>
           <Typography variant="h6" gutterBottom>
-            ¿Necesitas ayuda?
+            Need Help?
           </Typography>
           <Typography variant="body1" color="text.secondary" paragraph>
-            Nuestro equipo de soporte está listo para ayudarte con cualquier pregunta o problema que puedas tener.
+            Our support team is ready to assist you with any questions or issues you may have.
           </Typography>
           <Button 
             variant="outlined" 
             color="primary" 
             onClick={() => navigate('/client/support')}
           >
-            Contactar Soporte
+            Contact Support
           </Button>
         </Paper>
       </Container>

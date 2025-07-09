@@ -133,7 +133,7 @@ const AdminDashboard = () => {
   }, []);
 
   if (loading) {
-    return <LoadingScreen message="Cargando panel de administración..." />;
+    return <LoadingScreen message="Loading admin dashboard..." />;
   }
 
   const { stats, recentActivity, reportsByStatus, monthlyReports } = data;
@@ -158,10 +158,10 @@ const AdminDashboard = () => {
       {/* Encabezado */}
       <Box sx={{ mb: 4 }}>
         <Typography variant="h4" fontWeight="bold" gutterBottom>
-          Panel de Administración
+          Administration Panel
         </Typography>
         <Typography variant="subtitle1" color="text.secondary">
-          Bienvenido/a, {currentUser?.name || 'Administrador/a'}. Aquí tienes un resumen de la actividad del sistema.
+          Welcome, {currentUser?.name || 'Administrator'}. Here's a summary of system activity.
         </Typography>
       </Box>
 
@@ -172,11 +172,11 @@ const AdminDashboard = () => {
             <CardContent>
               <Box display="flex" justifyContent="space-between" alignItems="center">
                 <Box>
-                  <Typography color="text.secondary" variant="body2">Usuarios Totales</Typography>
+                  <Typography color="text.secondary" variant="body2">Total Users</Typography>
                   <Typography variant="h4" fontWeight="bold">{stats.totalUsers}</Typography>
                   <Box display="flex" alignItems="center" mt={1}>
                     <Typography variant="body2" color="success.main" sx={{ mr: 1 }}>
-                      {stats.activeUsers} activos
+                      {stats.activeUsers} active
                     </Typography>
                   </Box>
                 </Box>
@@ -193,11 +193,11 @@ const AdminDashboard = () => {
             <CardContent>
               <Box display="flex" justifyContent="space-between" alignItems="center">
                 <Box>
-                  <Typography color="text.secondary" variant="body2">Compañías</Typography>
+                  <Typography color="text.secondary" variant="body2">Companies</Typography>
                   <Typography variant="h4" fontWeight="bold">{stats.totalCompanies}</Typography>
                   <Box display="flex" alignItems="center" mt={1}>
                     <Typography variant="body2" color="success.main" sx={{ mr: 1 }}>
-                      {stats.totalCompanies} activas
+                      {stats.totalCompanies} active
                     </Typography>
                   </Box>
                 </Box>
@@ -214,11 +214,11 @@ const AdminDashboard = () => {
             <CardContent>
               <Box display="flex" justifyContent="space-between" alignItems="center">
                 <Box>
-                  <Typography color="text.secondary" variant="body2">Reportes este mes</Typography>
+                  <Typography color="text.secondary" variant="body2">Reports This Month</Typography>
                   <Typography variant="h4" fontWeight="bold">{stats.totalReports}</Typography>
                   <Box display="flex" alignItems="center" mt={1}>
                     <Typography variant="body2" color="success.main" sx={{ mr: 1 }}>
-                      {stats.totalReports} reportes
+                      {stats.totalReports} reports
                     </Typography>
                   </Box>
                 </Box>
@@ -236,7 +236,7 @@ const AdminDashboard = () => {
         <Grid item xs={12}>
           <Card elevation={3}>
             <CardContent>
-              <Typography variant="h6" gutterBottom>Top 5 Estados con más millas recorridas</Typography>
+              <Typography variant="h6" gutterBottom>Top 5 States by Miles Traveled</Typography>
               <Box sx={{ height: 400 }}>
                 {data.topStates && data.topStates.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
@@ -254,41 +254,41 @@ const AdminDashboard = () => {
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis 
                         dataKey="state_code"
-                        label={{ value: 'Estado', position: 'insideBottom', offset: -5 }}
+                        label={{ value: 'State', position: 'insideBottom', offset: -5 }}
                       />
                       <YAxis 
                         yAxisId="left"
                         orientation="left"
                         stroke="#8884d8"
-                        label={{ value: 'Millas', angle: -90, position: 'insideLeft' }}
+                        label={{ value: 'Miles', angle: -90, position: 'insideLeft' }}
                         tickFormatter={(value) => value.toLocaleString()}
                       />
                       <YAxis 
                         yAxisId="right"
                         orientation="right"
                         stroke="#82ca9d"
-                        label={{ value: 'Galones', angle: 90, position: 'insideRight' }}
+                        label={{ value: 'Gallons', angle: 90, position: 'insideRight' }}
                       />
                       <Tooltip 
                         formatter={(value, name) => 
-                          name === 'Millas' 
-                            ? [`${Number(value).toLocaleString()} millas`, 'Millas'] 
-                            : [`${Number(value).toLocaleString()} galones`, 'Galones']
+                          name === 'Miles' 
+                            ? [`${Number(value).toLocaleString()} miles`, 'Miles'] 
+                            : [`${Number(value).toLocaleString()} gallons`, 'Gallons']
                         }
-                        labelFormatter={(label) => `Estado: ${label}`}
+                        labelFormatter={(label) => `State: ${label}`}
                       />
                       <Legend />
                       <Bar 
                         yAxisId="left"
                         dataKey="total_miles" 
-                        name="Millas" 
+                        name="Miles" 
                         fill="#8884d8" 
                         radius={[4, 4, 0, 0]}
                       />
                       <Bar 
                         yAxisId="right"
                         dataKey="total_gallons" 
-                        name="Galones" 
+                        name="Gallons" 
                         fill="#82ca9d" 
                         radius={[4, 4, 0, 0]}
                       />
@@ -297,7 +297,7 @@ const AdminDashboard = () => {
                 ) : (
                   <Box display="flex" justifyContent="center" alignItems="center" height="100%">
                     <Typography variant="body1" color="textSecondary">
-                      No hay datos disponibles para mostrar
+                      No data available to display
                     </Typography>
                   </Box>
                 )}
@@ -311,18 +311,18 @@ const AdminDashboard = () => {
       <Box mt={4}>
         <Card elevation={3}>
           <CardContent>
-            <Typography variant="h6" gutterBottom>Bienvenido al Panel de Administración</Typography>
+            <Typography variant="h6" gutterBottom>Welcome to the Administration Panel</Typography>
             <Typography variant="body1" paragraph>
-              Este panel le proporciona una visión general del estado del sistema y le permite administrar los recursos de manera eficiente.
+              This panel provides you with an overview of the system status and allows you to efficiently manage resources.
             </Typography>
             <Grid container spacing={2}>
               <Grid item xs={12} md={4}>
                 <Box display="flex" alignItems="flex-start">
                   <CheckCircleIcon color="primary" sx={{ mr: 1 }} />
                   <Box>
-                    <Typography variant="subtitle2">Gestionar Usuarios</Typography>
+                    <Typography variant="subtitle2">Manage Users</Typography>
                     <Typography variant="body2" color="text.secondary">
-                      Administre los usuarios del sistema, sus permisos y accesos.
+                      Manage system users, their permissions, and access levels.
                     </Typography>
                   </Box>
                 </Box>
@@ -331,9 +331,9 @@ const AdminDashboard = () => {
                 <Box display="flex" alignItems="flex-start">
                   <CheckCircleIcon color="primary" sx={{ mr: 1 }} />
                   <Box>
-                    <Typography variant="subtitle2">Supervisar Informes</Typography>
+                    <Typography variant="subtitle2">Monitor Reports</Typography>
                     <Typography variant="body2" color="text.secondary">
-                      Revise y apruebe los informes de IFTA presentados.
+                      Review and approve submitted IFTA reports.
                     </Typography>
                   </Box>
                 </Box>
@@ -342,9 +342,9 @@ const AdminDashboard = () => {
                 <Box display="flex" alignItems="flex-start">
                   <CheckCircleIcon color="primary" sx={{ mr: 1 }} />
                   <Box>
-                    <Typography variant="subtitle2">Configuración</Typography>
+                    <Typography variant="subtitle2">Configuration</Typography>
                     <Typography variant="body2" color="text.secondary">
-                      Personalice la configuración del sistema según sus necesidades.
+                      Customize system settings according to your needs.
                     </Typography>
                   </Box>
                 </Box>

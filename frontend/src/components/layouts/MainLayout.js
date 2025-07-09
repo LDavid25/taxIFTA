@@ -134,34 +134,34 @@ const MainLayout = () => {
     navigate(profilePath);
   };
   
-  // Elementos del menú lateral
+  // Sidebar menu items
   const menuItems = [
-    // Elementos comunes para todos los usuarios autenticados
+    // Common items for all authenticated users
     { 
       text: 'Dashboard', 
       icon: <DashboardIcon />, 
       path: isAdmin ? '/admin/dashboard' : '/client/dashboard' 
     },
     { 
-      text: 'Historial de Consumo', 
+      text: 'Fuel Consumption History', 
       icon: <HistoryIcon />, 
       path: isAdmin ? '/admin/consumption' : '/client/consumption' 
     },
     { 
-      text: 'Declaraciones', 
+      text: 'Declarations', 
       icon: <DescriptionIcon />, 
       path: isAdmin ? '/admin/declarations' : '/client/declarations' 
     },
     
-    // Elementos solo para administradores
+    // Admin-only items
     ...(isAdmin ? [
       { 
-        text: 'Compañías', 
+        text: 'Companies', 
         icon: <BusinessIcon />, 
         path: '/admin/companies' 
       },
       { 
-        text: 'Registrar Usuario', 
+        text: 'Register User', 
         icon: <PersonAddIcon />, 
         path: '/admin/register-user' 
       }
@@ -175,7 +175,7 @@ const MainLayout = () => {
         <Toolbar>
           <IconButton
             color="inherit"
-            aria-label="abrir drawer"
+            aria-label="open menu"
             onClick={handleDrawerOpen}
             edge="start"
             sx={{ mr: 2, ...(open && { display: 'none' }) }}
@@ -187,7 +187,7 @@ const MainLayout = () => {
           </Typography>
           
           {/* Avatar y menú de usuario */}
-          <Tooltip title="Configuración de cuenta">
+          <Tooltip title="Account Settings">
             <IconButton
               onClick={handleUserMenuOpen}
               size="small"
@@ -240,13 +240,13 @@ const MainLayout = () => {
               <ListItemIcon>
                 <PersonIcon fontSize="small" />
               </ListItemIcon>
-              Mi perfil
+              My Profile
             </MenuItem>
             <MenuItem onClick={handleLogout}>
               <ListItemIcon>
                 <LogoutIcon fontSize="small" />
               </ListItemIcon>
-              Cerrar sesión
+              Logout
             </MenuItem>
           </Menu>
         </Toolbar>
@@ -269,7 +269,7 @@ const MainLayout = () => {
       >
         <DrawerHeader>
           <Typography variant="h6" sx={{ flexGrow: 1, ml: 2 }}>
-            Menú
+            Menu
           </Typography>
           <IconButton onClick={handleDrawerClose}>
             <ChevronLeftIcon />
@@ -299,7 +299,7 @@ const MainLayout = () => {
             onClick={isMobile ? handleDrawerClose : undefined}
           >
             <ListItemIcon><PersonIcon /></ListItemIcon>
-            <ListItemText primary="Mi Perfil" />
+            <ListItemText primary="My Profile" />
           </ListItem>
           
         </List>

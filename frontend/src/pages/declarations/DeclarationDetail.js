@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { ROLES } from '../../constants/roles';
 import api from '../../services/api';
 import { format, parseISO, startOfMonth, endOfMonth, eachMonthOfInterval } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -151,6 +152,7 @@ const DeclarationDetail = () => {
 
   // Auth context
   const { currentUser, isAdmin } = useAuth();
+  const isUserAdmin = currentUser?.role?.toLowerCase() === ROLES.ADMIN;
 
   // State
   const [updatingStatus, setUpdatingStatus] = useState(false);
@@ -958,7 +960,7 @@ const DeclarationDetail = () => {
 
     if (!vehicleStateTableData.vehicles.length) {
       // console.log('No hay vehículos en vehicleStateTableData');
-      return <Box sx={{ p: 2, textAlign: 'center', color: 'text.secondary' }}>No hay datos disponibles</Box>;
+      return <Box sx={{ p: 2, textAlign: 'center', color: 'text.secondary' }}>No data available</Box>;
     }
 
     // Agrupar meses por trimestre
@@ -973,7 +975,7 @@ const DeclarationDetail = () => {
     // Función para formatear números con separadores de miles
     const formatCellNumber = (num) => {
       if (num === undefined || num === null) return '0.00';
-      return new Intl.NumberFormat('es-ES', {
+      return new Intl.NumberFormat('en-US', {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
       }).format(num);
@@ -1124,23 +1126,25 @@ const DeclarationDetail = () => {
                 TOTAL GALLONS
               </TableCell>
 
-              <TableCell
-                rowSpan={2}
-                align="center"
-                sx={{
-                  position: 'sticky',
-                  right: 0,
-                  zIndex: 4,
-                  backgroundColor: '#f5f5f5',
-                  minWidth: '80px',
-                  textAlign: 'center',
-                  fontWeight: 'bold',
-                  borderLeft: '1px solid #e0e0e0',
-                  boxShadow: '-2px 0 5px -2px rgba(0,0,0,0.1)',
-                }}
-              >
-                MPG
-              </TableCell>
+              {currentUser?.role?.toLowerCase() === ROLES.ADMIN && (
+                <TableCell
+                  rowSpan={2}
+                  align="center"
+                  sx={{
+                    position: 'sticky',
+                    right: 0,
+                    zIndex: 4,
+                    backgroundColor: '#f5f5f5',
+                    minWidth: '80px',
+                    textAlign: 'center',
+                    fontWeight: 'bold',
+                    borderLeft: '1px solid #e0e0e0',
+                    boxShadow: '-2px 0 5px -2px rgba(0,0,0,0.1)',
+                  }}
+                >
+                  MPG
+                </TableCell>
+              )}
             </TableRow>
 
             {/* Month names with MILES and GAL headers */}
@@ -1298,7 +1302,7 @@ const DeclarationDetail = () => {
                             color: monthData.miles > 0 ? 'inherit' : '#999',
                             fontStyle: monthData.miles > 0 ? 'normal' : 'italic'
                           }}
-                          title={`${formatCellNumber(monthData.miles)} millas`}
+                          title={`${formatCellNumber(monthData.miles)} miles`}
                         >
                           {monthData.miles > 0 ? formatCellNumber(monthData.miles) : '-'}
                         </TableCell>,
@@ -1313,7 +1317,7 @@ const DeclarationDetail = () => {
                             color: monthData.gallons > 0 ? 'inherit' : '#999',
                             fontStyle: monthData.gallons > 0 ? 'normal' : 'italic'
                           }}
-                          title={`${formatCellNumber(monthData.gallons)} galones`}
+                          title={`${formatCellNumber(monthData.gallons)} gallons`}
                         >
                           {monthData.gallons > 0 ? formatCellNumber(monthData.gallons) : '-'}
                         </TableCell>
@@ -1332,7 +1336,7 @@ const DeclarationDetail = () => {
                         padding: '4px 8px !important',
                         fontSize: '0.8rem'
                       }}
-                      title={`Total millas: ${formatCellNumber(state.totalMiles)}`}
+                      title={`Total miles: ${formatCellNumber(state.totalMiles)}`}
                     >
                       {state.totalMiles > 0 ? formatCellNumber(state.totalMiles) : '-'}
                     </TableCell>
@@ -1347,30 +1351,32 @@ const DeclarationDetail = () => {
                         padding: '4px 8px !important',
                         fontSize: '0.8rem'
                       }}
-                      title={`Total galones: ${formatCellNumber(state.totalGallons)}`}
+                      title={`Total gallons: ${formatCellNumber(state.totalGallons)}`}
                     >
                       {state.totalGallons > 0 ? formatCellNumber(state.totalGallons) : '-'}
                     </TableCell>
 
-                    {/* MPG for this state */}
-                    <TableCell
-                      sx={{
-                        fontWeight: 'bold',
-                        backgroundColor: sIdx % 2 === 0 ? '#f8f9fa' : '#f1f3f5',
-                        position: 'sticky',
-                        right: 0,
-                        zIndex: 1,
-                        minWidth: '60px',
-                        textAlign: 'center',
-                        color: state.mpg > 0 ? 'inherit' : '#999',
-                        fontStyle: state.mpg > 0 ? 'normal' : 'italic',
-                        fontSize: '0.8rem',
-                        borderLeft: '1px solid #e0e0e0'
-                      }}
-                      title={`MPG: ${state.mpg}`}
-                    >
-                      {state.mpg > 0 ? state.mpg : '-'}
-                    </TableCell>
+                    {/* MPG for this state - Only visible to admin users */}
+                    {isUserAdmin && (
+                      <TableCell
+                        sx={{
+                          fontWeight: 'bold',
+                          backgroundColor: sIdx % 2 === 0 ? '#f8f9fa' : '#f1f3f5',
+                          position: 'sticky',
+                          right: 0,
+                          zIndex: 1,
+                          minWidth: '60px',
+                          textAlign: 'center',
+                          color: state.mpg > 0 ? 'inherit' : '#999',
+                          fontStyle: state.mpg > 0 ? 'normal' : 'italic',
+                          fontSize: '0.8rem',
+                          borderLeft: '1px solid #e0e0e0'
+                        }}
+                        title={`MPG: ${state.mpg}`}
+                      >
+                        {state.mpg > 0 ? state.mpg : '-'}
+                      </TableCell>
+                    )}
                   </TableRow>
                 );
 
@@ -1397,7 +1403,7 @@ const DeclarationDetail = () => {
                     whiteSpace: 'nowrap'
                   }}
                 >
-                  TOTAL GENERAL
+                  GENERAL TOTAL
                 </TableCell>
 
                 {/* Monthly general totals */}
@@ -1487,6 +1493,7 @@ const DeclarationDetail = () => {
                 </TableCell>
 
                 {/* General MPG */}
+                {currentUser?.role?.toLowerCase() === ROLES.ADMIN && (
                 <TableCell
                   align="center"
                   sx={{
@@ -1502,6 +1509,7 @@ const DeclarationDetail = () => {
                 >
                   {vehicleStateTableData.generalTotal.mpg}
                 </TableCell>
+                )}
               </TableRow>
             )}
           </TableBody>
@@ -1521,14 +1529,14 @@ const DeclarationDetail = () => {
   }
 
   // Get company name from companyInfo or use a default
-  const companyName = companyInfo?.name || 'Nombre de la Compañía';
+  const companyName = companyInfo?.name || 'Company Name';
 
   // Use filtered reports count if a filter is active
   const validReportsCount = filters.vehicle !== 'all'
     ? filteredReports.length
     : reportData?.individual_reports?.length || 0;
 
-  // Get quarter name in Spanish
+  // Get quarter name in English
   const getQuarterName = (q) => {
     const quarters = {
       1: 'Quarter 1',
@@ -1536,7 +1544,7 @@ const DeclarationDetail = () => {
       3: 'Quarter 3',
       4: 'Quarter 4'
     };
-    return quarters[q] || `TRIMESTRE ${q}`;
+    return quarters[q] || `Quarter ${q}`;
   };
 
   return (
@@ -1563,7 +1571,7 @@ const DeclarationDetail = () => {
               gap: 1
             }}>
               <Typography variant="subtitle2" sx={{ color: '#2c3e50', fontWeight: '500' }}>
-                Reportes Válidos:
+                Valid Reports:
               </Typography>
               <Box sx={{
                 backgroundColor: '#4caf50',
@@ -1585,7 +1593,7 @@ const DeclarationDetail = () => {
       <Card sx={{ mb: 3 }}>
         <CardContent>
           <Typography variant="h5" gutterBottom>
-            DECLARACIÓN IFTA - Q{quarter} {year}
+            IFTA DECLARATION - Q{quarter} {year}
           </Typography>
 
           {/* Filters */}
@@ -1598,7 +1606,7 @@ const DeclarationDetail = () => {
                   label="# UNIT"
                   onChange={(e) => handleFilterChange('vehicle', e.target.value)}
                 >
-                  <MenuItem value="all">Todos los vehículos</MenuItem>
+                  <MenuItem value="all">All Vehicles</MenuItem>
                   {Array.from(new Set(reportData.individual_reports
                     ?.map(r => r.vehicle_plate)
                     ?.filter(Boolean) || [])).sort().map(plate => (
@@ -1608,10 +1616,10 @@ const DeclarationDetail = () => {
               </FormControl>
 
               <FormControl size="small" sx={{ minWidth: 120 }}>
-                <InputLabel>Trimestre</InputLabel>
+                <InputLabel>Quarter</InputLabel>
                 <Select
                   value={filters.quarter}
-                  label="Trimestre"
+                  label="Quarter"
                   onChange={(e) => handleFilterChange('quarter', e.target.value)}
                 >
                   {availableQuarters.map(q => (
@@ -1629,7 +1637,7 @@ const DeclarationDetail = () => {
                 startIcon={<PrintIcon />}
                 sx={{ minWidth: '120px' }}
               >
-                Imprimir
+                Print
               </Button>
               {reportData.status !== 'completed' && (
                 isAdmin ? (
@@ -1642,7 +1650,7 @@ const DeclarationDetail = () => {
                     startIcon={updatingStatus ? <CircularProgress size={20} /> : null}
                     sx={{ minWidth: '200px' }}
                   >
-                    {updatingStatus ? 'Procesando...' : 'Completar Declaración'}
+                    {updatingStatus ? 'Processing...' : 'Complete Declaration'}
                   </Button>
                 ) : (
                   // Botón para usuarios no administradores
@@ -1652,7 +1660,7 @@ const DeclarationDetail = () => {
                     disabled
                     sx={{ minWidth: '200px', backgroundColor: 'grey.400', '&:hover': { backgroundColor: 'grey.500' } }}
                   >
-                    En proceso de Declaración
+                    Declaration in Process
                   </Button>
                 )
               )}
@@ -1682,7 +1690,7 @@ const DeclarationDetail = () => {
               color: 'text.primary',
               letterSpacing: '0.5px'
             }}>
-              Detalle por Mes y Estado
+              Monthly and State Details
             </Typography>
           </Box>
           
@@ -1699,12 +1707,12 @@ const DeclarationDetail = () => {
       {/* Quarterly Miles Summary Table */}
       <Card sx={{ mb: 3 }}>
         <CardContent>
-          <Typography variant="h6" gutterBottom>RESUMEN DE MILLAS POR TRIMESTRE</Typography>
+          <Typography variant="h6" gutterBottom>QUARTERLY MILES SUMMARY</Typography>
           <TableContainer component={Paper}>
             <Table size="small" sx={{ minWidth: 600 }}>
               <TableHead>
                 <TableRow>
-                  <TableCell>Vehículo</TableCell>
+                  <TableCell>Vehicle</TableCell>
                   <TableCell align="right">Q1</TableCell>
                   <TableCell align="right">Q2</TableCell>
                   <TableCell align="right">Q3</TableCell>
@@ -1722,7 +1730,7 @@ const DeclarationDetail = () => {
                   const reportsToProcess = filters.vehicle !== 'all' ? filteredReports : reportData.individual_reports;
 
                   reportsToProcess.forEach(report => {
-                    const plate = report.vehicle_plate || 'SIN PLACA';
+                    const plate = report.vehicle_plate || 'NO PLATE';
                     if (!vehicles[plate]) {
                       vehicles[plate] = {
                         Q1: 0, Q2: 0, Q3: 0, Q4: 0, total: 0
@@ -1794,17 +1802,17 @@ const DeclarationDetail = () => {
         <Card>
           <CardContent>
             <Typography variant="h6" gutterBottom>
-              Resumen por Estado
+              State Summary
             </Typography>
             <TableContainer component={Paper}>
               <Table>
                 <TableHead>
                   <TableRow>
-                    <TableCell>Estado</TableCell>
-                    <TableCell align="right">Millas</TableCell>
-                    <TableCell align="right">Galones</TableCell>
-                    <TableCell align="right">MPG</TableCell>
-                    <TableCell align="right">% del Total</TableCell>
+                    <TableCell>State</TableCell>
+                    <TableCell align="right">Miles</TableCell>
+                    <TableCell align="right">Gallons</TableCell>
+                    {isUserAdmin && <TableCell align="right">MPG</TableCell>}
+                    <TableCell align="right">% of Total</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -1813,7 +1821,7 @@ const DeclarationDetail = () => {
                       <TableCell>{stateCodeToName(state.state)}</TableCell>
                       <TableCell align="right">{formatNumber(state.miles)}</TableCell>
                       <TableCell align="right">{formatNumber(state.gallons)}</TableCell>
-                      <TableCell align="right">{state.mpg}</TableCell>
+                      {isUserAdmin && <TableCell align="right">{state.mpg}</TableCell>}
                       <TableCell align="right">{state.percentage.toFixed(2)}%</TableCell>
                     </TableRow>
                   ))}
@@ -1828,17 +1836,17 @@ const DeclarationDetail = () => {
         <Card>
           <CardContent>
             <Typography variant="h6" gutterBottom>
-              Detalle por Vehículo
+              Vehicle Details
             </Typography>
             <TableContainer component={Paper}>
               <Table>
                 <TableHead>
                   <TableRow>
-                    <TableCell>Placa</TableCell>
-                    <TableCell>Fecha</TableCell>
-                    <TableCell align="right">Millas</TableCell>
-                    <TableCell align="right">Galones</TableCell>
-                    <TableCell>Estados</TableCell>
+                    <TableCell>Plate</TableCell>
+                    <TableCell>Date</TableCell>
+                    <TableCell align="right">Miles</TableCell>
+                    <TableCell align="right">Gallons</TableCell>
+                    <TableCell>States</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -1910,7 +1918,7 @@ const DeclarationDetail = () => {
               startIcon={updatingStatus ? <CircularProgress size={20} /> : null}
               sx={{ minWidth: '200px' }}
             >
-              {updatingStatus ? 'Procesando...' : 'Completar Declaración'}
+              {updatingStatus ? 'Processing...' : 'Complete Declaration'}
             </Button>
           ) : (
             // Botón para usuarios no administradores
@@ -1920,7 +1928,7 @@ const DeclarationDetail = () => {
               disabled
               sx={{ minWidth: '200px', backgroundColor: 'grey.400', '&:hover': { backgroundColor: 'grey.500' } }}
             >
-              En proceso de Declaración
+              Declaration in Process
             </Button>
           )
         )}
@@ -1946,7 +1954,7 @@ const DeclarationDetail = () => {
             onClick={() => setConfirmDialog({ ...confirmDialog, open: false })}
             color="primary"
           >
-            Cancelar
+            Cancel
           </Button>
           <Button 
             onClick={() => {
@@ -1956,7 +1964,7 @@ const DeclarationDetail = () => {
             color="primary" 
             autoFocus
           >
-            Confirmar
+            Confirm
           </Button>
         </DialogActions>
       </Dialog>

@@ -56,9 +56,9 @@ const DeclarationList = () => {
   const [availableQuarters, setAvailableQuarters] = useState([1, 2, 3, 4]); // Default to all quarters
   const [individualReports, setIndividualReports] = useState({});
   const [filteredReports, setFilteredReports] = useState([]);
-  // Estado para la paginación
+  // State for pagination
   const [page, setPage] = useState(1);
-  const itemsPerPage = 10; // 3 filas x 2 columnas = 6 items por página
+  const itemsPerPage = 10; // 3 rows x 2 columns = 6 items per page
 
   // Verificar autenticación antes de cargar los reportes
   useEffect(() => {
@@ -69,7 +69,7 @@ const DeclarationList = () => {
         // console.log('Token en localStorage:', token ? 'Presente' : 'Ausente');
         
         if (!token) {
-          throw new Error('No estás autenticado. Por favor, inicia sesión.');
+          throw new Error('You are not authenticated. Please log in.');
         }
         
         // Configurar el token en los headers de axios
@@ -82,7 +82,7 @@ const DeclarationList = () => {
         console.error('Error de autenticación:', error);
         setAlert({
           open: true,
-          message: error.message || 'Error de autenticación. Por favor, inicia sesión.',
+          message: error.message || 'Authentication error. Please log in.',
           severity: 'error'
         });
       }
@@ -93,28 +93,28 @@ const DeclarationList = () => {
       setLoading(true);
       
       try {
-        // Limpiar errores previos
+        // Clear previous errors
         setAlert({
           open: false,
           message: '',
           severity: 'info'
         });
         
-        // Obtener los reportes del servicio
+        // Get reports from the service
         // console.log('Obteniendo reportes...');
         let reports = await getGroupedQuarterlyReports();
         
-        // Si el usuario no es administrador, filtrar por su compañía
+        // If user is not admin, filter by their company
         if (!isAdmin && currentUser?.companyId) {
-          console.log('Filtrando reportes por compañía del usuario:', currentUser.companyId);
+          console.log('Filtering reports by user company:', currentUser.companyId);
           reports = reports.filter(report => 
             report.company_id === currentUser.companyId || 
             report.companyId === currentUser.companyId
           );
-          console.log(`Reportes después del filtrado: ${reports.length} encontrados`);
+          console.log(`Reports after filtering: ${reports.length} found`);
         }
         
-        // Cargar reportes individuales para los reportes válidos
+        // Load individual reports for valid reports
         const validReportsPromises = reports
           .filter(report => report.valid_report_count > 0)
           .map(async (report) => {
@@ -123,7 +123,7 @@ const DeclarationList = () => {
               const response = await getIndividualReports(report.company_id, report.quarter, report.year);
               return { key, reports: response };
             } catch (error) {
-              console.error('Error cargando reportes individuales:', error);
+              console.error('Error loading individual reports:', error);
               return null;
             }
           });
@@ -140,13 +140,13 @@ const DeclarationList = () => {
         // Actualizar estados
         setGroupedReports(reports);
 
-        // Mostrar mensaje si no hay reportes
+        // Show message if there are no reports
         if (reports.length === 0) {
           setAlert({
             open: true,
             message: isAdmin 
-              ? 'No se encontraron reportes trimestrales' 
-              : 'No se encontraron reportes para su compañía',
+              ? 'No quarterly reports found' 
+              : 'No reports found for your company',
             severity: 'info'
           });
         }
@@ -159,11 +159,11 @@ const DeclarationList = () => {
         // Mostrar mensaje de error al usuario
         setAlert({
           open: true,
-          message: error.message || 'Error al cargar los reportes trimestrales',
+          message: error.message || 'Error loading quarterly reports',
           severity: 'error'
         });
         
-        // Limpiar reportes en caso de error
+        // Clear reports in case of error
         setGroupedReports([]);
       } finally {
         setLoading(false);
@@ -173,18 +173,18 @@ const DeclarationList = () => {
 
     checkAuthAndLoadReports();
     
-    // Limpiar al desmontar el componente
+    // Clean up when component unmounts
     return () => {
-      // // console.log('Componente DeclarationList desmontado');
+       // console.log('DeclarationList component unmounted');
     };
   }, []);
 
-  // Manejar cierre de la alerta
+  // Handle alert close
   const handleAlertClose = () => {
     setAlert({ ...alert, open: false });
   };
 
-  // Manejar exportación a Excel
+  // Handle export to Excel
   const handleExportToExcel = async () => {
     try {
       setLoading(true);
@@ -197,30 +197,30 @@ const DeclarationList = () => {
       
       const blob = await exportToExcel(filters);
       
-      // Crear un enlace temporal para descargar el archivo
+      // Create a temporary link to download the file
       const url = window.URL.createObjectURL(new Blob([blob]));
       const link = document.createElement('a');
-      const fileName = `reportes-trimestrales-${new Date().toISOString().split('T')[0]}.xlsx`;
+      const fileName = `quarterly-reports-${new Date().toISOString().split('T')[0]}.xlsx`;
       
       link.href = url;
       link.setAttribute('download', fileName);
       document.body.appendChild(link);
       link.click();
       
-      // Limpiar
+      // Clean up
       link.parentNode.removeChild(link);
       window.URL.revokeObjectURL(url);
       
       setAlert({
         open: true,
-        message: 'Exportación completada con éxito',
+        message: 'Export completed successfully',
         severity: 'success'
       });
     } catch (error) {
-      console.error('Error al exportar a Excel:', error);
+      console.error('Error exporting to Excel:', error);
       setAlert({
         open: true,
-        message: 'Error al exportar a Excel',
+        message: 'Error exporting to Excel',
         severity: 'error'
       });
     } finally {
@@ -228,13 +228,13 @@ const DeclarationList = () => {
     }
   };
 
-  // Manejar visualización de reporte agrupado
+  // Handle grouped report view
   const handleView = (companyId, quarter, year) => {
     const rolePrefix = currentUser?.role === 'admin' ? 'admin' : 'client';
     navigate(`/${rolePrefix}/declarations/company/${companyId}/quarter/${quarter}/year/${year}`);
   };
 
-  // Obtener color según el estado
+  // Get color based on status
   const getStatusColor = (status) => {
     switch (status) {
       case 'approved': return 'success';
@@ -245,32 +245,32 @@ const DeclarationList = () => {
     }
   };
 
-  // Obtener texto según el estado
+  // Get text based on status
   const getStatusText = (status) => {
     switch (status) {
-      case 'approved': return 'Aprobado';
-      case 'pending': return 'Pendiente';
-      case 'submitted': return 'Enviado';
-      case 'rejected': return 'Rechazado';
+      case 'approved': return 'Approved';
+      case 'pending': return 'Pending';
+      case 'submitted': return 'Submitted';
+      case 'rejected': return 'Rejected';
       default: return status;
     }
   };
 
-  // Obtener trimestres únicos para el filtro
+  // Get unique quarters for filter
   const getUniqueQuarters = () => {
     const quarters = new Set();
     groupedReports.forEach(report => quarters.add(report.quarter));
     return Array.from(quarters).sort();
   };
 
-  // Obtener años únicos para el filtro
+  // Get unique years for filter
   const years = useMemo(() => {
     const uniqueYears = new Set();
     groupedReports.forEach(report => uniqueYears.add(report.year));
-    return Array.from(uniqueYears).sort((a, b) => b - a); // Orden descendente
+    return Array.from(uniqueYears).sort((a, b) => b - a); // Descending order
   }, [groupedReports]);
 
-  // Obtener trimestres disponibles cuando cambia el año
+  // Get available quarters when year changes
   useEffect(() => {
     const fetchAvailableQuarters = async () => {
       if (yearFilter === 'all' || companyFilter === 'all') {
@@ -282,7 +282,7 @@ const DeclarationList = () => {
         const response = await api.get(`/v1/quarterly-reports/company/${companyFilter}/year/${yearFilter}/quarters`);
         if (response.data && response.data.quarters) {
           setAvailableQuarters(response.data.quarters);
-          // Si el trimestre actual no está en los disponibles, lo cambiamos a 'all'
+          // If current quarter is not in available quarters, change it to 'all'
           if (quarterFilter !== 'all' && !response.data.quarters.includes(parseInt(quarterFilter))) {
             setQuarterFilter('all');
           }
@@ -298,14 +298,14 @@ const DeclarationList = () => {
     fetchAvailableQuarters();
   }, [yearFilter, companyFilter]);
 
-  // Obtener compañías únicas para el filtro
+  // Get unique companies for filter
   const getUniqueCompanies = () => {
     const companies = [];
     const companyMap = new Map();
     
     groupedReports.forEach(report => {
       if (report.company_id && !companyMap.has(report.company_id)) {
-        companyMap.set(report.company_id, report.company_name || `Compañía ${report.company_id}`);
+        companyMap.set(report.company_id, report.company_name || `Company ${report.company_id}`);
         companies.push({
           id: report.company_id,
           name: companyMap.get(report.company_id)
@@ -316,59 +316,59 @@ const DeclarationList = () => {
     return companies.sort((a, b) => a.name.localeCompare(b.name));
   };
 
-  // Obtener opciones de compañía para el Autocomplete
+  // Get company options for Autocomplete
   const companyOptions = React.useMemo(() => getUniqueCompanies(), [groupedReports]);
   
-  // Encontrar la compañía seleccionada
+  // Find the selected company
   const selectedCompany = companyOptions.find(company => company.id.toString() === companyFilter) || null;
 
-  // Cargar reportes individuales para cada grupo
+  // Load individual reports for each group
   useEffect(() => {
     if (groupedReports.length > 0) {
       const loadIndividualReports = async () => {
-        // console.log('=== Iniciando carga de reportes individuales ===');
-        // console.log('Total de grupos a procesar:', groupedReports.length);
+        // console.log('=== Starting individual reports load ===');
+        // console.log('Total groups to process:', groupedReports.length);
         const reportsMap = {};
         
-        // Procesar cada grupo para cargar sus reportes individuales
+        // Process each group to load its individual reports
         for (const group of groupedReports) {
           const key = `${group.company_id}_${group.quarter}_${group.year}`;
           
           if (!individualReports[key]) {
             try {
-              // console.log(`Cargando reportes individuales para grupo: ${key}`);
+              // console.log(`Loading individual reports for group: ${key}`);
               const response = await getIndividualReports(
                 group.company_id,
                 group.quarter,
                 group.year
               );
               
-              // Verificar si la respuesta tiene la estructura esperada
+              // Check if response has the expected structure
               const reports = response.data?.reports || [];
-              // console.log(`Se encontraron ${reports.length} reportes para el grupo ${key}`);
+              // console.log(`Found ${reports.length} reports for group ${key}`);
               
-              // Actualizar el mapa de reportes individuales
+              // Update individual reports map
               reportsMap[key] = reports;
             } catch (error) {
-              console.error(`Error al cargar reportes individuales para ${key}:`, error);
+              console.error(`Error loading individual reports for ${key}:`, error);
               reportsMap[key] = [];
             }
           } else {
-            // Usar los reportes ya cargados
+            // Use already loaded reports
             reportsMap[key] = individualReports[key];
           }
         }
         
-        // Actualizar el estado con los reportes individuales
+        // Update state with individual reports
         setIndividualReports(prev => ({
           ...prev,
           ...reportsMap
         }));
       };
       
-      // Deshabilitar temporalmente la carga de reportes individuales
+      // Temporarily disable individual reports loading
       // loadIndividualReports();
-      // console.log('Carga de reportes individuales deshabilitada temporalmente');
+      // console.log('Individual reports loading temporarily disabled');
     }
   }, [groupedReports]);
 
@@ -376,12 +376,12 @@ const DeclarationList = () => {
   useEffect(() => {
     console.log('individualReports:', individualReports);
     if (groupedReports && groupedReports.length > 0) {
-      console.log('Aplicando filtros...');
-      console.log('Total de reportes agrupados:', groupedReports.length);
+      console.log('Applying filters...');
+      console.log('Total grouped reports:', groupedReports.length);
       
       const filtered = groupedReports.filter(report => {
-        // Aplicar filtros
-        // Asegurarse de que el estado esté en minúsculas para la comparación
+        // Apply filters
+        // Make sure status is in lowercase for comparison
         const currentStatus = (report.status || '').toLowerCase();
         const statusMatch = statusFilter === 'all' || 
                           (statusFilter === 'in_progress' && currentStatus === 'in_progress') ||
@@ -402,10 +402,10 @@ const DeclarationList = () => {
         return matches;
       });
       
-      // console.log(`Filtros aplicados: status=${statusFilter}, quarter=${quarterFilter}, year=${yearFilter}, company=${companyFilter}`);
-      // console.log(`Reportes después de filtrar: ${filtered.length} de ${groupedReports.length}`);
+      // console.log(`Applied filters: status=${statusFilter}, quarter=${quarterFilter}, year=${yearFilter}, company=${companyFilter}`);
+      // console.log(`Reports after filtering: ${filtered.length} of ${groupedReports.length}`);
       
-      // Resetear a la primera página cuando cambian los filtros
+      // Reset to first page when filters change
       setPage(1);
       setFilteredReports(filtered);
     }
@@ -415,19 +415,10 @@ const DeclarationList = () => {
     <Container maxWidth="lg" sx={{ py: 4 }}>
       <Box sx={{ mb: 3 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-          <Typography variant="h5">Reportes Trimestrales</Typography>
-          <Button
-            variant="outlined"
-            color="primary"
-            startIcon={<FileDownloadIcon />}
-            onClick={handleExportToExcel}
-            disabled={loading || filteredReports.length === 0}
-          >
-            Exportar a Excel
-          </Button>
+          <Typography variant="h5">Quarterly Reports</Typography>
         </Box>
         
-        {/* Se eliminaron los contadores de Grupos de Reportes y Reportes Individuales */}
+        {/* Removed Report Groups and Individual Reports counters */}
       </Box>
 
       {/* Filtros */}
@@ -446,13 +437,13 @@ const DeclarationList = () => {
                 renderInput={(params) => (
                   <TextField
                     {...params}
-                    label="Buscar compañía"
+                    label="Search company"
                     variant="outlined"
                     size="small"
-                    placeholder="Escribe para buscar..."
+                    placeholder="Type to search..."
                   />
                 )}
-                noOptionsText="No hay coincidencias"
+                noOptionsText="No matches found"
                 isOptionEqualToValue={(option, value) => option.id === value.id}
                 clearOnEscape
                 clearOnBlur
@@ -462,11 +453,11 @@ const DeclarationList = () => {
           </Grid>
           <Grid item xs={12} md={3}>
             <FormControl fullWidth size="small">
-              <InputLabel>Estado</InputLabel>
+              <InputLabel>Status</InputLabel>
               <Select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                label="Estado"
+                label="Status"
               >
                 <MenuItem value="all">All</MenuItem>
                 <MenuItem value="in_progress">In Progress</MenuItem>
@@ -476,13 +467,13 @@ const DeclarationList = () => {
           </Grid>
           <Grid item xs={12} md={3}>
             <FormControl fullWidth size="small">
-              <InputLabel>Trimestre</InputLabel>
+              <InputLabel>Quarter</InputLabel>
               <Select
                 value={quarterFilter}
                 onChange={(e) => setQuarterFilter(e.target.value)}
-                label="Trimestre"
+                label="Quarter"
               >
-                <MenuItem value="all">Todos los trimestres</MenuItem>
+                <MenuItem value="all">All quarters</MenuItem>
                 {availableQuarters.map(q => (
                   <MenuItem key={`q${q}`} value={q}>Q{q}</MenuItem>
                 ))}
@@ -491,13 +482,13 @@ const DeclarationList = () => {
           </Grid>
           <Grid item xs={12} md={3}>
             <FormControl fullWidth size="small">
-              <InputLabel>Año</InputLabel>
+              <InputLabel>Year</InputLabel>
               <Select
                 value={yearFilter}
                 onChange={(e) => setYearFilter(e.target.value)}
-                label="Año"
+                label="Year"
               >
-                <MenuItem value="all">Todos</MenuItem>
+                <MenuItem value="all">All</MenuItem>
                 {years.map(year => (
                   <MenuItem key={year} value={year}>{year}</MenuItem>
                 ))}
@@ -515,7 +506,7 @@ const DeclarationList = () => {
       ) : filteredReports.length === 0 ? (
         <Paper sx={{ p: 3, textAlign: 'center' }}>
           <Typography variant="h6" color="textSecondary">
-            No se encontraron reportes que coincidan con los filtros
+            No reports found matching the filters
           </Typography>
         </Paper>
       ) : (
@@ -552,7 +543,7 @@ const DeclarationList = () => {
                         </Grid>
                         <Grid item xs={4} sx={{ textAlign: 'right' }}>
                           <Typography variant="body2" color="textSecondary" component="span">
-                            Reportes: 
+                            Reports: 
                           </Typography>
                           <Typography variant="h6" component="span">
                             {report.valid_report_count}
@@ -566,7 +557,7 @@ const DeclarationList = () => {
                         color="primary"
                         onClick={() => handleView(report.company_id, report.quarter, report.year)}
                       >
-                        Ver Detalles
+                        View Details
                       </Button>
                     </CardActions>
                   </Card>
@@ -574,7 +565,7 @@ const DeclarationList = () => {
               ))}
           </Grid>
           
-          {/* Paginación */}
+          {/* Pagination */}
           {filteredReports.length > itemsPerPage && (
             <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4, mb: 2, width: '100%' }}>
               <Stack spacing={2}>

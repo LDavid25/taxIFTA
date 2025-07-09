@@ -50,7 +50,7 @@ import { isAdmin } from '../../constants/roles';
 import api from '../../services/api';
 import BusinessIcon from '@mui/icons-material/Business';
 
-// Mapeo de códigos de estado a nombres completos
+// Mapping of state codes to full names
 const STATE_NAMES = {
   'AL': 'Alabama',
   'AK': 'Alaska',
@@ -125,13 +125,13 @@ const formatDate = (dateString) => {
     const date = new Date(dateString);
     if (isNaN(date.getTime())) return 'N/A';
     
-    // Formato: MMM yyyy (ej. 'jun 2023')
-    return date.toLocaleString('es-ES', { 
+    // Format: MMM yyyy (e.g., 'Jun 2023')
+    return date.toLocaleString('en-US', { 
       month: 'short', 
       year: 'numeric' 
     });
   } catch (error) {
-    console.error('Error formateando fecha:', error);
+    console.error('Error formatting date:', error);
     return 'N/A';
   }
 };
@@ -141,16 +141,16 @@ const getQuarter = (dateString) => {
     if (!dateString) return 'N/A';
     
     const date = new Date(dateString);
-    if (isNaN(date.getTime())) return 'Q? ????'; // Retornar marcador de posición si la fecha no es válida
+    if (isNaN(date.getTime())) return 'Q? ????'; // Return placeholder if date is not valid
     
-    const month = date.getMonth() + 1; // getMonth() comienza en 0 (enero = 0)
+    const month = date.getMonth() + 1; // getMonth() starts at 0 (January = 0)
     const year = date.getFullYear();
     const quarter = Math.ceil(month / 3);
     
     return `Q${quarter} ${year}`;
   } catch (error) {
-    console.error('Error obteniendo trimestre:', error);
-    return 'Q? ????'; // Retornar marcador de posición si hay un error
+    console.error('Error getting quarter:', error);
+    return 'Q? ????'; // Return placeholder if there's an error
   }
 };
 
@@ -163,7 +163,7 @@ const statusOptions = [
 ];
 const statusFilters = statusOptions.map(opt => opt.display);
 
-// Componente para mostrar una fila en vista móvil
+// Component to display a row in mobile view
 const MobileTableRow = ({ row, onViewReceipt }) => {
   const [expanded, setExpanded] = useState(false);
   
@@ -225,7 +225,7 @@ const MobileTableRow = ({ row, onViewReceipt }) => {
                   onClick={() => onViewReceipt(row.id, row)}
                   fullWidth
                 >
-                  Ver Detalles
+                  View Details
                 </Button>
               </Grid>
             </Grid>
@@ -243,29 +243,29 @@ const ConsumptionHistory = () => {
   const { currentUser } = useAuth();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   
-  // Estados para los filtros
+  // States for filters
   const [searchTerm, setSearchTerm] = useState('');
   const [companyFilter, setCompanyFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [companies, setCompanies] = useState([]);
   
-  // Opciones de años (últimos 5 años y el actual)
+  // Year options (last 5 years and current)
   const currentYear = new Date().getFullYear();
   const yearOptions = Array.from({ length: 6 }, (_, i) => currentYear - i);
   
-  // Opciones de trimestres
+  // Quarter options
   const quarterOptions = [1, 2, 3, 4];
   
-  // Estados para año y trimestre seleccionados
+  // States for selected year and quarter
   const [selectedYear, setSelectedYear] = useState('');
   const [selectedQuarter, setSelectedQuarter] = useState('');
   
-  // Estados para los datos
+  // States for data
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
-  // Estado para datos filtrados y paginación
+  // State for filtered data and pagination
   const [filteredData, setFilteredData] = useState([]);
   const [pagination, setPagination] = useState({
     page: 0,
@@ -276,19 +276,19 @@ const ConsumptionHistory = () => {
   
 
   
-  // Cargar compañías para el filtro de admin
+  // Load companies for admin filter
   useEffect(() => {
     const fetchCompanies = async () => {
       if (isAdmin(currentUser)) {
         try {
-          // Usar el endpoint correcto para obtener las compañías
+          // Use the correct endpoint to get companies
           const response = await api.get('/v1/companies');
           setCompanies(response.data.data || []);
         } catch (error) {
           console.error('Error fetching companies:', error);
-          // No mostrar error si el usuario no es admin
+          // Don't show error if user is not admin
           if (isAdmin(currentUser)) {
-            enqueueSnackbar('Error al cargar las compañías', { variant: 'error' });
+            enqueueSnackbar('Error loading companies', { variant: 'error' });
           }
         }
       }
@@ -297,12 +297,12 @@ const ConsumptionHistory = () => {
     fetchCompanies();
   }, [currentUser, enqueueSnackbar]);
 
-  // Cargar datos cuando cambian los filtros o la paginación
+  // Load data when filters or pagination changes
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        console.log('🔍 Usuario actual:', {
+        console.log('Current user:', {
           id: currentUser?.id,
           email: currentUser?.email,
           role: currentUser?.role,
@@ -310,9 +310,9 @@ const ConsumptionHistory = () => {
           company: currentUser?.company
         });
         
-        // Si no hay usuario, salir
+        // If no user, exit
         if (!currentUser) {
-          console.log('⚠️ No hay usuario autenticado');
+          console.log('No authenticated user');
           setReports([]);
           setFilteredData([]);
           setPagination(prev => ({ ...prev, total: 0 }));
@@ -320,11 +320,11 @@ const ConsumptionHistory = () => {
           return;
         }
         
-        // Verificar si el usuario tiene un companyId válido
+        // Check if user has a valid companyId
         const hasValidCompanyId = currentUser?.companyId || currentUser?.company_id || currentUser?.company?.id;
         
         if (!isAdmin(currentUser) && !hasValidCompanyId) {
-          console.error('❌ Usuario no admin sin companyId, no se pueden cargar reportes', {
+          console.error('Non-admin user without companyId, cannot load reports', {
             user: {
               id: currentUser?.id,
               email: currentUser?.email,
@@ -335,9 +335,9 @@ const ConsumptionHistory = () => {
             }
           });
           
-          enqueueSnackbar('No se pudo cargar la información de su compañía. Por favor, contacte al administrador.', { 
+          enqueueSnackbar('Could not load your company information. Please contact the administrator.', { 
             variant: 'error',
-            autoHideDuration: 10000 // Mostrar por 10 segundos
+            autoHideDuration: 10000 // Show for 10 seconds
           });
           
           setReports([]);
@@ -348,11 +348,11 @@ const ConsumptionHistory = () => {
         }
 
         const params = {
-          page: pagination.page + 1, // La API usa base 1
+          page: pagination.page + 1, // API uses base 1
           limit: pagination.rowsPerPage,
         };
 
-        console.log('👤 Usuario actual en fetchData:', {
+        console.log('Current user in fetchData:', {
           userId: currentUser?.id,
           companyId: currentUser?.companyId,
           company: currentUser?.company,
@@ -360,14 +360,14 @@ const ConsumptionHistory = () => {
           isAdmin: isAdmin(currentUser)
         });
 
-        // Limpiar parámetros existentes
+        // Clear existing parameters
         delete params.companyId;
         delete params.userId;
 
-        // Obtener el ID de la compañía del usuario (de cualquier propiedad posible)
+        // Get user's company ID from any possible property
         const userCompanyId = currentUser?.companyId || currentUser?.company_id || (currentUser?.company?.id);
         
-        console.log('🔍 Parámetros de filtrado:', {
+        console.log('Filter parameters:', {
           isAdmin: isAdmin(currentUser),
           userCompanyId,
           companyFilter,
@@ -383,27 +383,27 @@ const ConsumptionHistory = () => {
         });
 
         if (isAdmin(currentUser)) {
-          // Para admin, filtrar por compañía si se selecciona una
+          // For admin, filter by company if one is selected
           if (companyFilter) {
             params.companyId = companyFilter;
-            console.log('👔 Admin filtrando por compañía seleccionada:', companyFilter);
+            console.log('Admin filtering by selected company:', companyFilter);
           } else {
-            console.log('👔 Admin sin filtro de compañía, mostrando todos los reportes');
+            console.log('Admin without company filter, showing all reports');
           }
         } else {
-          // Para usuarios no admin, forzar el filtro por su companyId
+          // For non-admin users, force filter by their companyId
           if (userCompanyId) {
             params.companyId = userCompanyId;
-            console.log('👤 Usuario no admin, filtrando por su compañía:', userCompanyId);
+            console.log('Non-admin user, filtering by their company:', userCompanyId);
             
-            // Opcional: Agregar filtro por usuario si es necesario
+            // Optionally add filter by user if needed
             if (currentUser?.id) {
               params.userId = currentUser.id;
-              console.log('👤 Filtrando por userId:', currentUser.id);
+              console.log('Filtering by userId:', currentUser.id);
             }
           } else {
-            console.error('❌ Usuario no admin sin companyId, no se puede cargar datos');
-            enqueueSnackbar('No se pudo cargar la información de su compañía. Por favor, contacte al administrador.', { 
+            console.error('Non-admin user without companyId, cannot load data');
+            enqueueSnackbar('Could not load your company information. Please contact the administrator.', { 
               variant: 'error',
               autoHideDuration: 10000
             });
@@ -441,13 +441,13 @@ const ConsumptionHistory = () => {
           params.search = searchTerm;
         }
 
-        console.log('📤 Enviando parámetros a la API:', JSON.stringify(params, null, 2));
+        console.log('Sending parameters to API:', JSON.stringify(params, null, 2));
         const response = await getConsumptionReports(params);
         
-        // Asegurarse de que response.data existe y tiene la estructura esperada
+        // Ensure response.data exists and has the expected structure
         const responseData = response?.data || {};
         
-        // Manejar diferentes formatos de respuesta
+        // Handle different response formats
         let reportsData = [];
         if (Array.isArray(responseData)) {
           reportsData = responseData;
@@ -457,17 +457,17 @@ const ConsumptionHistory = () => {
           reportsData = responseData.reports;
         }
         
-        console.log('📥 Respuesta de la API procesada:', {
+        console.log('API response processed:', {
           rawData: responseData,
           reportsCount: reportsData.length,
           pagination: responseData.pagination || {},
-          reportsSample: reportsData.slice(0, 2) // Mostrar muestra de los primeros 2 reportes
+          reportsSample: reportsData.slice(0, 2) // Show sample of first 2 reports
         });
         
-        // Actualizar el estado con los reportes
+        // Update state with reports
         setReports(reportsData);
         
-        // Calcular la paginación
+        // Calculate pagination
         const totalItems = responseData.pagination?.total || 
                           responseData.total || 
                           reportsData.length;
@@ -476,7 +476,7 @@ const ConsumptionHistory = () => {
                           Math.ceil(totalItems / pagination.rowsPerPage) || 
                           1;
         
-        console.log('📊 Actualizando paginación:', {
+        console.log('Updating pagination:', {
           totalItems,
           totalPages,
           currentPage: pagination.page,
@@ -491,9 +491,9 @@ const ConsumptionHistory = () => {
         
         setError(null);
       } catch (err) {
-        console.error('Error al cargar los informes:', err);
-        setError('No se pudieron cargar los informes. Intente de nuevo más tarde.');
-        enqueueSnackbar('Error al cargar los informes', { variant: 'error' });
+        console.error('Error loading reports:', err);
+        setError('Could not load the reports. Please try again later.');
+        enqueueSnackbar('Error loading reports', { variant: 'error' });
         setReports([]);
       } finally {
         setLoading(false);
@@ -521,37 +521,37 @@ const ConsumptionHistory = () => {
 
   const handleViewReceipt = (id, report) => {
     const basePath = currentUser?.role === 'admin' ? '/admin' : '/client';
-    // Pasar el informe completo como estado de ubicación
+    // Pass the full report as location state
     navigate(`${basePath}/consumption/${id}`, { state: { report } });
   };
 
-  // Función para formatear los datos del informe para la tabla
+  // Function to format report data for the table
   const formatReportData = (report) => {
-    console.log('Report data:', report); // Log para inspeccionar los datos del informe
-    // Calcular total de millas y galones
+    console.log('Report data:', report); // Log to inspect report data
+    // Calculate total miles and gallons
     const totalMiles = report.states?.reduce((sum, state) => sum + (parseFloat(state.miles) || 0), 0) || 0;
     const totalGallons = report.states?.reduce((sum, state) => sum + (parseFloat(state.gallons) || 0), 0) || 0;
     const mpg = totalMiles > 0 && totalGallons > 0 ? (totalMiles / totalGallons).toFixed(2) : 0;
     
-    // Formatear fecha (solo mes y año)
+    // Format date (only month and year)
     const formatDate = (date) => {
       if (!date) return 'N/A';
       const d = new Date(date);
-      return d.toLocaleString('es-ES', { month: 'short', year: 'numeric' });
+      return d.toLocaleString('en-US', { month: 'short', year: 'numeric' });
     };
     
     const reportDate = report.report_year && report.report_month 
       ? new Date(report.report_year, report.report_month - 1, 1)
       : report.createdAt || new Date();
     
-    // Obtener y formatear estados únicos con formato 'CÓDIGO - Nombre'
+    // Get and format unique states with format 'CODE - Name'
     const states = [...new Set(report.states?.map(s => {
       const code = s.state_code?.toUpperCase();
-      const name = STATE_NAMES[code] || 'Desconocido';
+      const name = STATE_NAMES[code] || 'Unknown';
       return code ? `${code} - ${name}` : null;
     }).filter(Boolean))].join(', ');
     
-    // Obtener el nombre de la compañía de diferentes posibles ubicaciones en la respuesta
+    // Get company name from different possible locations in the response
     const companyName = report.company?.name || 
                        report.company_name || 
                        (report.company && typeof report.company === 'string' ? report.company : 'N/A');
@@ -571,14 +571,14 @@ const ConsumptionHistory = () => {
       })() : 'Pending',
       states: states || 'N/A',
       receiptId: report.id,
-      taxPaid: 0, // Esto debería venir del backend
-      // Datos adicionales para la vista móvil
+      taxPaid: 0, // This should come from the backend
+      // Additional data for mobile view
       quarter: report.quarterlyReport ? `Q${report.quarterlyReport.quarter} ${report.quarterlyReport.year}` : 'N/A',
       notes: report.notes || ''
     };
   };
   
-  // Efecto para formatear y filtrar los datos cuando cambian los informes o los filtros
+  // Effect to format and filter data when reports or filters change
   useEffect(() => {
     if (!reports || !Array.isArray(reports)) {
       setFilteredData([]);
@@ -586,10 +586,10 @@ const ConsumptionHistory = () => {
     }
     
     try {
-      // Aplicar formato a los informes
+      // Apply format to reports
       const formatted = reports.map(formatReportData);
       
-      // Aplicar filtros
+      // Apply filters
       const filtered = formatted.filter(row => {
         const matchesSearch = searchTerm 
           ? (row.unitNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -607,9 +607,9 @@ const ConsumptionHistory = () => {
       
       setFilteredData(filtered);
     } catch (error) {
-      console.error('Error al procesar los datos:', error);
+      console.error('Error processing data:', error);
       setFilteredData([]);
-      enqueueSnackbar('Error al procesar los datos', { variant: 'error' });
+      enqueueSnackbar('Error processing data', { variant: 'error' });
     }
   }, [reports, searchTerm, statusFilter, companyFilter, currentUser, enqueueSnackbar]);
 
@@ -703,14 +703,14 @@ const ConsumptionHistory = () => {
                 <Grid item xs={12} sm={6} md={3}>
                   <TextField
                     fullWidth
-                    label="Filtrar por compañía"
+                    label="Filter by company"
                     variant="outlined"
                     size="small"
                     value={companyFilter}
                     onChange={(e) => setCompanyFilter(e.target.value)}
                     select
                   >
-                    <MenuItem value="">Todas las compañías</MenuItem>
+                    <MenuItem value="">All companies</MenuItem>
                     {companies.map((company) => (
                       <MenuItem key={company._id} value={company._id}>
                         {company.name}
@@ -788,11 +788,11 @@ const ConsumptionHistory = () => {
             </Box>
           ) : error ? (
             <Alert severity="error" sx={{ m: 2 }}>
-              Error al cargar los informes: {error}
+              Error loading reports: {error}
             </Alert>
           ) : (
             isMobile ? (
-              // Vista móvil - Tarjetas
+              // Mobile view - Cards
               <Box sx={{ p: 2 }}>
                 {filteredData
                   .slice(pagination.page * pagination.rowsPerPage, pagination.page * pagination.rowsPerPage + pagination.rowsPerPage)
@@ -869,9 +869,9 @@ const ConsumptionHistory = () => {
             page={pagination.page}
             onPageChange={handleChangePage}
             onRowsPerPageChange={handleChangeRowsPerPage}
-            labelRowsPerPage="Filas por página:"
+            labelRowsPerPage="Rows per page:"
             labelDisplayedRows={({ from, to, count }) => 
-              `${from}-${to} de ${count !== -1 ? count : `más de ${to}`}`
+              `${from}-${to} of ${count !== -1 ? count : `more to ${to}`}`
             }
             sx={{ 
               borderTop: '1px solid rgba(224, 224, 224, 1)',

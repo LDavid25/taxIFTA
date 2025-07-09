@@ -53,7 +53,7 @@ const RegisterUser = () => {
         setCompanies(response.data.data || []);
       } catch (err) {
         console.error('Error fetching companies:', err);
-        setError('Error al cargar las compañías');
+        setError('Error loading companies');
       }
     };
     
@@ -172,7 +172,7 @@ const RegisterUser = () => {
           // Clear company_id to avoid conflicts
           delete requestData.company_id;
         } else {
-          throw new Error('Seleccione una compañía existente o cree una nueva');
+          throw new Error('Please select an existing company or create a new one');
         }
       }
       
@@ -207,7 +207,7 @@ const RegisterUser = () => {
       }
     } catch (err) {
       console.error('Registration error:', err);
-      setError(err.response?.data?.message || 'Error al registrar el usuario. Por favor, intente de nuevo.');
+      setError(err.response?.data?.message || 'Error registering the user. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -217,7 +217,7 @@ const RegisterUser = () => {
     <Box sx={{ maxWidth: 800, mx: 'auto', p: 3 }}>
       <Paper elevation={3} sx={{ p: 4 }}>
         <Typography variant="h5" gutterBottom>
-          Registrar Nuevo Usuario
+          Register New User
         </Typography>
         
         {error && (
@@ -228,7 +228,7 @@ const RegisterUser = () => {
         
         {success && (
           <Alert severity="success" sx={{ mb: 2 }}>
-            Usuario registrado exitosamente!
+            User registered successfully!
           </Alert>
         )}
         
@@ -236,14 +236,14 @@ const RegisterUser = () => {
           <Grid container spacing={3}>
             <Grid item xs={12}>
               <Typography variant="subtitle1" gutterBottom>
-                Información del Usuario
+                User Information
               </Typography>
             </Grid>
             
             <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
-                label="Nombre Completo"
+                label="Full Name"
                 name="name"
                 value={formData.name}
                 onChange={handleChange}
@@ -255,7 +255,7 @@ const RegisterUser = () => {
             <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
-                label="Correo Electrónico"
+                label="Email"
                 name="email"
                 type="email"
                 value={formData.email}
@@ -268,29 +268,29 @@ const RegisterUser = () => {
             <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
-                label="Contraseña"
+                label="Password"
                 name="password"
                 type="text"
                 value={formData.password}
                 onChange={handleChange}
                 required
                 margin="normal"
-                helperText="La contraseña debe tener al menos 8 caracteres, incluyendo mayúsculas, minúsculas, números y caracteres especiales"
+                helperText="Password must be at least 8 characters long, including uppercase, lowercase, numbers, and special characters"
               />
             </Grid>
             
             <Grid item xs={12} md={6}>
               <FormControl fullWidth margin="normal">
-                <InputLabel>Rol</InputLabel>
+                <InputLabel>Role</InputLabel>
                 <Select
                   name="role"
                   value={formData.role}
                   onChange={handleChange}
-                  label="Rol"
+                  label="Role"
                   required
                 >
-                  <MenuItem value="user">Usuario</MenuItem>
-                  <MenuItem value="admin">Administrador</MenuItem>
+                  <MenuItem value="user">User</MenuItem>
+                  <MenuItem value="admin">Administrator</MenuItem>
                 </Select>
               </FormControl>
             </Grid>
@@ -298,11 +298,11 @@ const RegisterUser = () => {
             {formData.role !== 'admin' && (
               <Grid item xs={12}>
                 <Typography variant="subtitle1" gutterBottom sx={{ mt: 2 }}>
-                  Información de la Empresa
+                  Company Information
                 </Typography>
                 
                 <FormControl component="fieldset" sx={{ mb: 3, width: '100%' }}>
-                  <FormLabel component="legend">Seleccione una opción:</FormLabel>
+                  <FormLabel component="legend">Select an option:</FormLabel>
                   <RadioGroup 
                     row 
                     value={companyOption}
@@ -311,26 +311,26 @@ const RegisterUser = () => {
                     <FormControlLabel 
                       value="existing" 
                       control={<Radio />} 
-                      label="Seleccionar compañía existente" 
+                      label="Select existing company" 
                     />
                     <FormControlLabel 
                       value="new" 
                       control={<Radio />} 
-                      label="Crear nueva compañía" 
+                      label="Create new company" 
                     />
                   </RadioGroup>
                 </FormControl>
 
                 {companyOption === 'existing' && (
                   <FormControl fullWidth margin="normal">
-                    <InputLabel>Compañía</InputLabel>
+                    <InputLabel>Company</InputLabel>
                     <Select
                       value={formData.company_id}
                       onChange={(e) => setFormData(prev => ({
                         ...prev,
                         company_id: e.target.value
                       }))}
-                      label="Compañía"
+                      label="Company"
                       required
                     >
                       {companies.map((company) => (
@@ -348,7 +348,7 @@ const RegisterUser = () => {
                     <Grid item xs={12} md={6}>
                       <TextField
                         fullWidth
-                        label="Nombre de la Empresa"
+                        label="Company Name"
                         name="company.name"
                         value={formData.company.name}
                         onChange={handleChange}
@@ -360,7 +360,7 @@ const RegisterUser = () => {
                     <Grid item xs={12} md={6}>
                       <TextField
                         fullWidth
-                        label="Correo de la Empresa"
+                        label="Company Email"
                         name="company.company_email"
                         type="email"
                         value={formData.company.company_email}
@@ -373,7 +373,7 @@ const RegisterUser = () => {
                     <Grid item xs={12} md={6}>
                       <TextField
                         fullWidth
-                        label="Teléfono de la Empresa"
+                        label="Company Phone"
                         name="company.phone"
                         value={formData.company.phone}
                         onChange={handleChange}
@@ -386,7 +386,7 @@ const RegisterUser = () => {
                 {companyOption === 'new' && (
                   <Grid item xs={12}>
                     <Typography variant="subtitle2" gutterBottom sx={{ mt: 2 }}>
-                      Correos de Distribución (Opcional, máximo 10)
+                      Distribution Emails (Optional, maximum 10)
                     </Typography>
                     
                     {formData.company.distribution_emails.map((email, index) => (
@@ -398,7 +398,7 @@ const RegisterUser = () => {
                           onChange={(e) => handleDistributionEmailChange(index, e.target.value)}
                           margin="normal"
                           size="small"
-                          placeholder="correo@ejemplo.com"
+                          placeholder="email@example.com"
                         />
                         {formData.company.distribution_emails.length > 1 && (
                           <Button 
@@ -408,7 +408,7 @@ const RegisterUser = () => {
                             onClick={() => removeDistributionEmail(index)}
                             sx={{ minWidth: '100px' }}
                           >
-                            Eliminar
+                            Remove
                           </Button>
                         )}
                       </Box>
@@ -421,7 +421,7 @@ const RegisterUser = () => {
                       sx={{ mt: 1 }}
                       startIcon={<AddIcon />}
                     >
-                      Agregar Correo
+                      Add Email
                     </Button>
                   </Grid>
                 )}
@@ -438,7 +438,7 @@ const RegisterUser = () => {
                 size="large"
                 sx={{ py: 1.5 }}
               >
-                {loading ? 'Registrando...' : 'Registrar Usuario'}
+                {loading ? 'Registering...' : 'Register User'}
               </Button>
             </Grid>
           </Grid>

@@ -62,7 +62,7 @@ const Profile = () => {
   const [newEmail, setNewEmail] = useState('');
   const [emailError, setEmailError] = useState('');
   
-  // Inicializar formik para el perfil
+  // Initialize formik for profile
   const profileFormik = useFormik({
     initialValues: {
       name: currentUser?.name || '',
@@ -95,7 +95,7 @@ const Profile = () => {
     }
   });
   
-  // Inicializar formik para la contraseña
+  // Initialize formik for password
   const passwordFormik = useFormik({
     initialValues: {
       current_password: '',
@@ -130,7 +130,7 @@ const Profile = () => {
     }
   });
   
-  // Load notification emails on component mount
+  // Load notification emails when component mounts
   useEffect(() => {
     // Simulate API call to load notification emails
     const loadNotificationEmails = async () => {
@@ -156,12 +156,12 @@ const Profile = () => {
     loadNotificationEmails();
   }, []);
 
-  // Handle alert close
+  // Handle closing alert messages
   const handleAlertClose = () => {
     setAlert({ ...alert, open: false });
   };
 
-  // Handle adding a new notification email
+  // Handle adding a new notification email address
   const handleAddEmail = (e) => {
     e.preventDefault();
     
@@ -195,7 +195,7 @@ const Profile = () => {
     });
   };
 
-  // Handle removing a notification email
+  // Handle removing a notification email address
   const handleRemoveEmail = async (emailToRemove) => {
     // In a real app, this would be an API call
     // await api.delete(`/api/notification-emails/${encodeURIComponent(emailToRemove)}`);
@@ -239,7 +239,7 @@ const Profile = () => {
                     {currentUser?.name || 'User'}
                   </Typography>
                   <Typography variant="subtitle2" color="text.secondary" sx={{ fontWeight: 'medium' }}>
-                    {currentUser?.company_name || 'No company'}
+                    {currentUser?.company_name || 'No company associated'}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
                     {currentUser?.email || 'user@example.com'}
@@ -265,7 +265,29 @@ const Profile = () => {
                       onBlur={profileFormik.handleBlur}
                       error={profileFormik.touched.name && Boolean(profileFormik.errors.name)}
                       helperText={profileFormik.touched.name && profileFormik.errors.name}
-                      disabled={loading}
+                      margin="normal"
+                      variant="outlined"
+                      InputProps={{
+                        readOnly: true,
+                      }}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          '&.Mui-disabled': {
+                            '& fieldset': {
+                              borderColor: 'rgba(0, 0, 0, 0.23)',
+                            },
+                            '&:hover fieldset': {
+                              borderColor: 'rgba(0, 0, 0, 0.23)',
+                            },
+                          },
+                        },
+                        '& .MuiInputBase-input.Mui-disabled': {
+                          WebkitTextFillColor: 'rgba(0, 0, 0, 0.87)',
+                          backgroundColor: 'rgba(0, 0, 0, 0.07)',
+                          cursor: 'not-allowed',
+                          borderRadius: '4px',
+                        },
+                      }}
                     />
                   </Grid>
                   
@@ -274,27 +296,39 @@ const Profile = () => {
                       fullWidth
                       id="email"
                       name="email"
-                      label="Email"
+                      label="Email Address"
+                      type="email"
                       value={profileFormik.values.email}
                       onChange={profileFormik.handleChange}
                       onBlur={profileFormik.handleBlur}
                       error={profileFormik.touched.email && Boolean(profileFormik.errors.email)}
                       helperText={profileFormik.touched.email && profileFormik.errors.email}
-                      disabled={loading}
+                      margin="normal"
+                      variant="outlined"
+                      InputProps={{
+                        readOnly: true,
+                      }}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          '&.Mui-disabled': {
+                            '& fieldset': {
+                              borderColor: 'rgba(0, 0, 0, 0.23)',
+                            },
+                            '&:hover fieldset': {
+                              borderColor: 'rgba(0, 0, 0, 0.23)',
+                            },
+                          },
+                        },
+                        '& .MuiInputBase-input.Mui-disabled': {
+                          WebkitTextFillColor: 'rgba(0, 0, 0, 0.87)',
+                          backgroundColor: 'rgba(0, 0, 0, 0.07)',
+                          cursor: 'not-allowed',
+                          borderRadius: '4px',
+                        },
+                      }}
                     />
                   </Grid>
                 </Grid>
-                
-                <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
-                  <Button
-                    type="submit"
-                    variant="contained"
-                    color="primary"
-                    disabled={loading || !profileFormik.isValid}
-                  >
-                    {loading ? 'Saving...' : 'Save Changes'}
-                  </Button>
-                </Box>
               </form>
             </CardContent>
           </Card>
@@ -406,7 +440,7 @@ const Profile = () => {
                     color="primary"
                     disabled={loading || !passwordFormik.isValid}
                   >
-                    {loading ? 'Updating...' : 'Change Password'}
+                    {loading ? 'Updating...' : 'Update Password'}
                   </Button>
                 </Box>
               </form>
@@ -419,15 +453,15 @@ const Profile = () => {
           <Card>
             <CardContent>
               <Typography variant="h6" gutterBottom>
-                Notification Settings
+                Email Notifications
               </Typography>
               <Divider sx={{ mb: 3 }} />
               
               <Typography variant="subtitle1" gutterBottom>
-                Notification Emails
+                Email Notifications
               </Typography>
               <Typography variant="body2" color="text.secondary" paragraph>
-                Add email addresses that should receive system notifications and reports
+                Manage email addresses that will receive system notifications and reports
               </Typography>
               
               <Box component="form" onSubmit={handleAddEmail} sx={{ mb: 3 }}>
@@ -435,7 +469,7 @@ const Profile = () => {
                   <Grid item xs={12} sm={8} md={8}>
                     <TextField
                       fullWidth
-                      label="Add Notification Email"
+                      label="Email Address"
                       variant="outlined"
                       size="small"
                       value={newEmail}
@@ -456,7 +490,7 @@ const Profile = () => {
                       fullWidth
                       sx={{ height: '40px' }}
                     >
-                      Add Email
+                      Add Address
                     </Button>
                   </Grid>
                 </Grid>
@@ -509,7 +543,7 @@ const Profile = () => {
               
               <Box sx={{ mt: 2 }}>
                 <Typography variant="caption" color="text.secondary">
-                  These emails will receive system notifications and reports
+                  These addresses will receive system notifications and reports
                 </Typography>
               </Box>
             </CardContent>
