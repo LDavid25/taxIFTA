@@ -23,6 +23,7 @@ const companyRoutes = require('./routes/company.routes');
 const testRoutes = require('./routes/test.routes');
 const quarterlyReportRoutes = require('./routes/quarterlyReport.routes');
 const dashboardRoutes = require('./routes/dashboard.routes');
+const emailRoutes = require('./routes/email.routes');
 
 // Log route loading
 console.log('Routes being loaded:');
@@ -33,6 +34,7 @@ console.log('- companyRoutes:', !!companyRoutes);
 console.log('- testRoutes:', !!testRoutes);
 console.log('- quarterlyReportRoutes:', !!quarterlyReportRoutes);
 console.log('- dashboardRoutes:', !!dashboardRoutes);
+console.log('- emailRoutes:', !!emailRoutes);
 
 // Initialize express app
 const app = express();
@@ -144,6 +146,7 @@ registerRoute('/v1/dashboard', dashboardRoutes);
 registerRoute('/v1/companies', companyRoutes);
 registerRoute('/v1/test', testRoutes);
 registerRoute('/v1/quarterly-reports', quarterlyReportRoutes);
+registerRoute('/v1/companies', emailRoutes);
 
 // Simple test route
 app.get('/api/ping', (req, res) => {

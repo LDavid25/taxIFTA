@@ -43,10 +43,10 @@ module.exports = (sequelize, DataTypes) => {
     onDelete: 'SET NULL'  // Cambiar a SET NULL para mantener la integridad referencial
   },
   role: {
-    type: DataTypes.ENUM('admin', 'user'),
+    type: DataTypes.ENUM('admin', 'user', 'client'),
     defaultValue: 'user',
     validate: {
-      isIn: [['admin', 'user']]
+      isIn: [['admin', 'user', 'client']]
     }
   },
   isActive: {

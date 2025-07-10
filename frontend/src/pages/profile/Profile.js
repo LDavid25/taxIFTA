@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import api from '../../services/api';
 import {
   Box,
   Card,
@@ -140,17 +141,12 @@ const Profile = () => {
   
   // Load notification emails when component mounts
   useEffect(() => {
-    // Simulate API call to load notification emails
     const loadNotificationEmails = async () => {
+      if (!currentUser?.company_id) return;
+      
       try {
-        // In a real app: const response = await api.get('/api/notification-emails');
-        // setNotificationEmails(response.data);
-        
-        // Mock data for demonstration
-        setNotificationEmails([
-          'admin@example.com',
-          'notifications@example.com'
-        ]);
+        const response = await api.get(`/v1/companies/${currentUser.company_id}/emails`);
+        setNotificationEmails(response.data || []);
       } catch (error) {
         console.error('Error loading notification emails:', error);
         setAlert({
@@ -162,7 +158,7 @@ const Profile = () => {
     };
     
     loadNotificationEmails();
-  }, []);
+  }, [currentUser?.company_id]);
 
   // Handle closing alert messages
   const handleAlertClose = () => {
@@ -170,7 +166,7 @@ const Profile = () => {
   };
 
   // Handle adding a new notification email address
-  const handleAddEmail = (e) => {
+  const handleAddEmail = async (e) => {
     e.preventDefault();
     
     // Validate email
@@ -189,32 +185,49 @@ const Profile = () => {
       return;
     }
     
-    // In a real app, this would be an API call
-    // await api.post('/api/notification-emails', { email: newEmail });
-    
-    setNotificationEmails([...notificationEmails, newEmail]);
-    setNewEmail('');
-    setEmailError('');
-    
-    setAlert({
-      open: true,
-      message: 'Notification email added successfully',
-      severity: 'success'
-    });
+    try {
+      const response = await api.post(
+        `/v1/companies/${currentUser.company_id}/emails`,
+        { email: newEmail }
+      );
+      
+      setNotificationEmails(response.data);
+      setNewEmail('');
+      setEmailError('');
+      
+      setAlert({
+        open: true,
+        message: 'Notification email added successfully',
+        severity: 'success'
+      });
+    } catch (error) {
+      console.error('Error adding email:', error);
+      setEmailError(error.response?.data?.message || 'Error adding email');
+    }
   };
 
   // Handle removing a notification email address
   const handleRemoveEmail = async (emailToRemove) => {
-    // In a real app, this would be an API call
-    // await api.delete(`/api/notification-emails/${encodeURIComponent(emailToRemove)}`);
-    
-    setNotificationEmails(notificationEmails.filter(email => email !== emailToRemove));
-    
-    setAlert({
-      open: true,
-      message: 'Notification email removed successfully',
-      severity: 'success'
-    });
+    try {
+      const response = await api.delete(
+        `/v1/companies/${currentUser.company_id}/emails/${encodeURIComponent(emailToRemove)}`
+      );
+      
+      setNotificationEmails(response.data);
+      
+      setAlert({
+        open: true,
+        message: 'Notification email removed successfully',
+        severity: 'success'
+      });
+    } catch (error) {
+      console.error('Error removing email:', error);
+      setAlert({
+        open: true,
+        message: error.response?.data?.message || 'Error removing email',
+        severity: 'error'
+      });
+    }
   };
 
   return (
