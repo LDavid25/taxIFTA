@@ -10,17 +10,17 @@ services:
       - key: PORT
         value: 10000
       # Configuración de la base de datos PostgreSQL
-      - key: DB_DIALECT
-        value: postgres
-      - key: DB_HOST
+      - key: NODE_ENV
+        value: production
+      - key: PROD_DB_HOST
         value: dpg-d1qkcrq4d50c739cr9r0-a
-      - key: DB_PORT
+      - key: PROD_DB_PORT
         value: '5432'
-      - key: DB_NAME
+      - key: PROD_DB_NAME
         value: iftareports_postgres
-      - key: DB_USER
+      - key: PROD_DB_USER
         value: iftareports_postgres_user
-      - key: DB_PASSWORD
+      - key: PROD_DB_PASSWORD
         value: jeOwt4kTSO1HZQzAlp5sSfXTu9iSpzUk
       # Configuración de JWT
       - key: JWT_SECRET
