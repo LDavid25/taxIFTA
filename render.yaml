@@ -1,8 +1,9 @@
 services:
+  # Backend Service
   - type: web
-    name: ifta-tax-system
+    name: ifta-tax-system-api
     env: node
-    buildCommand: cd backend && npm install
+    buildCommand: cd backend && npm install --legacy-peer-deps --force
     startCommand: cd backend && npm start
     envVars:
       - key: NODE_ENV
@@ -10,8 +11,6 @@ services:
       - key: PORT
         value: 10000
       # Configuración de la base de datos PostgreSQL
-      - key: NODE_ENV
-        value: production
       - key: PROD_DB_HOST
         value: dpg-d1qkcrq4d50c739cr9r0-a
       - key: PROD_DB_PORT
@@ -22,6 +21,8 @@ services:
         value: iftareports_postgres_user
       - key: PROD_DB_PASSWORD
         value: jeOwt4kTSO1HZQzAlp5sSfXTu9iSpzUk
+      - key: DB_SSL
+        value: 'true'
       # Configuración de JWT
       - key: JWT_SECRET
         value: 83d5a72761848da1d21b94e47869b46971ae17c99117ecaa9fcbad61cdb3d454
@@ -29,6 +30,9 @@ services:
         value: 30d
       - key: JWT_COOKIE_EXPIRES_IN
         value: '90'
+      # Configuración CORS
+      - key: CORS_ORIGIN
+        value: 'https://ifta-tax-system.onrender.com,http://localhost:3000'
 
 # Si necesitas una base de datos PostgreSQL
 # databases:
