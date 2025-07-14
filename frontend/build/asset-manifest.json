@@ -1,0 +1,16 @@
+{
+  "files": {
+    "main.css": "/static/css/main.9a7dc7b5.css",
+    "main.js": "/static/js/main.eacad4da.js",
+    "static/js/453.d08bc8b4.chunk.js": "/static/js/453.d08bc8b4.chunk.js",
+    "static/media/dtp-logo.png": "/static/media/dtp-logo.5f08122e9d341b598ce3.png",
+    "index.html": "/index.html",
+    "main.9a7dc7b5.css.map": "/static/css/main.9a7dc7b5.css.map",
+    "main.eacad4da.js.map": "/static/js/main.eacad4da.js.map",
+    "453.d08bc8b4.chunk.js.map": "/static/js/453.d08bc8b4.chunk.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.9a7dc7b5.css",
+    "static/js/main.eacad4da.js"
+  ]
+}
