@@ -1,0 +1,85 @@
+# Configuración para despliegue en Seenode
+
+# Configuración del backend (API)
+backend:
+  name: ifta-tax-system-api
+  runtime: node18  # Asegúrate de que esta sea una versión compatible con Seenode
+  root: backend
+  build_command: npm install
+  start_command: npm start
+  env_vars:
+    NODE_ENV: production
+    PORT: 5000  # Asegúrate de que coincida con el puerto en tu código
+    # Variables de base de datos (reemplaza con tus valores reales)
+    DB_HOST: ${DB_HOST}
+    DB_PORT: ${DB_PORT}
+    DB_NAME: ${DB_NAME}
+    DB_USER: ${DB_USER}
+    DB_PASSWORD: ${DB_PASSWORD}
+    # Configuración de JWT
+    JWT_SECRET: ${JWT_SECRET}
+    JWT_EXPIRES_IN: 30d
+    JWT_COOKIE_EXPIRES_IN: '90'
+    # Configuración CORS
+    CORS_ORIGIN: ${FRONTEND_URL}
+  ports:
+    - port: 5000
+      protocol: http
+
+# Configuración del frontend (aplicación web)
+frontend:
+  name: ifta-tax-system-web
+  runtime: node18
+  root: frontend
+  build_command: npm install && npm run build
+  static_dir: build  # Directorio de salida de la compilación del frontend
+  env_vars:
+    NODE_ENV: production
+    REACT_APP_API_URL: ${API_URL}  # URL de tu API backend
+  routes:
+    - path: /*
+      static: true  # Sirve archivos estáticos para todas las rutas
+
+# Configuración de la base de datos (si Seenode ofrece base de datos)
+database:
+  name: ifta-db
+  type: postgresql
+  version: '14'  # Versión de PostgreSQL
+  # Configuración de usuarios y permisos
+  users:
+    - name: ifta_user
+      databases: [ifta_db]
+      # La contraseña se generará automáticamente y estará disponible como variable de entorno
+
+# Variables de entorno (se configuran en el panel de Seenode)
+environment_variables:
+  - name: DB_HOST
+    description: "Host de la base de datos"
+    required: true
+  - name: DB_PORT
+    description: "Puerto de la base de datos"
+    default: "5432"
+  - name: DB_NAME
+    description: "Nombre de la base de datos"
+    default: "ifta_db"
+  - name: DB_USER
+    description: "Usuario de la base de datos"
+  - name: DB_PASSWORD
+    description: "Contraseña de la base de datos"
+    secret: true
+  - name: JWT_SECRET
+    description: "Secreto para firmar tokens JWT"
+    secret: true
+  - name: FRONTEND_URL
+    description: "URL del frontend (para CORS)"
+    default: "http://localhost:3000"
+  - name: API_URL
+    description: "URL de la API backend"
+    default: "http://localhost:5000"
+
+# Configuración de despliegue continuo (si es compatible)
+build:
+  enabled: true
+  branches:
+    - main
+  skip_build_when_commit_message_contains: "[skip-ci]"
