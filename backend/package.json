@@ -54,7 +54,7 @@
     "sequelize": "^6.37.7",
     "sequelize-cli": "^6.6.3",
     "swagger-jsdoc": "^6.2.8",
-    "swagger-ui-express": "^5.0.0",
+    "swagger-ui-express": "^5.0.1",
     "uuid": "^9.0.1",
     "validator": "^13.9.0",
     "winston": "^3.8.2",
