@@ -31,7 +31,9 @@ module.exports = {
       ssl: {
         require: true,
         rejectUnauthorized: false
-      }
-    }
+      },
+      sslmode: 'require'
+    },
+    ssl: true
   }
 };
