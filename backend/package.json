@@ -48,6 +48,7 @@
     "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.0",
     "multer": "^2.0.1",
+    "nodemailer": "^7.0.5",
     "notistack": "^3.0.2",
     "pg": "^8.16.0",
     "pg-hstore": "^2.3.4",
