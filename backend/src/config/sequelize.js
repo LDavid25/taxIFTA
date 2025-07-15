@@ -4,17 +4,33 @@ const config = require('./db.config');
 const env = process.env.NODE_ENV || 'development';
 const dbConfig = config[env];
 
+// Mostrar la configuración que se está utilizando
+console.log('Database configuration:', {
+  database: dbConfig.database,
+  host: dbConfig.host,
+  port: dbConfig.port,
+  ssl: dbConfig.ssl,
+  dialectOptions: dbConfig.dialectOptions
+});
+
 const sequelize = new Sequelize(
   dbConfig.database,
   dbConfig.username,
   dbConfig.password,
   {
+    ...dbConfig, // Incluye todas las opciones de dbConfig
     host: dbConfig.host,
     port: dbConfig.port,
     dialect: dbConfig.dialect,
     logging: dbConfig.logging === true ? console.log : false,
-    dialectOptions: dbConfig.dialectOptions || {},
-    pool: {
+    dialectOptions: {
+      ...(dbConfig.dialectOptions || {}),
+      ssl: dbConfig.ssl ? {
+        require: true,
+        rejectUnauthorized: false
+      } : false
+    },
+    pool: dbConfig.pool || {
       max: 5,
       min: 0,
       acquire: 30000,

@@ -26,14 +26,22 @@ module.exports = {
     host: process.env.PROD_DB_HOST,
     port: process.env.PROD_DB_PORT,
     dialect: 'postgres',
-    logging: false,
+    logging: console.log, // Habilitar logs para depuración
     dialectOptions: {
       ssl: {
         require: true,
         rejectUnauthorized: false
       },
-      sslmode: 'require'
+      sslmode: 'require',
+      native: true
     },
-    ssl: true
+    ssl: true,
+    native: true,
+    pool: {
+      max: 5,
+      min: 0,
+      acquire: 30000,
+      idle: 10000
+    }
   }
 };
