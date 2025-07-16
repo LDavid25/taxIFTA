@@ -36,13 +36,13 @@ module.exports = {
         // key: process.env.DB_CLIENT_KEY,
         // cert: process.env.DB_CLIENT_CERT
       },
-      sslmode: process.env.DB_SSL === 'true' ? 'require' : 'prefer',
+      sslmode: true,
       statement_timeout: 10000, // 10 segundos de timeout
       idle_in_transaction_session_timeout: 10000,
       connectionTimeoutMillis: 10000,
       application_name: 'ifta-tax-system-api'
     },
-    ssl: process.env.DB_SSL === 'true',
+    ssl: true,
     native: true,
     pool: {
       max: 10, // Aumentado para producción
