@@ -5,10 +5,8 @@ node_modules/
 
 # Variables de entorno
 .env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+.env.*
+!.env.example
 
 # Logs
 logs
@@ -20,6 +18,7 @@ yarn-error.log*
 # Directorios de compilación
 /build
 /dist
+/coverage
 
 # Archivos de sistema
 .DS_Store
@@ -32,10 +31,11 @@ Thumbs.db
 *.ntvs*
 *.njsproj
 *.sln
-*.sw?
+*.swp
+*.swo
+*~
 
 # Cobertura de pruebas
-coverage/
 .nyc_output/
 
 # Archivos temporales
@@ -43,11 +43,211 @@ coverage/
 temp/
 
 # Archivos de base de datos
+*.sql
 *.sqlite
 *.sqlite3
 
 # Archivos de sesión
 *.pid
+
+# Archivos de caché
+.cache/
+.parcel-cache/
+
+# Archivos de configuración local
+*.local
+
+# Archivos de entorno de desarrollo
+.env.development
+.env.test
+
+# Archivos de dependencias
+package-lock.json
+yarn.lock
+
+# Archivos de configuración de editores
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# Archivos de configuración de Windows
+[Dd]esktop.ini
+
+# Archivos de configuración de macOS
+.AppleDouble
+.LSOverride
+
+# Archivos de configuración de Linux
+*~
+
+# Archivos de configuración de Node.js
+.npm
+.eslintcache
+
+# Archivos de configuración de Docker
+.dockerignore
+.docker
+
+# Archivos de configuración de Visual Studio Code
+.vscode/settings.json
+.vscode/launch.json
+.vscode/extensions.json
+
+# Archivos de configuración de IntelliJ
+.idea/
+*.iws
+*.iml
+*.ipr
+
+# Archivos de configuración de NetBeans
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+# Archivos de configuración de Eclipse
+.settings/
+.project
+.classpath
+
+# Archivos de configuración de PyCharm
+.idea/
+.idea/*.xml
+.idea/*.iml
+
+# Archivos de configuración de Visual Studio
+.vs/
+*.user
+*.userosscache
+*.sln.docstates
+
+# Archivos de configuración de Xcode
+*.xcodeproj/*
+!*.xcodeproj/project.pbxproj
+!*.xcodeproj/xcshareddata/
+!*.xcworkspace/contents.xcworkspacedata
+/*.gcno
+
+# Archivos de configuración de Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Archivos de configuración de Java
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+*.zip
+*.tar.gz
+*.rar
+
+# Archivos de configuración de Ruby
+/.bundle/
+/vendor/bundle
+/lib/bundle/
+*.gem
+
+# Archivos de configuración de PHP
+/vendor/
+*.phar
+
+# Archivos de configuración de Composer
+/composer.lock
+
+# Archivos de configuración de Yarn
+.yarn/
+.pnp.*
+
+# Archivos de configuración de pnpm
+.pnpm-store/
+
+# Archivos de configuración de Turbo
+.turbo/
+
+# Archivos de configuración de Next.js
+.next/
+out/
+
+# Archivos de configuración de Nuxt.js
+.nuxt/
+.nuxt-prod
+
+# Archivos de configuración de Gatsby
+.cache/
+public
+
+# Archivos de configuración de Angular
+.angular/
+
+# Archivos de configuración de Svelte
+.svelte-kit/
+
+# Archivos de configuración de Vite
+.vite/
+
+# Archivos de configuración de Rollup
+.rollup.cache/
+
+# Archivos de configuración de Webpack
+.webpack/
+
+# Archivos de configuración de Parcel
+.parcel-cache/
+
+# Archivos de configuración de TypeScript
+*.tsbuildinfo
+
+# Archivos de configuración de Jest
+/coverage/
+
+# Archivos de configuración de Cypress
+/cypress/screenshots/
+/cypress/videos/
+
+# Archivos de configuración de Playwright
+/playwright-report/
+/playwright/.cache/
+/test-results/
+
+# Archivos de configuración de Storybook
+/storybook-static/
+
+# Archivos de configuración de Docusaurus
+/.docusaurus/
+/build/
+
+# Archivos de configuración de Eleventy
+_site/
+
+# Archivos de configuración de 11ty
+_site/
+
+# Archivos de configuración de Hugo
+/public/
+/resources/_gen/
+
+# Archivos de configuración de Jekyll
+_site/
+.sass-cache/
+.jekyll-cache/
+.jekyll-metadata
+
+# Archivos de configuración de Middleman
+/.sass-cache/
+/.cache/
+
+# Archivos de configuración de MkDocs
+/site/
+
+# Archivos de configuración de Sphinx
+_build/
+
+# Archivos de configuración de Docusaurus
+/.docusaurus/
+/build/
 *.pid.lock
 
 # Archivos de configuración local
