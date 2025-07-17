@@ -52,6 +52,7 @@
     "notistack": "^3.0.2",
     "pg": "^8.16.0",
     "pg-hstore": "^2.3.4",
+    "pg-native": "^3.0.0",
     "sequelize": "^6.37.7",
     "sequelize-cli": "^6.6.3",
     "swagger-jsdoc": "^6.2.8",
