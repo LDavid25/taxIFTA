@@ -81,7 +81,11 @@ app.use(
 // Enable CORS with specific origin
 const corsOptions = {
   origin: function (origin, callback) {
+<<<<<<< HEAD
     const allowedOrigins = ['https://web-gmy8nu1pi9fm.up-de-fra1-k8s-1.apps.run-on-seenode.com/', 'http://localhost:3000'];
+=======
+    const allowedOrigins = ['http://localhost:3000', 'http://127.0.0.1:3000', 'https://web-pxheyhp8z8ex.up-de-fra1-k8s-1.apps.run-on-seenode.com/'];
+>>>>>>> 1099cc85355673ff6dda1085e9869f96404d6a3e
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
     
@@ -206,8 +210,8 @@ const startServer = async () => {
     await initializeStorage();
     
     // Iniciar servidor
-    app.listen(port, () => {
-      console.log(`Servidor ejecutándose en el puerto ${port}...`);
+    app.listen(port, '0.0.0.0', () => {
+      console.log(`Servidor ejecutándose en http://0.0.0.0:${port}...`);
     });
   } catch (error) {
     console.error('Error al iniciar el servidor:', error);

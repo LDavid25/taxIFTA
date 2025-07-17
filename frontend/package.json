@@ -28,10 +28,11 @@
     "react-toastify": "^11.0.5",
     "recharts": "^3.0.2",
     "web-vitals": "^2.1.4",
+    "serve": "^14.2.0",
     "yup": "^1.1.1"
   },
   "scripts": {
-    "start": "set DISABLE_ESLINT_PLUGIN=true && react-scripts start",
+    "start": "serve -s build",
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"

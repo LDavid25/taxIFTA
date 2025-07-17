@@ -28,21 +28,21 @@ module.exports = {
     dialect: 'postgres',
     logging: (msg) => console.log(`[SEQUELIZE] ${msg}`), // Logs más detallados
     dialectOptions: {
-      ssl: process.env.DB_SSL === 'true' ? {
+      ssl: {
         require: true,
         rejectUnauthorized: false, // Importante para evitar errores de certificado
         // Opcional: Agregar configuración adicional de SSL si es necesario
         // ca: process.env.DB_CA_CERT,
         // key: process.env.DB_CLIENT_KEY,
         // cert: process.env.DB_CLIENT_CERT
-      } : false,
-      sslmode: process.env.DB_SSL === 'true' ? 'require' : 'prefer',
+      },
+      sslmode: true,
       statement_timeout: 10000, // 10 segundos de timeout
       idle_in_transaction_session_timeout: 10000,
       connectionTimeoutMillis: 10000,
       application_name: 'ifta-tax-system-api'
     },
-    ssl: process.env.DB_SSL === 'true',
+    ssl: true,
     native: true,
     pool: {
       max: 10, // Aumentado para producción
