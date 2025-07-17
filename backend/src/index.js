@@ -82,10 +82,16 @@ app.use(
 const corsOptions = {
   origin: function (origin, callback) {
     const allowedOrigins = [
-      'https://web-gmy8nu1pi9fm.up-de-fra1-k8s-1.apps.run-on-seenode.com/api',
+      'https://web-gmy8nu1pi9fm.up-de-fra1-k8s-1.apps.run-on-seenode.com',
+      'https://web-pxheyhp8z8ex.up-de-fra1-k8s-1.apps.run-on-seenode.com',
       'http://localhost:3000',
       'http://127.0.0.1:3000'
     ];
+    
+    // Para desarrollo: permitir cualquier origen
+    if (process.env.NODE_ENV === 'development') {
+      return callback(null, true);
+    }
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
     
