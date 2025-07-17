@@ -81,11 +81,11 @@ app.use(
 // Enable CORS with specific origin
 const corsOptions = {
   origin: function (origin, callback) {
-<<<<<<< HEAD
-    const allowedOrigins = ['https://web-gmy8nu1pi9fm.up-de-fra1-k8s-1.apps.run-on-seenode.com/', 'http://localhost:3000'];
-=======
-    const allowedOrigins = ['http://localhost:3000', 'http://127.0.0.1:3000', 'https://web-pxheyhp8z8ex.up-de-fra1-k8s-1.apps.run-on-seenode.com/'];
->>>>>>> 1099cc85355673ff6dda1085e9869f96404d6a3e
+    const allowedOrigins = [
+      'https://web-gmy8nu1pi9fm.up-de-fra1-k8s-1.apps.run-on-seenode.com',
+      'http://localhost:3000',
+      'http://127.0.0.1:3000'
+    ];
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
     
