@@ -81,7 +81,7 @@ app.use(
 // Enable CORS with specific origin
 const corsOptions = {
   origin: function (origin, callback) {
-    const allowedOrigins = ['http://localhost:3000', 'http://127.0.0.1:3000'];
+    const allowedOrigins = ['https://web-gmy8nu1pi9fm.up-de-fra1-k8s-1.apps.run-on-seenode.com/', 'http://localhost:3000'];
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
     
