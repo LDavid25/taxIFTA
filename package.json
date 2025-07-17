@@ -14,7 +14,7 @@
     "migrate": "node scripts/run-migrations.js",
     "db:reset": "npm run drop-db && npm run create-db && npm run migrate",
     "test": "node tests/api.test.js",
-    "docs": "echo 'Documentación disponible en: http://localhost:5000/api-docs'",
+    "docs": "echo 'Documentación disponible en: https://web-gmy8nu1pi9fm.up-de-fra1-k8s-1.apps.run-on-seenode.com/api-docs'",
     "clean": "node scripts/clean-project.js",
     "clean:all": "npm run clean && rimraf node_modules package-lock.json && npm install --production"
   },

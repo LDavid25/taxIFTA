@@ -55,5 +55,5 @@
       "last 1 safari version"
     ]
   },
-  "proxy": "http://localhost:3001"
+  "proxy": "https://web-gmy8nu1pi9fm.up-de-fra1-k8s-1.apps.run-on-seenode.com"
 }
