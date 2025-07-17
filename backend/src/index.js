@@ -82,7 +82,7 @@ app.use(
 const corsOptions = {
   origin: function (origin, callback) {
     const allowedOrigins = [
-      'https://web-gmy8nu1pi9fm.up-de-fra1-k8s-1.apps.run-on-seenode.com',
+      'https://web-gmy8nu1pi9fm.up-de-fra1-k8s-1.apps.run-on-seenode.com/api',
       'http://localhost:3000',
       'http://127.0.0.1:3000'
     ];

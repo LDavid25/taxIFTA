@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Crear instancia de axios
 const api = axios.create({
-  baseURL: 'https://web-gmy8nu1pi9fm.up-de-fra1-k8s-1.apps.run-on-seenode.com/api',
+  baseURL: 'https://web-gmy8nu1pi9fm.up-de-fra1-k8s-1.apps.run-on-seenode.com',
   headers: {
     'Content-Type': 'application/json',
   },
