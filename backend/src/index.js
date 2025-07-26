@@ -95,7 +95,7 @@ const corsOptions = {
     ].filter(Boolean); // Elimina valores undefined
     
     // En desarrollo, permitir cualquier origen
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV !== 'production') {
       return callback(null, true);
     }
     
@@ -118,15 +118,44 @@ const corsOptions = {
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Content-Length', 'Accept', 'Origin'],
-  exposedHeaders: ['Content-Length', 'X-Foo', 'X-Bar'],
+  allowedHeaders: [
+    'Content-Type', 
+    'Authorization', 
+    'X-Requested-With', 
+    'Content-Length', 
+    'Accept', 
+    'Origin',
+    'X-Access-Token',
+    'X-Refresh-Token'
+  ],
+  exposedHeaders: [
+    'Content-Length', 
+    'X-Foo', 
+    'X-Bar',
+    'X-Access-Token',
+    'X-Refresh-Token'
+  ],
   optionsSuccessStatus: 200, // some legacy browsers (IE11, various SmartTVs) choke on 204
-  preflightContinue: false
+  preflightContinue: true,
+  maxAge: 600 // Cache preflight request for 10 minutes
 };
 
-// Enable pre-flight across-the-board
-app.options('*', cors(corsOptions));
+// Enable CORS for all routes
+app.options('*', cors(corsOptions)); // Enable preflight for all routes
 app.use(cors(corsOptions));
+
+// Handle preflight requests
+app.use((req, res, next) => {
+  if (req.method === 'OPTIONS') {
+    res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, X-Access-Token, X-Refresh-Token');
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.status(200).end();
+    return;
+  }
+  next();
+});
 
 // Compression
 app.use(compression());
