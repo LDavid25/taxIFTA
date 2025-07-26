@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState } from 'react';
+import emailjs from '@emailjs/browser';
 import {
   Typography,
   TextField,
@@ -6,7 +7,9 @@ import {
   Box,
   Grid,
   useTheme,
-  useMediaQuery
+  useMediaQuery,
+  Snackbar,
+  Alert
 } from '@mui/material';
 import { Send, ArrowBack } from '@mui/icons-material';
 import { Link as RouterLink } from 'react-router-dom';  
@@ -15,11 +18,79 @@ import { Link } from '@mui/material';
 const ContactPage = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    company: '',
+    message: ''
+  });
+  const [openSnackbar, setOpenSnackbar] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [snackbarSeverity, setSnackbarSeverity] = useState('success');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleCloseSnackbar = () => {
+    setOpenSnackbar(false);
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Handle form submission
-    console.log('Form submitted');
+    setIsSubmitting(true);
+
+    // Configuración de EmailJS
+    const serviceID = process.env.REACT_APP_EMAILJS_SERVICE_ID;
+    const templateID = process.env.REACT_APP_EMAILJS_TEMPLATE_CREATE_ACCOUNT;
+    const publicKey = process.env.REACT_APP_EMAILJS_PUBLIC_KEY;
+    
+    try {
+      await emailjs.send(
+        serviceID,
+        templateID,
+        {
+          to_name: `${formData.firstName} ${formData.lastName}`,
+          from_name: 'Dot Truck Permits',
+          reply_to: formData.email,
+          message: `
+            Name: ${formData.firstName} ${formData.lastName}
+            Email: ${formData.email}
+            Phone: ${formData.phone}
+            Company: ${formData.company}
+            Message: ${formData.message}
+          `,
+          phone: formData.phone,
+          company: formData.company
+        },
+        publicKey
+      );
+
+      setSnackbarMessage('Message sent successfully! We will get back to you soon.');
+      setSnackbarSeverity('success');
+      setFormData({
+        firstName: '',
+        lastName: '',
+        email: '',
+        phone: '',
+        company: '',
+        message: ''
+      });
+    } catch (error) {
+      console.error('Error al enviar el mensaje:', error);
+      setSnackbarMessage('Hubo un error al enviar el mensaje. Por favor, inténtalo de nuevo.');
+      setSnackbarSeverity('error');
+    } finally {
+      setOpenSnackbar(true);
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -128,57 +199,75 @@ const ContactPage = () => {
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
+                name="firstName"
                 label="First Name"
                 variant="outlined"
                 size="small"
+                value={formData.firstName}
+                onChange={handleChange}
                 required
               />
             </Grid>
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
+                name="lastName"
                 label="Last Name"
                 variant="outlined"
                 size="small"
+                value={formData.lastName}
+                onChange={handleChange}
                 required
               />
             </Grid>
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
+                name="email"
                 label="Email"
                 type="email"
                 variant="outlined"
                 size="small"
+                value={formData.email}
+                onChange={handleChange}
                 required
               />
             </Grid>
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
+                name="phone"
                 label="Phone Number"
                 type="tel"
                 variant="outlined"
                 size="small"
+                value={formData.phone}
+                onChange={handleChange}
                 required
               />
             </Grid>
             <Grid item xs={12}>
               <TextField
                 fullWidth
+                name="company"
                 label="Company Name"
                 variant="outlined"
                 size="small"
+                value={formData.company}
+                onChange={handleChange}
                 required
               />
             </Grid>
             <Grid item xs={12}>
               <TextField
                 fullWidth
+                name="message"
                 label="Any message you want to share with us…"
                 multiline
                 rows={6}
                 variant="outlined"
+                value={formData.message}
+                onChange={handleChange}
               />
             </Grid>
             <Grid item xs={12}>
@@ -187,6 +276,7 @@ const ContactPage = () => {
                 variant="contained"
                 size="large"
                 endIcon={<Send />}
+                disabled={isSubmitting}
                 sx={{
                   px: 4,
                   py: 1.5,
@@ -198,15 +288,33 @@ const ContactPage = () => {
                   backgroundColor: 'btn.main',
                   '&:hover': {
                     boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+                  },
+                  '&.Mui-disabled': {
+                    backgroundColor: 'action.disabledBackground',
+                    color: 'action.disabled'
                   }
                 }}
               >
-                Send Message
+                {isSubmitting ? 'Enviando...' : 'Send Message'}
               </Button>
             </Grid>
           </Grid>
         </Box>
       </Box>
+      <Snackbar
+        open={openSnackbar}
+        autoHideDuration={6000}
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert 
+          onClose={handleCloseSnackbar} 
+          severity={snackbarSeverity}
+          sx={{ width: '100%' }}
+        >
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };
