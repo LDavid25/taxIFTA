@@ -31,6 +31,7 @@ import { useAuth } from '../../context/AuthContext';
 import LoadingScreen from '../../components/common/LoadingScreen';
 import dashboardService from '../../services/dashboardService';
 import { toast } from 'react-toastify';
+import { Link } from 'react-router-dom';
 
 // Datos iniciales
 const initialData = {
@@ -167,12 +168,12 @@ const AdminDashboard = () => {
 
       {/* Tarjetas de resumen */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card elevation={3}>
+        <Grid item xs={12} sm={6} md={3} component={Link} to="/admin/profile" sx={{ textDecoration: 'none' }}>
+          <Card elevation={3} sx={{ '&:hover': { boxShadow: 6 } }}>
             <CardContent>
-              <Box display="flex" justifyContent="space-between" alignItems="center">
+              <Box display="flex" justifyContent="space-between" alignItems="center" >
                 <Box>
-                  <Typography color="text.secondary" variant="body2">Total Users</Typography>
+                  <Typography color="text.secondary" variant="body2" >Total Users</Typography>
                   <Typography variant="h4" fontWeight="bold">{stats.totalUsers}</Typography>
                   <Box display="flex" alignItems="center" mt={1}>
                     <Typography variant="body2" color="success.main" sx={{ mr: 1 }}>
@@ -188,12 +189,12 @@ const AdminDashboard = () => {
           </Card>
         </Grid>
 
-        <Grid item xs={12} sm={6} md={3}>
-          <Card elevation={3}>
+        <Grid item xs={12} sm={6} md={3} component={Link} to="/admin/companies" sx={{ textDecoration: 'none' }}>
+          <Card elevation={3} sx={{ '&:hover': { boxShadow: 6 } }}>
             <CardContent>
               <Box display="flex" justifyContent="space-between" alignItems="center">
                 <Box>
-                  <Typography color="text.secondary" variant="body2">Companies</Typography>
+                  <Typography color="text.secondary" variant="body2" >Companies</Typography>
                   <Typography variant="h4" fontWeight="bold">{stats.totalCompanies}</Typography>
                   <Box display="flex" alignItems="center" mt={1}>
                     <Typography variant="body2" color="success.main" sx={{ mr: 1 }}>
@@ -209,12 +210,12 @@ const AdminDashboard = () => {
           </Card>
         </Grid>
 
-        <Grid item xs={12} sm={6} md={3}>
-          <Card elevation={3}>
+        <Grid item xs={12} sm={6} md={3} component={Link} to="/admin/declarations" sx={{ textDecoration: 'none' }}>
+          <Card elevation={3} sx={{ '&:hover': { boxShadow: 6 } }}>
             <CardContent>
               <Box display="flex" justifyContent="space-between" alignItems="center">
                 <Box>
-                  <Typography color="text.secondary" variant="body2">Reports This Month</Typography>
+                  <Typography color="text.secondary" variant="body2" >Reports This Month</Typography>
                   <Typography variant="h4" fontWeight="bold">{stats.totalReports}</Typography>
                   <Box display="flex" alignItems="center" mt={1}>
                     <Typography variant="body2" color="success.main" sx={{ mr: 1 }}>

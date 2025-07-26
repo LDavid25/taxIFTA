@@ -23,6 +23,7 @@ const testRoutes = require('./routes/test.routes');
 const quarterlyReportRoutes = require('./routes/quarterlyReport.routes');
 const dashboardRoutes = require('./routes/dashboard.routes');
 const emailRoutes = require('./routes/email.routes');
+const userRoutes = require('./routes/user.routes');
 
 // Log route loading
 console.log('Routes being loaded:');
@@ -34,6 +35,7 @@ console.log('- testRoutes:', !!testRoutes);
 console.log('- quarterlyReportRoutes:', !!quarterlyReportRoutes);
 console.log('- dashboardRoutes:', !!dashboardRoutes);
 console.log('- emailRoutes:', !!emailRoutes);
+console.log('- userRoutes:', !!userRoutes);
 
 // Initialize express app
 const app = express();
@@ -81,22 +83,32 @@ app.use(
 // Enable CORS with specific origin
 const corsOptions = {
   origin: function (origin, callback) {
+    // Definir orígenes permitidos basados en el entorno
     const allowedOrigins = [
-      'https://web-gmy8nu1pi9fm.up-de-fra1-k8s-1.apps.run-on-seenode.com',
-      'https://web-pxheyhp8z8ex.up-de-fra1-k8s-1.apps.run-on-seenode.com',
-      'http://localhost:3000',
-      'http://127.0.0.1:3000'
-    ];
+      process.env.FRONTEND_URL, // URL del frontend en producción
+      'http://localhost:3000',  // Desarrollo local
+      'http://127.0.0.1:3000',  // Desarrollo local alternativo
+      'http://localhost:3001',  // Puerto alternativo para desarrollo
+      'http://localhost:5000'   // Servidor de desarrollo
+    ].filter(Boolean); // Elimina valores undefined
     
-    // Para desarrollo: permitir cualquier origen
+    // En desarrollo, permitir cualquier origen
     if (process.env.NODE_ENV === 'development') {
       return callback(null, true);
     }
-    // Allow requests with no origin (like mobile apps or curl requests)
+    
+    // Permitir solicitudes sin origen (como aplicaciones móviles o solicitudes curl)
     if (!origin) return callback(null, true);
     
-    if (allowedOrigins.indexOf(origin) === -1) {
-      const msg = `The CORS policy for this site does not allow access from the specified Origin: ${origin}`;
+    // Verificar si el origen está permitido
+    const isAllowed = allowedOrigins.some(allowedOrigin => 
+      origin === allowedOrigin || 
+      origin.startsWith(allowedOrigin.replace('https://', 'http://')) ||
+      origin.startsWith(allowedOrigin.replace('http://', 'https://'))
+    );
+    
+    if (!isAllowed) {
+      const msg = `The CORS policy for this site does not allow access from the specified Origin: ${origin}. Allowed origins: ${allowedOrigins.join(', ')}`;
       console.error(msg);
       return callback(new Error(msg), false);
     }
@@ -153,6 +165,7 @@ registerRoute('/v1/companies', companyRoutes);
 registerRoute('/v1/test', testRoutes);
 registerRoute('/v1/quarterly-reports', quarterlyReportRoutes);
 registerRoute('/v1/companies', emailRoutes);
+registerRoute('/v1/users', userRoutes);
 
 // Simple test route
 app.get('/api/ping', (req, res) => {

@@ -4,6 +4,7 @@ import * as Yup from 'yup';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { createConsumptionReport, checkExistingReport } from '../../services/consumptionService';
+import { getCompanies } from '../../services/companyService';
 
 import {
   Box,
@@ -81,13 +82,15 @@ const validationSchema = Yup.object({
 });
 
 const ConsumptionCreate = () => {
-  const { currentUser } = useAuth(); // Get currentUser from auth context
+  const { currentUser, isAdmin } = useAuth(); // Get currentUser and isAdmin from auth context
   const [isLoading, setIsLoading] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [isReportValid, setIsReportValid] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
+  const [companies, setCompanies] = useState([]);
+  const [isLoadingCompanies, setIsLoadingCompanies] = useState(false);
   const navigate = useNavigate();
 
   const handleFileUpload = (newFiles) => {
@@ -142,12 +145,17 @@ const ConsumptionCreate = () => {
   const currentYear = currentDate.getFullYear();
   const currentMonth = currentDate.getMonth() + 1; // 1-12
   
-  // Generar lista de meses permitidos (meses anteriores al actual y el mes siguiente)
+  // Calculate current quarter
+  const currentQuarter = Math.ceil(currentMonth / 3);
+  
+  // Determine start and end months of the current quarter
+  const quarterStartMonth = (currentQuarter - 1) * 3 + 1;
+  const quarterEndMonth = quarterStartMonth + 2;
+  
+  // Generate list of months for the current quarter
   const allowedMonths = [];
-  for (let i = 1; i <= 12; i++) {
-    if (i <= currentMonth + 1) { // Mes actual + 1 mes siguiente
-      allowedMonths.push(i);
-    }
+  for (let i = quarterStartMonth; i <= quarterEndMonth; i++) {
+    allowedMonths.push(i);
   }
 
   const [showJurisdictions, setShowJurisdictions] = useState(false);
@@ -269,9 +277,17 @@ const ConsumptionCreate = () => {
     try {
       setIsLoading(true);
       
+      // Debug log form values
+      console.log('Form values on submit:', values);
+      
       // Basic validation
       if (!values.unitNumber || !values.year || !values.month) {
         throw new Error('Please fill in all required fields');
+      }
+      
+      // Additional validation for admin users
+      if (isAdmin && !values.companyId) {
+        throw new Error('Please select a company');
       }
       
       // Initialize form data
@@ -291,13 +307,22 @@ const ConsumptionCreate = () => {
       formDataToSend.append('status', 'in_progress');
 
       // Add user and company info - ensure they are not null/undefined
-      if (!currentUser || !currentUser.company_id || !currentUser.id) {
-        throw new Error('Could not find complete authenticated user information');
+      const companyId = isAdmin ? values.companyId : (currentUser?.company_id || currentUser?.companyId);
+      const userId = currentUser?.id;
+      
+      if (!companyId) {
+        throw new Error('Company ID is required');
       }
       
-      // Add company and user references
-      formDataToSend.append('company_id', currentUser.company_id);
-      formDataToSend.append('created_by', currentUser.id);
+      if (!userId) {
+        throw new Error('User ID is required');
+      }
+      
+      // Add company and user references - ensure we're using the correct field name
+      formDataToSend.append('company_id', companyId);
+      formDataToSend.append('created_by', userId);
+      
+
       
       // Add notes if provided
       if (values.notes) {
@@ -356,15 +381,7 @@ const ConsumptionCreate = () => {
       formDataToSend.append('total_miles', totalMilesFixed);
       formDataToSend.append('total_gallons', totalGallonsFixed);
       
-      // Log the final form data for debugging
-      console.log('Form data to send:', {
-        vehicle_plate: formDataToSend.get('vehicle_plate'),
-        report_year: formDataToSend.get('report_year'),
-        report_month: formDataToSend.get('report_month'),
-        states: stateEntries,
-        total_miles: totalMilesFixed,
-        total_gallons: totalGallonsFixed
-      });
+
       
       // 3. Handle file attachments if any
       if (selectedFiles?.length > 0) {
@@ -375,22 +392,7 @@ const ConsumptionCreate = () => {
         });
       }
       
-      // Log the form data for debugging
-      console.log('Sending data to server:', {
-        vehicle_plate: values.unitNumber.trim().toUpperCase(),
-        report_year: Number(values.year),
-        report_month: Number(values.month),
-        status: 'in_progress',
-        company_id: currentUser?.company_id,
-        created_by: currentUser?.id,
-        states: values.stateEntries
-          .filter(entry => entry.state && (entry.miles || entry.gallons))
-          .map(entry => ({
-            state_code: entry.state,
-            miles: parseFloat(entry.miles) || 0,
-            gallons: parseFloat(entry.gallons) || 0
-          }))
-      });
+
 
       // Send data to the backend
       const response = await createConsumptionReport(formDataToSend);
@@ -467,10 +469,9 @@ const ConsumptionCreate = () => {
     year: currentYear,
     month: currentMonth,
     quarter: Math.ceil(currentMonth / 3),
-    quarterlyReportId: null,
-    stateEntries: [
-      { state: '', miles: '', gallons: '' } 
-    ]
+    companyId: isAdmin ? '' : (currentUser?.company_id || currentUser?.companyId || ''),
+    stateEntries: [],
+    files: []
   };
 
   const validateForm = (values) => {
@@ -527,6 +528,41 @@ const ConsumptionCreate = () => {
     formik.setFieldValue('quarter', Math.ceil(formik.values.month / 3));
   }, [formik.values.month]);
 
+  // Efecto para monitorear cambios en companyId
+  useEffect(() => {
+    console.log('companyId actualizado:', formik.values.companyId);
+  }, [formik.values.companyId]);
+
+  // Load companies if admin
+  useEffect(() => {
+    const loadCompanies = async () => {
+      if (isAdmin) {
+        try {
+          setIsLoadingCompanies(true);
+          const response = await getCompanies();
+          const companiesData = response?.data?.data || []; // Access the nested data array
+          setCompanies(companiesData);
+          
+          // Set default company if there's only one
+          if (companiesData.length === 1) {
+            formik.setFieldValue('companyId', companiesData[0].id);
+          }
+        } catch (error) {
+          console.error('Error loading companies:', error);
+          setSnackbar({
+            open: true,
+            message: 'Error loading companies',
+            severity: 'error'
+          });
+        } finally {
+          setIsLoadingCompanies(false);
+        }
+      }
+    };
+
+    loadCompanies();
+  }, [isAdmin]);
+
   // Add first state entry on mount
   useEffect(() => {
     if (!formik.values.stateEntries || formik.values.stateEntries.length === 0) {
@@ -537,6 +573,33 @@ const ConsumptionCreate = () => {
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns}>
       <Box sx={{ p: 3 }}>
+        {/* Header with company name and quarter */}
+        {/* <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, p: 2, bgcolor: 'background.paper', borderRadius: 1, boxShadow: 1 }}>
+          <Box>
+            <Typography variant="h6">
+              {isAdmin && formik.values.companyId 
+                ? companies.find(c => c.id === formik.values.companyId)?.name || 'COMPANY NAME' 
+                : currentUser?.company_name || 'COMPANY NAME'}
+            </Typography>
+            <Typography variant="subtitle2" color="text.secondary">
+              Quarter {Math.ceil((formik.values.month || currentMonth) / 3)} {formik.values.year || currentYear}
+            </Typography>
+          </Box>
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <Typography variant="subtitle2" sx={{ mr: 1 }}>Valid Reports:</Typography>
+            <Box sx={{ 
+              bgcolor: 'primary.main', 
+              color: 'primary.contrastText', 
+              px: 1.5, 
+              py: 0.5, 
+              borderRadius: 1,
+              fontWeight: 'bold'
+            }}>
+              3
+            </Box>
+          </Box>
+        </Box> */}
+        
         <Breadcrumbs aria-label="breadcrumb" sx={{ mb: 3 }}>
           <Link 
             component={RouterLink} 
@@ -613,6 +676,38 @@ const ConsumptionCreate = () => {
                         }}
                       />
                     </Grid>
+
+                    {/* Company (Admin only) */}
+                    {isAdmin && (
+                      <Grid item xs={12} sm={6} md={4}>
+                        <FormControl fullWidth error={formik.touched.companyId && Boolean(formik.errors.companyId)}>
+                          <InputLabel id="company-label">Company</InputLabel>
+                          <Select
+                            labelId="company-label"
+                            id="companyId"
+                            name="companyId"
+                            value={formik.values.companyId || ''}
+                            label="Company"
+                            onChange={formik.handleChange}
+                            onBlur={formik.handleBlur}
+                            disabled={isLoading || isLoadingCompanies}
+                          >
+                            {isLoadingCompanies ? (
+                              <MenuItem value="">Loading companies...</MenuItem>
+                            ) : (
+                              companies.map((company) => (
+                                <MenuItem key={company.id} value={company.id}>
+                                  {company.name}
+                                </MenuItem>
+                              ))
+                            )}
+                          </Select>
+                          {formik.touched.companyId && formik.errors.companyId && (
+                            <FormHelperText>{formik.errors.companyId}</FormHelperText>
+                          )}
+                        </FormControl>
+                      </Grid>
+                    )}
 
                     {/* Month */}
                     <Grid item xs={12} sm={6} md={2}>
@@ -1088,7 +1183,7 @@ const ConsumptionCreate = () => {
               <Box sx={{ mt: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Button
                   component={RouterLink}
-                  to="/consumption"
+                  to={currentUser?.role === 'admin' ? '/admin/consumption' : '/client/consumption'}
                   variant="outlined"
                 >
                   Cancel

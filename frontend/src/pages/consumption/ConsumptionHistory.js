@@ -527,7 +527,7 @@ const ConsumptionHistory = () => {
 
   // Function to format report data for the table
   const formatReportData = (report) => {
-    console.log('Report data:', report); // Log to inspect report data
+    // console.log('Report data:', report); // Log to inspect report data
     // Calculate total miles and gallons
     const totalMiles = report.states?.reduce((sum, state) => sum + (parseFloat(state.miles) || 0), 0) || 0;
     const totalGallons = report.states?.reduce((sum, state) => sum + (parseFloat(state.gallons) || 0), 0) || 0;

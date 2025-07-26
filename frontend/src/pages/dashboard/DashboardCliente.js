@@ -74,15 +74,6 @@ const DashboardCliente = () => {
             This is your control center where you can manage all your fuel consumption records 
             and generate reports for IFTA compliance.
           </Typography>
-          <Button 
-            variant="contained" 
-            color="secondary" 
-            startIcon={<HelpIcon />}
-            onClick={() => navigate('/client/help')}
-            sx={{ mt: 1 }}
-          >
-            How does it work?
-          </Button>
         </Paper>
 
         {/* Quick Actions */}
@@ -231,13 +222,6 @@ const DashboardCliente = () => {
           <Typography variant="body1" color="text.secondary" paragraph>
             Our support team is ready to assist you with any questions or issues you may have.
           </Typography>
-          <Button 
-            variant="outlined" 
-            color="primary" 
-            onClick={() => navigate('/client/support')}
-          >
-            Contact Support
-          </Button>
         </Paper>
       </Container>
     </Box>

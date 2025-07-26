@@ -36,7 +36,7 @@ import {
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
-
+import logo from '../../assets/img/dtp-logo.png';
 // Ancho del drawer
 const drawerWidth = 240;
 
@@ -44,18 +44,18 @@ const drawerWidth = 240;
 const Main = styled('main', { shouldForwardProp: (prop) => prop !== 'open' })(
   ({ theme, open }) => ({
     flexGrow: 1,
-    padding: theme.spacing(2, 3, 3, 2), // Reduced left and right padding
-    transition: theme.transitions.create('margin', {
-      easing: theme.transitions.easing.sharp,
-      duration: theme.transitions.duration.leavingScreen,
-    }),
-    marginLeft: 0,
+    
+    minHeight: '100vh',
+    width: '100vw',
+    maxWidth: '100vw',
+    margin: 0,
     ...(open && {
-      transition: theme.transitions.create('margin', {
-        easing: theme.transitions.easing.easeOut,
-        duration: theme.transitions.duration.enteringScreen,
-      }),
-      marginLeft: drawerWidth/10,
+      width: `calc(100vw - ${drawerWidth}px)`,
+      marginLeft: `40px`,
+    }),
+    transition: theme.transitions.create(['margin', 'width'], {
+      easing: theme.transitions.easing.sharp,
+      duration: theme.transitions.duration.enteringScreen,
     }),
   }),
 );
@@ -110,6 +110,21 @@ const MainLayout = () => {
     setOpen(false);
   };
   
+  // Manejar clic en ítem del menú
+  const handleMenuItemClick = (e, path) => {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log('Navegando a:', path);
+    
+    // Usar navigate para la navegación programática
+    navigate(path, { replace: true });
+    
+    if (isMobile) {
+      setOpen(false);
+    }
+    return false;
+  };
+  
   // Manejar apertura del menú de usuario
   const handleUserMenuOpen = (event) => {
     setAnchorEl(event.currentTarget);
@@ -159,6 +174,11 @@ const MainLayout = () => {
         text: 'Companies', 
         icon: <BusinessIcon />, 
         path: '/admin/companies' 
+      },
+      { 
+        text: 'Users', 
+        icon: <PersonIcon />, 
+        path: '/admin/users' 
       },
       { 
         text: 'Register User', 
@@ -269,7 +289,7 @@ const MainLayout = () => {
       >
         <DrawerHeader>
           <Typography variant="h6" sx={{ flexGrow: 1, ml: 2 }}>
-            Menu
+          <img src={logo} alt="DTP Logo" style={{ height: '40px' }} />
           </Typography>
           <IconButton onClick={handleDrawerClose}>
             <ChevronLeftIcon />
@@ -280,10 +300,14 @@ const MainLayout = () => {
           {menuItems.map((item) => (
             <ListItem 
               button 
-              key={item.text} 
-              component={Link} 
-              to={item.path}
-              onClick={isMobile ? handleDrawerClose : undefined}
+              key={item.text}
+              onClick={(e) => handleMenuItemClick(e, item.path)}
+              component="div"
+              sx={{
+                '&:hover': {
+                  backgroundColor: 'rgba(0, 0, 0, 0.04)'
+                }
+              }}
             >
               <ListItemIcon>{item.icon}</ListItemIcon>
               <ListItemText primary={item.text} />

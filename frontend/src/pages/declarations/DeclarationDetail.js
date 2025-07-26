@@ -237,6 +237,15 @@ const DeclarationDetail = () => {
       // Fetch quarterly report details
       const response = await getQuarterlyReportDetails(companyId, quarter, year);
       
+      // Set company info if available
+      if (response.data && response.data.company_name) {
+        setCompanyInfo(prev => ({
+          ...prev,
+          name: response.data.company_name,
+          id: companyId
+        }));
+      }
+      
       // Add empty attachments array to each report
       const processedReports = (response.data?.individual_reports || []).map(report => ({
         ...report,
@@ -304,8 +313,8 @@ const DeclarationDetail = () => {
 
   // Month names for display
   const monthNames = [
-    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
   ];
 
   // Process monthly data from API
@@ -1529,7 +1538,10 @@ const DeclarationDetail = () => {
   }
 
   // Get company name from companyInfo or use a default
-  const companyName = companyInfo?.name || 'Company Name';
+  console.log('companyInfo.name:', companyInfo?.name);
+  console.log('currentUser.company_name:', currentUser?.company_name);
+  const companyName = companyInfo?.name || currentUser?.company_name || 'Company Name';
+  console.log('companyName final:', companyName);
 
   // Use filtered reports count if a filter is active
   const validReportsCount = filters.vehicle !== 'all'
@@ -1639,30 +1651,38 @@ const DeclarationDetail = () => {
               >
                 Print
               </Button>
-              {reportData.status !== 'completed' && (
-                isAdmin ? (
-                  // Botón para administradores
-                  <Button
-                    variant="contained"
-                    color="primary"
-                    onClick={handleCompleteDeclaration}
-                    disabled={updatingStatus}
-                    startIcon={updatingStatus ? <CircularProgress size={20} /> : null}
-                    sx={{ minWidth: '200px' }}
-                  >
-                    {updatingStatus ? 'Processing...' : 'Complete Declaration'}
-                  </Button>
-                ) : (
-                  // Botón para usuarios no administradores
-                  <Button
-                    variant="contained"
-                    color="primary"
-                    disabled
-                    sx={{ minWidth: '200px', backgroundColor: 'grey.400', '&:hover': { backgroundColor: 'grey.500' } }}
-                  >
-                    Declaration in Process
-                  </Button>
-                )
+              
+              {reportData.status === 'completed' ? (
+                <Button
+                  variant="contained"
+                  color="success"
+                  disabled
+                  sx={{ minWidth: '200px', backgroundColor: 'success.light', '&:hover': { backgroundColor: 'success.main' } }}
+                >
+                  Declaration Completed
+                </Button>
+              ) : isAdmin ? (
+                // Botón para administradores
+                <Button
+                  variant="contained"
+                  color="primary"
+                  onClick={handleCompleteDeclaration}
+                  disabled={updatingStatus}
+                  startIcon={updatingStatus ? <CircularProgress size={20} /> : null}
+                  sx={{ minWidth: '200px' }}
+                >
+                  {updatingStatus ? 'Processing...' : 'Complete Declaration'}
+                </Button>
+              ) : (
+                // Botón para usuarios no administradores
+                <Button
+                  variant="contained"
+                  color="primary"
+                  disabled
+                  sx={{ minWidth: '200px', backgroundColor: 'grey.400', '&:hover': { backgroundColor: 'grey.500' } }}
+                >
+                  Declaration in Process
+                </Button>
               )}
             </Box>
           </Box>
@@ -1907,30 +1927,38 @@ const DeclarationDetail = () => {
 
       {/* Action Buttons */}
       <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, mt: 3, mb: 3 }}>
-        {reportData.status !== 'completed' && (
-          isAdmin ? (
-            // Botón para administradores
-            <Button
-              variant="contained"
-              color="primary"
-              onClick={handleCompleteDeclaration}
-              disabled={updatingStatus}
-              startIcon={updatingStatus ? <CircularProgress size={20} /> : null}
-              sx={{ minWidth: '200px' }}
-            >
-              {updatingStatus ? 'Processing...' : 'Complete Declaration'}
-            </Button>
-          ) : (
-            // Botón para usuarios no administradores
-            <Button
-              variant="contained"
-              color="primary"
-              disabled
-              sx={{ minWidth: '200px', backgroundColor: 'grey.400', '&:hover': { backgroundColor: 'grey.500' } }}
-            >
-              Declaration in Process
-            </Button>
-          )
+        {reportData.status === 'completed' ? (
+          // Botón cuando la declaración está completada
+          <Button
+            variant="contained"
+            color="success"
+            disabled
+            sx={{ minWidth: '200px', backgroundColor: 'success.light', '&:hover': { backgroundColor: 'success.main' } }}
+          >
+            Declaration Completed
+          </Button>
+        ) : isAdmin ? (
+          // Botón para administradores cuando la declaración no está completada
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={handleCompleteDeclaration}
+            disabled={updatingStatus}
+            startIcon={updatingStatus ? <CircularProgress size={20} /> : null}
+            sx={{ minWidth: '200px' }}
+          >
+            {updatingStatus ? 'Processing...' : 'Complete Declaration'}
+          </Button>
+        ) : (
+          // Botón para usuarios no administradores cuando la declaración no está completada
+          <Button
+            variant="contained"
+            color="primary"
+            disabled
+            sx={{ minWidth: '200px', backgroundColor: 'grey.400', '&:hover': { backgroundColor: 'grey.500' } }}
+          >
+            Declaration in Process
+          </Button>
         )}
       </Box>
 

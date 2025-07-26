@@ -98,7 +98,27 @@ const createReport = async (req, res, next) => {
   const transaction = await db.sequelize.transaction();
   
   try {
-    const { company_id, user_id } = req;
+    // 1. Agregar logs de depuración
+    console.log('=== DATOS RECIBIDOS EN EL BACKEND ===');
+    console.log('User Role:', req.user?.role);
+    console.log('Company ID from token:', req.company_id);
+    console.log('Request body company_id:', req.body.company_id);
+    console.log('Request body keys:', Object.keys(req.body).filter(k => k !== 'states'));
+    console.log('=====================================');
+
+    // 2. Determinar el company_id a usar
+    let companyId;
+    if (req.user?.role === 'admin' && req.body.company_id) {
+      // Para administradores, usar el company_id del body si está presente
+      companyId = req.body.company_id;
+      console.log('Admin creando reporte para company_id:', companyId);
+    } else {
+      // Para usuarios normales, usar el company_id del token
+      companyId = req.company_id;
+      console.log('Usuario normal creando reporte para su company_id:', companyId);
+    }
+
+    const { user_id } = req;
     const { vehicle_plate, report_year, report_month, notes, quarterly_report_id } = req.body;
     const files = req.files?.attachments || [];
     
@@ -122,19 +142,19 @@ const createReport = async (req, res, next) => {
     const validStates = states.filter(Boolean);
     if (!validStates.length) {
       await transaction.rollback();
-      return next(new AppError('Debe proporcionar al menos un estado para el reporte', 400));
+      return next(new AppError('You must provide at least one status for the report.', 400));
     }
     
     // Validate required fields
     if (!vehicle_plate || !report_year || !report_month) {
       await transaction.rollback();
-      return next(new AppError('Faltan campos requeridos: placa, año o mes', 400));
+      return next(new AppError('Missing required fields: plate, year or month', 400));
     }
 
     // Check for existing report
     const existingReport = await IftaReport.findOne({
       where: {
-        company_id,
+        company_id: companyId,  // Usar el companyId determinado
         vehicle_plate,
         report_year,
         report_month,
@@ -144,14 +164,14 @@ const createReport = async (req, res, next) => {
 
     if (existingReport) {
       await transaction.rollback();
-      return next(new AppError('Ya existe un reporte para este vehículo en el período seleccionado', 400));
+      return next(new AppError('A report already exists for this vehicle in the selected period', 400));
     }
 
     // Calculate totals
     const totals = validStates.reduce(
       (acc, state) => {
         if (!state || typeof state !== 'object') {
-          throw new AppError('Formato de estado no válido', 400);
+          throw new AppError('Invalid state format', 400);
         }
         acc.totalMiles += parseFloat(state.miles) || 0;
         acc.totalGallons += parseFloat(state.gallons) || 0;
@@ -160,15 +180,15 @@ const createReport = async (req, res, next) => {
       { totalMiles: 0, totalGallons: 0 }
     );
     
-    // Validate required fields
-    if (!company_id) {
+    // Validar que tengamos un company_id
+    if (!companyId) {
       await transaction.rollback();
-      return next(new AppError('Se requiere el ID de la compañía', 400));
+      return next(new AppError('No se pudo determinar la compañía para el reporte', 400));
     }
     
     if (!user_id) {
       await transaction.rollback();
-      return next(new AppError('Se requiere el ID del usuario', 400));
+      return next(new AppError('User ID is required', 400));
     }
     
     // Calculate quarter from month (1-12 -> 1-4)
@@ -176,7 +196,7 @@ const createReport = async (req, res, next) => {
     
     // Get or create quarterly report
     const quarterlyReport = await getOrCreateQuarterlyReport(
-      company_id,
+      companyId,  // Usar el companyId determinado
       report_year,
       quarter,
       transaction
@@ -184,7 +204,7 @@ const createReport = async (req, res, next) => {
     
     // Prepare report data with all required fields
     const reportData = {
-      company_id: company_id,
+      company_id: companyId,  // Usar el companyId determinado
       vehicle_plate: vehicle_plate,
       report_year: parseInt(report_year),
       report_month: parseInt(report_month),

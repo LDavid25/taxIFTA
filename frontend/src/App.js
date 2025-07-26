@@ -47,6 +47,7 @@ import CompanyListPage from './pages/companies/CompanyListPage';
 
 // Páginas de administración
 import RegisterUser from './pages/admin/RegisterUser';
+import UserListPage from './pages/admin/UserListPage';
 
 // Páginas de error
 import NotFound from './pages/errors/NotFound';
@@ -72,7 +73,7 @@ const PublicRoute = ({ children }) => {
   const { isAuthenticated, loading, currentUser } = useAuth();
   
   if (loading) {
-    return <div>Cargando...</div>;
+    return <div>Loading...</div>;
   }
   
   // Si el usuario ya está autenticado, redirigir según su rol
@@ -92,7 +93,7 @@ const RoleBasedRedirect = () => {
   // Mostrar un indicador de carga mientras se verifica la autenticación
   if (loading) {
     console.log('🔄 RoleBasedRedirect: Cargando datos del usuario...');
-    return <div>Cargando...</div>;
+    return <div>Loading...</div>;
   }
 
   const roleInfo = {
@@ -193,6 +194,7 @@ function App() {
               <Route path="profile" element={<Profile />} />
               <Route path="companies" element={<CompanyListPage />} />
               <Route path="register-user" element={<RegisterUser />} />
+              <Route path="users" element={<UserListPage />} />
               <Route path="declarations" element={<DeclarationList />} />
               <Route path="declarations/company/:companyId/quarter/:quarter/year/:year" element={<DeclarationDetail />} />
               <Route path="declarations/:id" element={<DeclarationDetail />} />
