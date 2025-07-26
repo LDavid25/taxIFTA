@@ -89,7 +89,9 @@ const corsOptions = {
       'http://localhost:3000',  // Desarrollo local
       'http://127.0.0.1:3000',  // Desarrollo local alternativo
       'http://localhost:3001',  // Puerto alternativo para desarrollo
-      'http://localhost:5000'   // Servidor de desarrollo
+      'http://localhost:5000',  // Servidor de desarrollo
+      'https://web-pxheyhp8z8ex.up-de-fra1-k8s-1.apps.run-on-seenode.com', // Frontend production URL
+      'https://web-pxheyhp8z8ex.up-de-fra1-k8s-1.apps.run-on-seenode.com/' // Frontend production URL with trailing slash
     ].filter(Boolean); // Elimina valores undefined
     
     // En desarrollo, permitir cualquier origen
