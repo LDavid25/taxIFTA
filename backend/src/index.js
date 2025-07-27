@@ -85,8 +85,8 @@ const corsOptions = {
   origin: function (origin, callback) {
     // Definir orígenes permitidos basados en el entorno
     const allowedOrigins = [
-      'https://web-pxheyhp8z8ex.up-de-fra1-k8s-1.apps.run-on-seenode.com', // Frontend production URL
-      'https://web-pxheyhp8z8ex.up-de-fra1-k8s-1.apps.run-on-seenode.com/', // With trailing slash
+      'https://web-ubq6gq6jr2lw.up-de-fra1-k8s-1.apps.run-on-seenode.com', // Frontend production URL
+      'https://web-ubq6gq6jr2lw.up-de-fra1-k8s-1.apps.run-on-seenode.com/', // With trailing slash
       'http://localhost:3000',  // Desarrollo local
       'http://127.0.0.1:3000'   // Desarrollo local alternativo
     ].filter(Boolean); // Elimina valores undefined
