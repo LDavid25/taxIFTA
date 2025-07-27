@@ -17,6 +17,7 @@
     "axios": "^1.9.0",
     "chart.js": "^4.3.0",
     "date-fns": "^2.30.0",
+    "emailjs-com": "^3.2.0",
     "eslint": "^8.57.1 || ^9.0.0",
     "formik": "^2.2.9",
     "jwt-decode": "^3.1.2",
@@ -32,13 +33,12 @@
     "web-vitals": "^2.1.4",
     "yup": "^1.1.1"
   },
-  "scripts": {
-    "start": "react-scripts start",
-    "develop": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject"
-  },
+"scripts": {
+  "start": "react-scripts start",
+  "build": "react-scripts build",
+  "test": "react-scripts test",
+  "eject": "react-scripts eject"
+},
   "eslintConfig": {
     "extends": [
       "react-app",
