@@ -169,8 +169,8 @@ const DeclarationDetail = () => {
   const [alert, setAlert] = useState({ open: false, message: '', severity: 'info' });
   const [confirmDialog, setConfirmDialog] = useState({
     open: false,
-    title: 'Confirmar acción',
-    content: '¿Está seguro que desea marcar esta declaración como completada? Esta acción no se puede deshacer.',
+    title: 'Confirm action',
+    content: 'Are you sure you want to mark this declaration as completed? This action cannot be undone.',
     onConfirm: null
   });
 
@@ -870,8 +870,6 @@ const DeclarationDetail = () => {
         borderBottom: '1px solid #cbd5e0',
         whiteSpace: 'nowrap',
         '&.sticky-header': {
-          position: 'sticky',
-          top: 0,
           zIndex: 10,
           boxShadow: '0 1px 2px 0 rgba(0,0,0,0.05)',
         },
@@ -883,16 +881,12 @@ const DeclarationDetail = () => {
         '&.state-cell': {
           textAlign: 'left',
           fontWeight: 500,
-          position: 'sticky',
-          left: '150px',
           zIndex: 12,
           backgroundColor: 'inherit !important',
           minWidth: '120px',
           maxWidth: '120px',
         },
         '&.vehicle-cell': {
-          position: 'sticky',
-          left: 0,
           zIndex: 13,
           backgroundColor: '#fff !important',
           fontWeight: 600,
@@ -917,8 +911,6 @@ const DeclarationDetail = () => {
       }
     },
     stickyColumn: {
-      position: 'sticky',
-      left: 0,
       zIndex: 5,
       backgroundColor: '#fff !important',
       '&:after': {
@@ -943,8 +935,6 @@ const DeclarationDetail = () => {
       '& td': {
         fontWeight: 'bold',
         backgroundColor: '#e8f5e9 !important',
-        position: 'sticky',
-        bottom: 0,
         zIndex: 3
       }
     }
@@ -1005,8 +995,6 @@ const DeclarationDetail = () => {
           },
           '& .MuiTableCell-head': {
             whiteSpace: 'nowrap',
-            position: 'sticky',
-            top: 0,
             zIndex: 10,
             backgroundColor: '#f5f7fa',
           },
@@ -1028,8 +1016,6 @@ const DeclarationDetail = () => {
                 rowSpan={2}
                 align="center"
                 sx={{
-                  position: 'sticky',
-                  left: 0,
                   zIndex: 4,
                   backgroundColor: '#f5f5f5',
                   minWidth: '100px',
@@ -1046,11 +1032,9 @@ const DeclarationDetail = () => {
                 rowSpan={2}
                 align="center"
                 sx={{
-                  position: 'sticky',
-                  left: 100,
                   zIndex: 4,
                   backgroundColor: '#f5f5f5',
-                  minWidth: '120px',
+                  minWidth: '100px',
                   textAlign: 'center',
                   fontWeight: 'bold',
                   borderRight: '1px solid #e0e0e0',
@@ -1140,8 +1124,6 @@ const DeclarationDetail = () => {
                   rowSpan={2}
                   align="center"
                   sx={{
-                    position: 'sticky',
-                    right: 0,
                     zIndex: 4,
                     backgroundColor: '#f5f5f5',
                     minWidth: '80px',
@@ -1227,8 +1209,6 @@ const DeclarationDetail = () => {
                         className="vehicle-cell"
                         rowSpan={sortedStates.length}
                         sx={{
-                          position: 'sticky',
-                          left: 0,
                           zIndex: 12,
                           fontWeight: 600,
                           textAlign: 'center',
@@ -1263,8 +1243,6 @@ const DeclarationDetail = () => {
                       key={`${vIdx}-${sIdx}-state`}
                       align="center"
                       sx={{
-                        position: 'sticky',
-                        left: '120px',
                         zIndex: 11,
                         textAlign: 'center',
                         padding: '4px 6px !important',
@@ -1371,8 +1349,6 @@ const DeclarationDetail = () => {
                         sx={{
                           fontWeight: 'bold',
                           backgroundColor: sIdx % 2 === 0 ? '#f8f9fa' : '#f1f3f5',
-                          position: 'sticky',
-                          right: 0,
                           zIndex: 1,
                           minWidth: '60px',
                           textAlign: 'center',
@@ -1404,8 +1380,6 @@ const DeclarationDetail = () => {
                   sx={{
                     fontWeight: 'bold',
                     borderRight: '1px solid #e0e0e0',
-                    position: 'sticky',
-                    left: 0,
                     zIndex: 2,
                     backgroundColor: '#e8f5e9',
                     padding: '8px',
@@ -1511,9 +1485,6 @@ const DeclarationDetail = () => {
                     backgroundColor: '#c8e6c9',
                     padding: '8px',
                     whiteSpace: 'nowrap',
-                    position: 'sticky',
-                    right: 0,
-                    zIndex: 1
                   }}
                 >
                   {vehicleStateTableData.generalTotal.mpg}
@@ -1641,7 +1612,7 @@ const DeclarationDetail = () => {
               </FormControl>
             </Box>
 
-            <Box sx={{ display: 'flex', gap: 2 }}>
+            <Box sx={{ display: 'flex', gap: 1, flexDirection: { xs: 'column', sm: 'row' }}}>
               <Button
                 variant="outlined"
                 color="primary"

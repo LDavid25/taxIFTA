@@ -158,7 +158,7 @@ const UserRegister = () => {
       // Enviar la petición al backend
       const response = await api.post('/v1/auth/register', userData);
       
-      setSuccess('Usuario registrado exitosamente');
+      setSuccess('User successfully registered');
       setFormData({
         name: '',
         email: '',

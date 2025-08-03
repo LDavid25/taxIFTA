@@ -61,24 +61,18 @@ const validationSchema = Yup.object({
     .of(
       Yup.object().shape({
         state: Yup.string()
-          .required('State is required')
+          .nullable()
           .matches(/^[A-Z]{2}$/, 'Invalid state code'),
         miles: Yup.number()
           .typeError('Must be a number')
-          .required('Miles are required')
+          .nullable()
           .min(0, 'Miles cannot be negative'),
         gallons: Yup.number()
           .typeError('Must be a number')
-          .required('Gallons are required')
-          .min(0, 'Gallons cannot be negative'),
+          .nullable()
+          .min(0, 'Gallons cannot be negative')
       })
     )
-    .min(1, 'You must add at least one state')
-    .test(
-      'has-entries',
-      'You must add at least one state with miles or gallons',
-      (value) => value && value.some(entry => (entry.miles > 0 || entry.gallons > 0))
-    ),
 });
 
 const ConsumptionCreate = () => {
@@ -329,52 +323,51 @@ const ConsumptionCreate = () => {
         formDataToSend.append('notes', values.notes);
       }
 
-      // 2. Process state entries
+      // 2. Process state entries (optional)
       const stateEntries = [];
       let totalMiles = 0;
       let totalGallons = 0;
       
-      // Validate and process each state entry
-      values.stateEntries.forEach((entry, index) => {
-        if (entry && entry.state) {
-          const miles = parseFloat(entry.miles) || 0;
-          const gallons = parseFloat(entry.gallons) || 0;
-          
-          // Only include states with miles or gallons > 0 and valid state code
-          if ((miles > 0 || gallons > 0) && entry.state) {
-            // Extract state code if it's an object (from Autocomplete)
-            const stateCode = typeof entry.state === 'object' ? 
-              entry.state.code : 
-              String(entry.state).toUpperCase();
-              
-            if (stateCode) {
-              const stateData = {
-                state_code: stateCode,
-                miles: miles.toFixed(2),
-                gallons: gallons.toFixed(3)
-              };
-              
-              stateEntries.push(stateData);
-              totalMiles += miles;
-              totalGallons += gallons;
+      // Process state entries if they exist
+      if (values.stateEntries && values.stateEntries.length > 0) {
+        values.stateEntries.forEach((entry) => {
+          if (entry && entry.state) {
+            const miles = parseFloat(entry.miles) || 0;
+            const gallons = parseFloat(entry.gallons) || 0;
+            
+            // Only process if we have a valid state and either miles or gallons
+            if (entry.state) {
+              // Extract state code if it's an object (from Autocomplete)
+              const stateCode = typeof entry.state === 'object' ? 
+                entry.state.code : 
+                String(entry.state).toUpperCase();
+                
+              if (stateCode) {
+                const stateData = {
+                  state_code: stateCode,
+                  miles: miles.toFixed(2),
+                  gallons: gallons.toFixed(3)
+                };
+                
+                stateEntries.push(stateData);
+                totalMiles += miles;
+                totalGallons += gallons;
+              }
             }
           }
+        });
+        
+        // Only append states if we have any
+        if (stateEntries.length > 0) {
+          stateEntries.forEach((state, index) => {
+            formDataToSend.append(`states[${index}].state_code`, state.state_code);
+            formDataToSend.append(`states[${index}].miles`, state.miles.toString());
+            formDataToSend.append(`states[${index}].gallons`, state.gallons.toString());
+          });
         }
-      });
-      
-      // Validate at least one state has values
-      if (stateEntries.length === 0) {
-        throw new Error('You must enter at least one state with miles or gallons');
       }
       
-      // Format states in the format expected by the backend
-      stateEntries.forEach((state, index) => {
-        formDataToSend.append(`states[${index}].state_code`, state.state_code);
-        formDataToSend.append(`states[${index}].miles`, state.miles.toString());
-        formDataToSend.append(`states[${index}].gallons`, state.gallons.toString());
-      });
-      
-      // Add calculated totals with proper decimal places
+      // Add calculated totals with proper decimal places (can be 0 if no states)
       const totalMilesFixed = totalMiles.toFixed(2);
       const totalGallonsFixed = totalGallons.toFixed(3);
       
@@ -477,16 +470,8 @@ const ConsumptionCreate = () => {
   const validateForm = (values) => {
     const errors = {};
     
-    // Ensure at least one state has values
-    if (values.stateEntries && values.stateEntries.length > 0) {
-      const hasValidState = values.stateEntries.some(
-        entry => (parseFloat(entry.miles) > 0 || parseFloat(entry.gallons) > 0)
-      );
-      
-      if (!hasValidState) {
-        errors.stateEntries = 'You must enter at least one state with miles or gallons';
-      }
-    }
+    // State entries are now optional, no validation needed here
+    // The validation schema will handle the field-level validation
     
     return errors;
   };
@@ -669,7 +654,7 @@ const ConsumptionCreate = () => {
                         onBlur={formik.handleBlur}
                         error={formik.touched.year && Boolean(formik.errors.year)}
                         helperText={formik.touched.year && formik.errors.year}
-                        disabled={isLoading}
+                        disabled={true}
                         inputProps={{
                           min: 2000,
                           max: new Date().getFullYear() + 1

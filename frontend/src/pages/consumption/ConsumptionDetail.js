@@ -218,12 +218,6 @@ const ConsumptionDetail = () => {
       color: 'warning'
     },
     { 
-      value: 'completed', 
-      label: 'Completed', 
-      icon: <CheckIcon />,
-      color: 'success'
-    },
-    { 
       value: 'rejected', 
       label: 'Rejected', 
       icon: <CancelIcon />,
@@ -702,108 +696,125 @@ const ConsumptionDetail = () => {
                       <TableCell sx={{ border: 'none' }}>{safeConsumption.vehicle_plate || 'Not available'}</TableCell>
                     </TableRow>
                     <TableRow>
-                      <TableCell component="th" scope="row" sx={{ fontWeight: 'bold', border: 'none' }}>Date</TableCell>
-                      <TableCell sx={{ border: 'none' }}>{formatDate(safeConsumption.created_at)}</TableCell>
+                      <TableCell component="th" scope="row" sx={{ fontWeight: 'bold', border: 'none' }}>Month</TableCell>
+                      <TableCell sx={{ border: 'none' }}>{reportDate}</TableCell>
                     </TableRow>
                     <TableRow>
-                      <TableCell component="th" scope="row" sx={{ fontWeight: 'bold', border: 'none' }}>Consumption Month</TableCell>
+                      <TableCell component="th" scope="row" sx={{ fontWeight: 'bold', border: 'none' }}>Consumption Quarter</TableCell>
                       <TableCell sx={{ border: 'none' }}>{getQuarter(safeConsumption.date) || 'Not available'}</TableCell>
                     </TableRow>
                     <TableRow>
                       <TableCell component="th" scope="row" sx={{ fontWeight: 'bold', border: 'none' }}>Status</TableCell>
                       <TableCell sx={{ border: 'none' }}>
-                        <Box>
-                          <Button
-                            variant="contained"
-                            size="small"
-                            color={getStatusColor(safeConsumption.status || 'in_progress')}
-                            endIcon={updatingStatus ? <CircularProgress size={16} color="inherit" /> : <ArrowDropDownIcon />}
-                            onClick={handleStatusMenuOpen}
-                            disabled={updatingStatus || currentUser?.role !== 'admin'}
-                            sx={{ 
-                              fontWeight: 'bold', 
-                              textTransform: 'none',
-                              minWidth: '160px',
-                              justifyContent: 'space-between',
-                              '& .MuiButton-endIcon': {
-                                ml: 1
-                              },
-                              '&:disabled': {
-                                opacity: 0.7
-                              }
-                            }}
-                            title={currentUser?.role !== 'admin' ? 'Only administrators can change the status' : ''}
-                          >
-                            {translateStatus(safeConsumption.status) || 'Select status'}
-                          </Button>
-                          <Menu
-                            anchorEl={statusAnchorEl}
-                            open={Boolean(statusAnchorEl)}
-                            onClose={() => setStatusAnchorEl(null)}
-                            anchorOrigin={{
-                              vertical: 'bottom',
-                              horizontal: 'left',
-                            }}
-                            transformOrigin={{
-                              vertical: 'top',
-                              horizontal: 'left',
-                            }}
-                          >
-                            {statusOptions.map((option) => {
-                              const optionColor = getStatusColor(option.value);
-                              return (
-                                <MenuItem
-                                  key={option.value}
-                                  onClick={() => handleStatusChange(option.value)}
-                                  selected={option.value === safeConsumption.status}
-                                  disabled={option.value === safeConsumption.status}
-                                  sx={{
-                                    '&.Mui-selected': {
-                                      backgroundColor: muiTheme.palette[optionColor]?.light || muiTheme.palette.grey[200],
-                                      '&:hover': {
-                                        backgroundColor: muiTheme.palette[optionColor]?.main || muiTheme.palette.grey[300],
-                                        color: muiTheme.palette.getContrastText(
-                                          muiTheme.palette[optionColor]?.main || muiTheme.palette.grey[300]
-                                        )
-                                      }
-                                    },
-                                    '&.Mui-disabled': {
-                                      opacity: 1,
-                                      color: muiTheme.palette.text.primary,
-                                      backgroundColor: 'transparent',
-                                      fontWeight: 'bold'
-                                    },
-                                    minWidth: '180px',
-                                    py: 1.5
-                                  }}
-                                >
-                                  <Box sx={{ 
-                                    display: 'flex', 
-                                    alignItems: 'center', 
-                                    width: '100%',
-                                    color: option.value === safeConsumption.status ? 
-                                      muiTheme.palette[optionColor]?.dark : 'inherit'
-                                  }}>
-                                    <Box sx={{ 
-                                      display: 'inline-flex',
-                                      mr: 1.5,
-                                      color: 'inherit'
-                                    }}>
-                                      {option.icon}
-                                    </Box>
-                                    <Box sx={{ flexGrow: 1 }}>
-                                      <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
-                                        {option.label}
-                                      </Typography>
-                                    </Box>
-                                    {option.value === safeConsumption.status && (
-                                      <CheckIcon fontSize="small" sx={{ ml: 1, color: 'inherit' }} />
-                                    )}
-                                  </Box>
-                                </MenuItem>
-                              );
-                            })}
-                          </Menu>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                          {['completed', 'Completed'].includes(safeConsumption.status) ? (
+                            <Chip 
+                              label={translateStatus(safeConsumption.status) || 'N/A'}
+                              color={getStatusColor(safeConsumption.status || 'in_progress')}
+                              size="small"
+                              sx={{ 
+                                fontWeight: 'bold',
+                                minWidth: '100px',
+                                '& .MuiChip-label': {
+                                  px: 1.5
+                                }
+                              }}
+                            />
+                          ) : (
+                            <>
+                              <Button
+                                variant="contained"
+                                size="small"
+                                color={getStatusColor(safeConsumption.status || 'in_progress')}
+                                endIcon={updatingStatus ? <CircularProgress size={16} color="inherit" /> : <ArrowDropDownIcon />}
+                                onClick={handleStatusMenuOpen}
+                                disabled={updatingStatus || currentUser?.role !== 'admin'}
+                                sx={{ 
+                                  fontWeight: 'bold', 
+                                  textTransform: 'none',
+                                  minWidth: '160px',
+                                  justifyContent: 'space-between',
+                                  '& .MuiButton-endIcon': {
+                                    ml: 1
+                                  },
+                                  '&:disabled': {
+                                    opacity: 0.7
+                                  }
+                                }}
+                                title={currentUser?.role !== 'admin' ? 'Only administrators can change the status' : ''}
+                              >
+                                {translateStatus(safeConsumption.status) || 'Select status'}
+                              </Button>
+                              <Menu
+                                anchorEl={statusAnchorEl}
+                                open={Boolean(statusAnchorEl)}
+                                onClose={() => setStatusAnchorEl(null)}
+                                anchorOrigin={{
+                                  vertical: 'bottom',
+                                  horizontal: 'left',
+                                }}
+                                transformOrigin={{
+                                  vertical: 'top',
+                                  horizontal: 'left',
+                                }}
+                              >
+                                {statusOptions.map((option) => {
+                                  const optionColor = getStatusColor(option.value);
+                                  return (
+                                    <MenuItem 
+                                      key={option.value}
+                                      onClick={() => handleStatusChange(option.value)}
+                                      selected={option.value === safeConsumption.status}
+                                      disabled={option.value === safeConsumption.status}
+                                      sx={{
+                                        '&.Mui-selected': {
+                                          backgroundColor: muiTheme.palette[optionColor]?.light || muiTheme.palette.grey[200],
+                                          '&:hover': {
+                                            backgroundColor: muiTheme.palette[optionColor]?.main || muiTheme.palette.grey[300],
+                                            color: muiTheme.palette.getContrastText(
+                                              muiTheme.palette[optionColor]?.main || muiTheme.palette.grey[300]
+                                            )
+                                          }
+                                        },
+                                        '&.Mui-disabled': {
+                                          opacity: 1,
+                                          color: muiTheme.palette.text.primary,
+                                          backgroundColor: 'transparent',
+                                          fontWeight: 'bold'
+                                        },
+                                        minWidth: '180px',
+                                        py: 1.5
+                                      }}
+                                    >
+                                      <Box sx={{ 
+                                        display: 'flex', 
+                                        alignItems: 'center', 
+                                        width: '100%',
+                                        color: option.value === safeConsumption.status ? 
+                                          muiTheme.palette[optionColor]?.dark : 'inherit'
+                                      }}>
+                                        <Box sx={{ 
+                                          display: 'inline-flex',
+                                          mr: 1.5,
+                                          color: 'inherit'
+                                        }}>
+                                          {option.icon}
+                                        </Box>
+                                        <Box sx={{ flexGrow: 1 }}>
+                                          <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
+                                            {option.label}
+                                          </Typography>
+                                        </Box>
+                                        {option.value === safeConsumption.status && (
+                                          <CheckIcon fontSize="small" sx={{ ml: 1, color: 'inherit' }} />
+                                        )}
+                                      </Box>
+                                    </MenuItem>
+                                  );
+                                })}
+                              </Menu>
+                            </>
+                          )}
                         </Box>
                       </TableCell>
                     </TableRow>

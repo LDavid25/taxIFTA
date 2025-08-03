@@ -183,7 +183,7 @@ const createReport = async (req, res, next) => {
     // Validar que tengamos un company_id
     if (!companyId) {
       await transaction.rollback();
-      return next(new AppError('No se pudo determinar la compañía para el reporte', 400));
+      return next(new AppError('The company could not be determined for the report.', 400));
     }
     
     if (!user_id) {

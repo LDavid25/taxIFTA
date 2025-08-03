@@ -85,11 +85,10 @@ const corsOptions = {
   origin: function (origin, callback) {
     // Definir orígenes permitidos basados en el entorno
     const allowedOrigins = [
-      'https://web-ubq6gq6jr2lw.up-de-fra1-k8s-1.apps.run-on-seenode.com',
-      'http://localhost:3000',
-      'http://127.0.0.1:3000',
       'http://localhost:3001',
-      'http://127.0.0.1:3001'
+      'http://127.0.0.1:3001',
+      'http://localhost:3000',
+      'http://127.0.0.1:3000'
     ];
     
     // En desarrollo, permitir cualquier origen

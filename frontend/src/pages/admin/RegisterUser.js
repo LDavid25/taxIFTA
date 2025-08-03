@@ -188,7 +188,7 @@ const RegisterUser = () => {
       const response = await api.post('/v1/auth/register', requestData, config);
       
       if (response.data && response.data.token) {
-        setSuccess('Usuario registrado exitosamente');
+        setSuccess('');
         // Reset form on success
         setFormData({
           name: '',
@@ -228,7 +228,7 @@ const RegisterUser = () => {
         
         {success && (
           <Alert severity="success" sx={{ mb: 2 }}>
-            User registered successfully!
+            {success}
           </Alert>
         )}
         

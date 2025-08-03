@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Crear instancia de axios
 const api = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || 'https://web-gmy8nu1pi9fm.up-de-fra1-k8s-1.apps.run-on-seenode.com',
+  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:3001/',
   headers: {
     'Content-Type': 'application/json',
   },

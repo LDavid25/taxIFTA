@@ -121,14 +121,14 @@ const formatCurrency = (amount) => {
 const formatDate = (dateString) => {
   try {
     if (!dateString) return 'N/A';
-    
+
     const date = new Date(dateString);
     if (isNaN(date.getTime())) return 'N/A';
-    
+
     // Format: MMM yyyy (e.g., 'Jun 2023')
-    return date.toLocaleString('en-US', { 
-      month: 'short', 
-      year: 'numeric' 
+    return date.toLocaleString('en-US', {
+      month: 'short',
+      year: 'numeric'
     });
   } catch (error) {
     console.error('Error formatting date:', error);
@@ -139,14 +139,14 @@ const formatDate = (dateString) => {
 const getQuarter = (dateString) => {
   try {
     if (!dateString) return 'N/A';
-    
+
     const date = new Date(dateString);
     if (isNaN(date.getTime())) return 'Q? ????'; // Return placeholder if date is not valid
-    
+
     const month = date.getMonth() + 1; // getMonth() starts at 0 (January = 0)
     const year = date.getFullYear();
     const quarter = Math.ceil(month / 3);
-    
+
     return `Q${quarter} ${year}`;
   } catch (error) {
     console.error('Error getting quarter:', error);
@@ -166,7 +166,7 @@ const statusFilters = statusOptions.map(opt => opt.display);
 // Component to display a row in mobile view
 const MobileTableRow = ({ row, onViewReceipt }) => {
   const [expanded, setExpanded] = useState(false);
-  
+
   return (
     <Card sx={{ mb: 2, width: '100%' }}>
       <CardContent>
@@ -178,10 +178,10 @@ const MobileTableRow = ({ row, onViewReceipt }) => {
             </Typography>
           </Box>
           <Box textAlign="right">
-            <Chip 
-              label={row.status} 
-              color={row.status === 'completed' ? 'success' : row.status === 'pending' ? 'warning' : 'error'} 
-              size="small" 
+            <Chip
+              label={row.status}
+              color={row.status === 'completed' ? 'success' : row.status === 'pending' ? 'warning' : 'error'}
+              size="small"
             />
             <IconButton
               size="small"
@@ -197,7 +197,7 @@ const MobileTableRow = ({ row, onViewReceipt }) => {
             </IconButton>
           </Box>
         </Box>
-        
+
         <Collapse in={expanded} timeout="auto" unmountOnExit>
           <Box mt={2}>
             <Grid container spacing={2}>
@@ -242,29 +242,29 @@ const ConsumptionHistory = () => {
   const { enqueueSnackbar } = useSnackbar();
   const { currentUser } = useAuth();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  
+
   // States for filters
   const [searchTerm, setSearchTerm] = useState('');
-  const [companyFilter, setCompanyFilter] = useState('');
+  const [companyFilter, setCompanyFilter] = useState(''); // Empty string for 'All companies'
   const [statusFilter, setStatusFilter] = useState('All');
   const [companies, setCompanies] = useState([]);
-  
+
   // Year options (last 5 years and current)
   const currentYear = new Date().getFullYear();
   const yearOptions = Array.from({ length: 6 }, (_, i) => currentYear - i);
-  
+
   // Quarter options
   const quarterOptions = [1, 2, 3, 4];
-  
+
   // States for selected year and quarter
   const [selectedYear, setSelectedYear] = useState('');
   const [selectedQuarter, setSelectedQuarter] = useState('');
-  
+
   // States for data
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  
+
   // State for filtered data and pagination
   const [filteredData, setFilteredData] = useState([]);
   const [pagination, setPagination] = useState({
@@ -273,16 +273,36 @@ const ConsumptionHistory = () => {
     total: 0,
     totalPages: 1
   });
-  
 
-  
+
+
   // Load companies for admin filter
   useEffect(() => {
     const fetchCompanies = async () => {
       if (isAdmin(currentUser)) {
         try {
+          console.log('Fetching companies...');
           // Use the correct endpoint to get companies
           const response = await api.get('/v1/companies');
+          console.log('Companies API response:', response);
+          console.log('Companies API response data:', JSON.stringify(response.data, null, 2));
+          
+          // Log the first company's structure if it exists
+          if (response.data?.data?.[0]) {
+            console.log('First company structure:', Object.keys(response.data.data[0]));
+          }
+          
+          // Log each company's structure
+          if (Array.isArray(response.data.data)) {
+            console.log('Companies list with IDs:', 
+              response.data.data.map(company => ({
+                id: company.id,
+                _id: company._id,
+                name: company.name
+              }))
+            );
+          }
+          
           setCompanies(response.data.data || []);
         } catch (error) {
           console.error('Error fetching companies:', error);
@@ -293,12 +313,22 @@ const ConsumptionHistory = () => {
         }
       }
     };
-    
+
     fetchCompanies();
   }, [currentUser, enqueueSnackbar]);
 
   // Load data when filters or pagination changes
   useEffect(() => {
+    console.log('useEffect triggered with:', {
+      companyFilter,
+      statusFilter,
+      searchTerm,
+      selectedYear,
+      selectedQuarter,
+      page: pagination.page,
+      rowsPerPage: pagination.rowsPerPage
+    });
+
     const fetchData = async () => {
       try {
         setLoading(true);
@@ -310,6 +340,8 @@ const ConsumptionHistory = () => {
           company: currentUser?.company
         });
         
+        console.log('Current filters:', { companyFilter, statusFilter, searchTerm });
+
         // If no user, exit
         if (!currentUser) {
           console.log('No authenticated user');
@@ -319,10 +351,10 @@ const ConsumptionHistory = () => {
           setLoading(false);
           return;
         }
-        
+
         // Check if user has a valid companyId
         const hasValidCompanyId = currentUser?.companyId || currentUser?.company_id || currentUser?.company?.id;
-        
+
         if (!isAdmin(currentUser) && !hasValidCompanyId) {
           console.error('Non-admin user without companyId, cannot load reports', {
             user: {
@@ -334,12 +366,12 @@ const ConsumptionHistory = () => {
               company: currentUser?.company
             }
           });
-          
-          enqueueSnackbar('Could not load your company information. Please contact the administrator.', { 
+
+          enqueueSnackbar('Could not load your company information. Please contact the administrator.', {
             variant: 'error',
             autoHideDuration: 10000 // Show for 10 seconds
           });
-          
+
           setReports([]);
           setFilteredData([]);
           setPagination(prev => ({ ...prev, total: 0 }));
@@ -366,7 +398,7 @@ const ConsumptionHistory = () => {
 
         // Get user's company ID from any possible property
         const userCompanyId = currentUser?.companyId || currentUser?.company_id || (currentUser?.company?.id);
-        
+
         console.log('Filter parameters:', {
           isAdmin: isAdmin(currentUser),
           userCompanyId,
@@ -385,8 +417,26 @@ const ConsumptionHistory = () => {
         if (isAdmin(currentUser)) {
           // For admin, filter by company if one is selected
           if (companyFilter) {
-            params.companyId = companyFilter;
-            console.log('Admin filtering by selected company:', companyFilter);
+            // Try different possible ID fields
+            const company = companies.find(c => 
+              (c.id === companyFilter) || 
+              (c._id === companyFilter) ||
+              (c.Id === companyFilter) ||
+              (c.ID === companyFilter)
+            );
+            
+            console.log('Admin filtering by selected company:', {
+              companyFilter,
+              foundCompany: company,
+              allCompanies: companies
+            });
+            
+            // Use the company's ID as it appears in the database
+            if (company) {
+              params.companyId = company.id || company._id || company.Id || company.ID;
+            } else {
+              console.warn('Could not find company with ID:', companyFilter);
+            }
           } else {
             console.log('Admin without company filter, showing all reports');
           }
@@ -395,7 +445,7 @@ const ConsumptionHistory = () => {
           if (userCompanyId) {
             params.companyId = userCompanyId;
             console.log('Non-admin user, filtering by their company:', userCompanyId);
-            
+
             // Optionally add filter by user if needed
             if (currentUser?.id) {
               params.userId = currentUser.id;
@@ -403,7 +453,7 @@ const ConsumptionHistory = () => {
             }
           } else {
             console.error('Non-admin user without companyId, cannot load data');
-            enqueueSnackbar('Could not load your company information. Please contact the administrator.', { 
+            enqueueSnackbar('Could not load your company information. Please contact the administrator.', {
               variant: 'error',
               autoHideDuration: 10000
             });
@@ -419,10 +469,10 @@ const ConsumptionHistory = () => {
             params.status = statusOption.value.toLowerCase();
           }
         }
-        
+
         if (selectedYear) {
           params.year = selectedYear;
-          
+
           if (selectedQuarter) {
             const quarterToMonthMap = {
               '1': { startMonth: '01', endMonth: '03' },
@@ -430,23 +480,30 @@ const ConsumptionHistory = () => {
               '3': { startMonth: '07', endMonth: '09' },
               '4': { startMonth: '10', endMonth: '12' }
             };
-            
+
             const { startMonth, endMonth } = quarterToMonthMap[selectedQuarter];
             params.startMonth = startMonth;
             params.endMonth = endMonth;
           }
         }
-        
+
         if (searchTerm) {
           params.search = searchTerm;
         }
 
         console.log('Sending parameters to API:', JSON.stringify(params, null, 2));
         const response = await getConsumptionReports(params);
-        
+        console.log('API Response:', {
+          status: response.status,
+          data: response.data,
+          companyFilter,
+          filteredCount: response.data?.data?.length || 0,
+          firstCompanyId: response.data?.data?.[0]?.companyId || 'N/A'
+        });
+
         // Ensure response.data exists and has the expected structure
         const responseData = response?.data || {};
-        
+
         // Handle different response formats
         let reportsData = [];
         if (Array.isArray(responseData)) {
@@ -456,39 +513,39 @@ const ConsumptionHistory = () => {
         } else if (responseData.reports && Array.isArray(responseData.reports)) {
           reportsData = responseData.reports;
         }
-        
+
         console.log('API response processed:', {
           rawData: responseData,
           reportsCount: reportsData.length,
           pagination: responseData.pagination || {},
           reportsSample: reportsData.slice(0, 2) // Show sample of first 2 reports
         });
-        
+
         // Update state with reports
         setReports(reportsData);
-        
+
         // Calculate pagination
-        const totalItems = responseData.pagination?.total || 
-                          responseData.total || 
-                          reportsData.length;
-                          
-        const totalPages = responseData.pagination?.totalPages || 
-                          Math.ceil(totalItems / pagination.rowsPerPage) || 
-                          1;
-        
+        const totalItems = responseData.pagination?.total ||
+          responseData.total ||
+          reportsData.length;
+
+        const totalPages = responseData.pagination?.totalPages ||
+          Math.ceil(totalItems / pagination.rowsPerPage) ||
+          1;
+
         console.log('Updating pagination:', {
           totalItems,
           totalPages,
           currentPage: pagination.page,
           rowsPerPage: pagination.rowsPerPage
         });
-                          
+
         setPagination(prev => ({
           ...prev,
           total: totalItems,
           totalPages: totalPages
         }));
-        
+
         setError(null);
       } catch (err) {
         console.error('Error loading reports:', err);
@@ -501,6 +558,7 @@ const ConsumptionHistory = () => {
     };
 
     fetchData();
+    // Reset to first page when company filter changes
   }, [pagination.page, pagination.rowsPerPage, statusFilter, searchTerm, companyFilter, enqueueSnackbar, currentUser, selectedQuarter, selectedYear]);
 
   const handleAddConsumption = () => {
@@ -532,35 +590,41 @@ const ConsumptionHistory = () => {
     const totalMiles = report.states?.reduce((sum, state) => sum + (parseFloat(state.miles) || 0), 0) || 0;
     const totalGallons = report.states?.reduce((sum, state) => sum + (parseFloat(state.gallons) || 0), 0) || 0;
     const mpg = totalMiles > 0 && totalGallons > 0 ? (totalMiles / totalGallons).toFixed(2) : 0;
-    
+
     // Format date (only month and year)
     const formatDate = (date) => {
       if (!date) return 'N/A';
       const d = new Date(date);
       return d.toLocaleString('en-US', { month: 'short', year: 'numeric' });
     };
-    
-    const reportDate = report.report_year && report.report_month 
+
+    const reportDate = report.report_year && report.report_month
       ? new Date(report.report_year, report.report_month - 1, 1)
       : report.createdAt || new Date();
-    
+
     // Get and format unique states with format 'CODE - Name'
     const states = [...new Set(report.states?.map(s => {
       const code = s.state_code?.toUpperCase();
       const name = STATE_NAMES[code] || 'Unknown';
       return code ? `${code} - ${name}` : null;
     }).filter(Boolean))].join(', ');
-    
+
     // Get company name from different possible locations in the response
-    const companyName = report.company?.name || 
-                       report.company_name || 
-                       (report.company && typeof report.company === 'string' ? report.company : 'N/A');
-    
+    const companyName = report.company?.name ||
+      report.company_name ||
+      (report.company && typeof report.company === 'string' ? report.company : 'N/A');
+      
+    // Get company ID from different possible locations in the response
+    const companyId = report.companyId || 
+      (report.company && report.company._id) || 
+      (report.company && report.company.id);
+
     return {
       id: report.id,
       date: formatDate(reportDate),
       unitNumber: report.vehicle_plate || 'N/A',
       companyName: companyName,
+      companyId: companyId,
       milesTraveled: totalMiles,
       totalGallons: totalGallons,
       mpg: parseFloat(mpg) || 0,
@@ -577,41 +641,24 @@ const ConsumptionHistory = () => {
       notes: report.notes || ''
     };
   };
-  
-  // Effect to format and filter data when reports or filters change
+
+  // Effect to format data when reports change
   useEffect(() => {
     if (!reports || !Array.isArray(reports)) {
       setFilteredData([]);
       return;
     }
-    
+
     try {
       // Apply format to reports
       const formatted = reports.map(formatReportData);
-      
-      // Apply filters
-      const filtered = formatted.filter(row => {
-        const matchesSearch = searchTerm 
-          ? (row.unitNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-             row.states?.toLowerCase().includes(searchTerm.toLowerCase()))
-          : true;
-          
-        const matchesStatus = statusFilter === 'All' || 
-          row.status?.toLowerCase() === statusFilter.toLowerCase();
-          
-        const matchesCompany = !isAdmin(currentUser) || !companyFilter || 
-          (row.companyName && row.companyName.toLowerCase().includes(companyFilter.toLowerCase()));
-          
-        return matchesSearch && matchesStatus && matchesCompany;
-      });
-      
-      setFilteredData(filtered);
+      setFilteredData(formatted);
     } catch (error) {
       console.error('Error processing data:', error);
       setFilteredData([]);
       enqueueSnackbar('Error processing data', { variant: 'error' });
     }
-  }, [reports, searchTerm, statusFilter, companyFilter, currentUser, enqueueSnackbar]);
+  }, [reports, enqueueSnackbar]);
 
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={es}>
@@ -619,12 +666,15 @@ const ConsumptionHistory = () => {
         {/* Header Section */}
         <Box sx={{
           display: 'flex',
+          flexDirection: { xs: 'column', sm: 'row' },
           justifyContent: 'space-between',
-          alignItems: 'center',
+          alignItems: { xs: 'stretch', sm: 'center' },
+          gap: 2,
           p: 3,
           backgroundColor: 'background.paper',
           boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
-          mb: 2
+          mb: 2,
+          width: '100%'
         }}>
           <Typography variant="h5" component="h1" fontWeight="bold">
             Consumption History
@@ -633,11 +683,15 @@ const ConsumptionHistory = () => {
             variant="contained"
             color="primary"
             startIcon={<AddTwoTone />}
+            fullWidth
+            sx={{
+              width: { xs: '100%', sm: 'auto' },
+              whiteSpace: 'nowrap'
+            }}
             onClick={() => {
               const basePath = currentUser?.role === 'admin' ? '/admin' : '/client';
               navigate(`${basePath}/consumption/create`);
             }}
-            sx={{ textTransform: 'none' }}
           >
             Add Consumption Record
           </Button>
@@ -649,14 +703,14 @@ const ConsumptionHistory = () => {
             <Grid container spacing={2} alignItems="center">
               <Grid item xs={12} md={12}>
                 <Stack direction="row" spacing={1} sx={{ flexWrap: 'nowrap', gap: 1, overflowX: 'auto', pb: 1, '&::-webkit-scrollbar': { height: '6px' } }}>
-                  {statusFilters.map((filter) => (
+                  {statusOptions.map((option) => (
                     <Button
-                      key={filter}
-                      variant={statusFilter === filter ? 'contained' : 'outlined'}
+                      key={`status-${option.value}`}
+                      variant={statusFilter === option.value ? 'contained' : 'outlined'}
                       color="primary"
                       size="small"
                       onClick={() => {
-                        setStatusFilter(filter);
+                        setStatusFilter(option.value);
                         setPagination(prev => ({ ...prev, page: 0 })); // Reset to first page when changing status
                       }}
                       sx={{
@@ -665,7 +719,7 @@ const ConsumptionHistory = () => {
                         minWidth: 'auto',
                         whiteSpace: 'nowrap',
                         px: 2,
-                        ...(statusFilter === filter && {
+                        ...(statusFilter === option.value && {
                           bgcolor: 'primary.main',
                           color: 'white',
                           '&:hover': {
@@ -674,7 +728,7 @@ const ConsumptionHistory = () => {
                         }),
                       }}
                     >
-                      {filter}
+                      {option.display}
                     </Button>
                   ))}
                 </Stack>
@@ -706,16 +760,53 @@ const ConsumptionHistory = () => {
                     label="Filter by company"
                     variant="outlined"
                     size="small"
-                    value={companyFilter}
-                    onChange={(e) => setCompanyFilter(e.target.value)}
+                    value={companyFilter || ''}
+                    onChange={(e) => {
+                      const value = e.target.value === '' ? '' : e.target.value;
+                      console.log('Company filter changed to:', value, 'Type:', typeof value);
+                      setCompanyFilter(value);
+                      setPagination(prev => ({ ...prev, page: 0 }));
+                    }}
                     select
+                    SelectProps={{
+                      native: false,
+                      MenuProps: {
+                        PaperProps: {
+                          style: {
+                            maxHeight: 300,
+                          },
+                        },
+                      },
+                    }}
                   >
-                    <MenuItem value="">All companies</MenuItem>
-                    {companies.map((company) => (
-                      <MenuItem key={company._id} value={company._id}>
-                        {company.name}
-                      </MenuItem>
-                    ))}
+                    <MenuItem key="all-companies" value="">
+                      <em>All companies</em>
+                    </MenuItem>
+                    {Array.isArray(companies) && companies.length > 0 ? (
+                      companies
+                        .map((company) => {
+                          // Extract company ID and name from different possible properties
+                          const companyId = company.id || company._id || company.Id || company.ID;
+                          const companyName = company.name || company.Name || 'Unnamed Company';
+                          
+                          if (!companyId) {
+                            console.warn('Skipping company with missing ID:', company);
+                            return null;
+                          }
+                          
+                          return (
+                            <MenuItem 
+                              key={companyId} 
+                              value={companyId}
+                            >
+                              {companyName}
+                            </MenuItem>
+                          );
+                        })
+                        .filter(Boolean) // Remove any null entries
+                    ) : (
+                      <MenuItem disabled>No companies available</MenuItem>
+                    )}
                   </TextField>
                 </Grid>
               )}
@@ -734,13 +825,13 @@ const ConsumptionHistory = () => {
                   InputLabelProps={{
                     shrink: true,
                   }}
-                  SelectProps={{ 
+                  SelectProps={{
                     native: true,
                   }}
                 >
-                  <option value="">All Years</option>
+                  <option key="all-years" value="">All Years</option>
                   {yearOptions.map((year) => (
-                    <option key={year} value={year}>
+                    <option key={`year-${year}`} value={year}>
                       {year}
                     </option>
                   ))}
@@ -762,13 +853,13 @@ const ConsumptionHistory = () => {
                   InputLabelProps={{
                     shrink: true,
                   }}
-                  SelectProps={{ 
+                  SelectProps={{
                     native: true,
                   }}
                 >
-                  <option value="">All</option>
+                  <option key="all-quarters" value="">All</option>
                   {quarterOptions.map((quarter) => (
-                    <option key={quarter} value={quarter}>
+                    <option key={`quarter-${quarter}`} value={quarter}>
                       Q{quarter}
                     </option>
                   ))}
@@ -797,10 +888,10 @@ const ConsumptionHistory = () => {
                 {filteredData
                   .slice(pagination.page * pagination.rowsPerPage, pagination.page * pagination.rowsPerPage + pagination.rowsPerPage)
                   .map((row) => (
-                    <MobileTableRow 
-                      key={row.id} 
-                      row={row} 
-                      onViewReceipt={handleViewReceipt} 
+                    <MobileTableRow
+                      key={row.id}
+                      row={row}
+                      onViewReceipt={handleViewReceipt}
                     />
                   ))}
               </Box>
@@ -830,7 +921,7 @@ const ConsumptionHistory = () => {
                           <TableCell>{row.unitNumber}</TableCell>
                           {isAdmin(currentUser) && <TableCell>{row.companyName || 'N/A'}</TableCell>}
                           <TableCell>{getQuarter(row.date)}</TableCell>
-                          <TableCell align="right">{row.milesTraveled.toLocaleString(undefined, {maximumFractionDigits: 2})}</TableCell>
+                          <TableCell align="right">{row.milesTraveled.toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
                           <TableCell align="right">{row.totalGallons.toFixed(2)}</TableCell>
                           {isAdmin(currentUser) && <TableCell align="right">{row.mpg}</TableCell>}
                           <TableCell>
@@ -870,10 +961,10 @@ const ConsumptionHistory = () => {
             onPageChange={handleChangePage}
             onRowsPerPageChange={handleChangeRowsPerPage}
             labelRowsPerPage="Rows per page:"
-            labelDisplayedRows={({ from, to, count }) => 
+            labelDisplayedRows={({ from, to, count }) =>
               `${from}-${to} of ${count !== -1 ? count : `more to ${to}`}`
             }
-            sx={{ 
+            sx={{
               borderTop: '1px solid rgba(224, 224, 224, 1)',
               '& .MuiTablePagination-toolbar': {
                 flexWrap: 'wrap',

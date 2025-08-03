@@ -168,7 +168,7 @@ const AdminDashboard = () => {
 
       {/* Tarjetas de resumen */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
-        <Grid item xs={12} sm={6} md={3} component={Link} to="/admin/profile" sx={{ textDecoration: 'none' }}>
+        <Grid item xs={12} sm={6} md={3} component={Link} to="/admin/users" sx={{ textDecoration: 'none' }}>
           <Card elevation={3} sx={{ '&:hover': { boxShadow: 6 } }}>
             <CardContent>
               <Box display="flex" justifyContent="space-between" alignItems="center" >
