@@ -87,6 +87,64 @@ export const updateUserStatus = async (userId, isActive) => {
   }
 };
 
+export const getUserById = async (userId) => {
+  try {
+    console.log(`Obteniendo información del usuario ${userId}...`);
+    const response = await api.get(`/v1/users/${userId}`);
+    
+    if (!response.data || !response.data.data) {
+      throw new Error('No se recibieron datos del usuario o la estructura es incorrecta');
+    }
+    
+    return response.data.data;
+  } catch (error) {
+    console.error('Error al obtener el usuario:', error);
+    if (error.response) {
+      console.error('Detalles del error:', error.response.data);
+      console.error('Status:', error.response.status);
+      
+      if (error.response.status === 404) {
+        throw new Error('Usuario no encontrado');
+      }
+      
+      throw new Error(error.response.data?.message || 'Error al obtener el usuario');
+    }
+    throw error;
+  }
+};
+
+export const updateUser = async (userId, userData) => {
+  try {
+    console.log(`Actualizando usuario ${userId} con datos:`, userData);
+    
+    // Usar PATCH en lugar de PUT y ajustar la ruta
+    const response = await api.patch(`/v1/users/${userId}`, userData);
+    
+    if (!response.data || !response.data.data) {
+      throw new Error('La respuesta del servidor no contiene datos');
+    }
+    
+    console.log('Usuario actualizado correctamente:', response.data.data);
+    return response.data.data;
+  } catch (error) {
+    console.error('Error al actualizar el usuario:', error);
+    if (error.response) {
+      console.error('Detalles del error:', error.response.data);
+      console.error('Status:', error.response.status);
+      
+      if (error.response.status === 404) {
+        throw new Error('Usuario no encontrado');
+      }
+      
+      if (error.response.status === 400) {
+        throw new Error(error.response.data?.message || 'Datos de usuario no válidos');
+      }
+    }
+    
+    throw new Error(error.response?.data?.message || 'Error al actualizar el usuario');
+  }
+};
+
 export const getCurrentUser = async () => {
   try {
     console.log('Obteniendo información del usuario actual...');

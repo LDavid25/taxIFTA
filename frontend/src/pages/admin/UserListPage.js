@@ -22,7 +22,7 @@ import {
   Switch,
   InputAdornment
 } from '@mui/material';
-import { Search as SearchIcon } from '@mui/icons-material';
+import { Search as SearchIcon, Edit as EditIcon } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
 import { getUsers, updateUserStatus, getCurrentUser } from '../../services/userService';
@@ -46,7 +46,7 @@ const UserListPage = () => {
   const navigate = useNavigate();
   const { enqueueSnackbar } = useSnackbar();
   
-  // Estados para la lista de usuarios y paginación
+  // States for user list and pagination
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -65,16 +65,16 @@ const UserListPage = () => {
   // Manejador de cambio de filas por página
   const handleChangeRowsPerPage = (event) => {
     setRowsPerPage(parseInt(event.target.value, 10));
-    setPage(0); // Volver a la primera página al cambiar el tamaño
+    setPage(0); // Go back to first page when changing page size
   };
 
   // Manejador de búsqueda
   const handleSearch = (event) => {
     setSearchQuery(event.target.value);
-    setPage(0); // Reiniciar a la primera página al buscar
+    setPage(0); // Reset to first page when searching
   };
 
-  // Filtrar usuarios localmente por término de búsqueda
+  // Filter users locally by search term
   const filteredUsers = React.useMemo(() => {
     if (!searchQuery) return users;
     
@@ -88,24 +88,24 @@ const UserListPage = () => {
     });
   }, [users, searchQuery]);
 
-  // Calcular las filas para la página actual
+  // Calculate rows for current page
   const paginatedUsers = React.useMemo(() => {
     const startIndex = page * rowsPerPage;
     return filteredUsers.slice(startIndex, startIndex + rowsPerPage);
   }, [filteredUsers, page, rowsPerPage]);
 
-  // Función para cargar los usuarios
+  // Function to load users
   const fetchUsers = async (currentPage = page, currentLimit = rowsPerPage, search = searchQuery) => {
     try {
       setLoading(true);
       setError('');
       
-      // Ajustar el número de página para la API (que empieza en 1)
+      // Adjust page number for API (starts at 1)
       const apiPage = currentPage + 1;
       
       const result = await getUsers(apiPage, currentLimit, search);
       
-      // Formatear los usuarios según la respuesta esperada
+      // Format users according to expected response
       let formattedUsers = [];
       let total = 0;
       
@@ -120,37 +120,37 @@ const UserListPage = () => {
       setUsers(formattedUsers);
       setTotalUsers(total);
       
-      // Mostrar un mensaje si no hay resultados
+      // Show message if no results
       if (formattedUsers.length === 0) {
-        enqueueSnackbar('No se encontraron usuarios', { variant: 'info' });
+        enqueueSnackbar('No users found', { variant: 'info' });
       }
       
       return formattedUsers;
     } catch (err) {
       console.error('Error al cargar usuarios:', err);
-      setError('Error al cargar la lista de usuarios. Por favor, intente de nuevo.');
-      enqueueSnackbar('Error al cargar la lista de usuarios', { variant: 'error' });
+      setError('Error loading user list. Please try again.');
+      enqueueSnackbar('Error loading user list', { variant: 'error' });
       return [];
     } finally {
       setLoading(false);
     }
   };
 
-  // Cargar datos de la API
+  // Load data from API
   useEffect(() => {
     fetchUsers();
   }, [page, rowsPerPage, searchQuery, enqueueSnackbar]);
 
-  // Función para manejar el cambio de estado
+  // Function to handle status change
   const handleToggleStatus = async (userId, currentStatus) => {
     try {
       setUpdatingStatus(prev => ({ ...prev, [userId]: true }));
       
-      // Actualizar el estado en el servidor
+      // Update status on server
       const response = await updateUserStatus(userId, !currentStatus);
       
-      // Actualizar el estado local independientemente de la respuesta del servidor
-      // ya que sabemos que el cambio se realizó correctamente en la base de datos
+      // Update local state regardless of server response
+      // since we know the change was made successfully in the database
       setUsers(prevUsers => 
         prevUsers.map(user => 
           user.id === userId 
@@ -160,30 +160,30 @@ const UserListPage = () => {
       );
       
       enqueueSnackbar(
-        `Usuario ${!currentStatus ? 'activado' : 'desactivado'} correctamente`, 
+        `User ${!currentStatus ? 'activated' : 'deactivated'} successfully`, 
         { variant: 'success' }
       );
       
-      // Recargar los datos del servidor para asegurar consistencia
+      // Reload data from server to ensure consistency
       await fetchUsers();
     } catch (error) {
       console.error('Error al actualizar el estado del usuario:', error);
       
-      // Mostrar mensaje de error específico si está disponible
+      // Show specific error message if available
       const errorMessage = error.response?.data?.message || error.message || 'Error desconocido';
       enqueueSnackbar(
-        `Error al ${currentStatus ? 'desactivar' : 'activar'} el usuario: ${errorMessage}`, 
+        `Error ${currentStatus ? 'deactivating' : 'activating'} user: ${errorMessage}`, 
         { variant: 'error' }
       );
       
-      // Recargar la lista de usuarios para asegurar consistencia
+      // Reload user list to ensure consistency
       fetchUsers();
     } finally {
       setUpdatingStatus(prev => ({ ...prev, [userId]: false }));
     }
   };
 
-  // Función para renderizar el switch de estado
+  // Function to render status switch
   const renderStatusSwitch = (user) => {
     if (!user) return null;
     
@@ -213,7 +213,7 @@ const UserListPage = () => {
     );
   };
 
-  // Mostrar carga
+  // Show loading
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
@@ -222,7 +222,7 @@ const UserListPage = () => {
     );
   }
 
-  // Mostrar error
+  // Show error
   if (error) {
     return (
       <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
@@ -247,7 +247,7 @@ const UserListPage = () => {
               <TextField
                 fullWidth
                 variant="outlined"
-                placeholder="Buscar usuarios por nombre o email..."
+                placeholder="Search users by name or email..."
                 value={searchQuery}
                 onChange={handleSearch}
                 InputProps={{
@@ -269,6 +269,7 @@ const UserListPage = () => {
                       <TableCell>Role</TableCell>
                       <TableCell>Last Login</TableCell>
                       <TableCell align="center">Status</TableCell>
+                      <TableCell align="center">Actions</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -276,25 +277,15 @@ const UserListPage = () => {
                       <TableRow 
                         key={user.id} 
                         hover
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          return false;
-                        }}
                         sx={{ 
                           '&:hover': { 
                             cursor: 'default',
                             backgroundColor: 'rgba(0, 0, 0, 0.04)' 
                           } 
                         }}
-                        component="div"
-                        role="button"
-                        tabIndex={0}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
-                            e.stopPropagation();
-                          }
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
                         }}
                       >
                         <TableCell>{user.name || 'N/A'}</TableCell>
@@ -310,6 +301,19 @@ const UserListPage = () => {
                         <TableCell align="center">
                           {renderStatusSwitch(user)}
                         </TableCell>
+                        <TableCell align="center">
+                          <IconButton
+                            color="primary"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/admin/users/edit/${user.id}`);
+                            }}
+                            aria-label="edit" 
+                            size="small"
+                          >
+                            <EditIcon fontSize="small" />
+                          </IconButton>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -324,7 +328,7 @@ const UserListPage = () => {
                 rowsPerPage={rowsPerPage}
                 onRowsPerPageChange={handleChangeRowsPerPage}
                 rowsPerPageOptions={[5, 10, 25]}
-                labelRowsPerPage="Usuarios por página:"
+                labelRowsPerPage="Users per page:"
                 labelDisplayedRows={({ from, to, count }) => 
                   `${from}-${to} de ${count !== -1 ? count : `más de ${to}`}`
                 }

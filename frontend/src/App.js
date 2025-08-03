@@ -48,6 +48,7 @@ import CompanyListPage from './pages/companies/CompanyListPage';
 // Páginas de administración
 import RegisterUser from './pages/admin/RegisterUser';
 import UserListPage from './pages/admin/UserListPage';
+import EditUserPage from './pages/admin/EditUserPage';
 
 // Páginas de error
 import NotFound from './pages/errors/NotFound';
@@ -195,6 +196,7 @@ function App() {
               <Route path="companies" element={<CompanyListPage />} />
               <Route path="register-user" element={<RegisterUser />} />
               <Route path="users" element={<UserListPage />} />
+              <Route path="users/edit/:id" element={<EditUserPage />} />
               <Route path="declarations" element={<DeclarationList />} />
               <Route path="declarations/company/:companyId/quarter/:quarter/year/:year" element={<DeclarationDetail />} />
               <Route path="declarations/:id" element={<DeclarationDetail />} />
