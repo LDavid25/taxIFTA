@@ -19,11 +19,11 @@ console.log('===========================');
 
 const signToken = (id, company_id) => {
   return jwt.sign(
-    { 
+    {
       id,
-      company_id // Incluir el ID de la compañía en el token
-    }, 
-    process.env.JWT_SECRET, 
+      company_id, // Incluir el ID de la compañía en el token
+    },
+    process.env.JWT_SECRET,
     {
       expiresIn: process.env.JWT_EXPIRES_IN,
     }
@@ -33,9 +33,7 @@ const signToken = (id, company_id) => {
 const createSendToken = (user, statusCode, res) => {
   const token = signToken(user.id, user.company_id);
   const cookieOptions = {
-    expires: new Date(
-      Date.now() + process.env.JWT_COOKIE_EXPIRES_IN * 24 * 60 * 60 * 1000
-    ),
+    expires: new Date(Date.now() + process.env.JWT_COOKIE_EXPIRES_IN * 24 * 60 * 60 * 1000),
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
   };
@@ -57,14 +55,14 @@ const createSendToken = (user, statusCode, res) => {
 exports.register = async (req, res, next) => {
   console.log('=== Iniciando registro de usuario ===');
   console.log('Datos recibidos:', JSON.stringify(req.body, null, 2));
-  
+
   const transaction = await sequelize.transaction();
   try {
-    const { 
-      name, 
-      email, 
-      password, 
-      password_confirmation, 
+    const {
+      name,
+      email,
+      password,
+      password_confirmation,
       role = 'user', // Valores permitidos: 'admin' o 'user'
       company_id,
       // Campos de la compañía
@@ -72,7 +70,7 @@ exports.register = async (req, res, next) => {
       company_phone,
       company_email,
       company_address,
-      company_distribution_emails
+      company_distribution_emails,
     } = req.body;
 
     // 1) Verificar si el usuario ya existe
@@ -92,22 +90,28 @@ exports.register = async (req, res, next) => {
       if (!company_name || !company_email) {
         await transaction.rollback();
         return next(
-          new AppError('Se requieren el nombre y correo de la compañía para crear una nueva', StatusCodes.BAD_REQUEST)
+          new AppError(
+            'Se requieren el nombre y correo de la compañía para crear una nueva',
+            StatusCodes.BAD_REQUEST
+          )
         );
       }
       // Solo validar si el correo ya existe si se proporciona
       if (company_email) {
         const existingCompany = await Company.findOne({
           where: {
-            contact_email: company_email
+            contact_email: company_email,
           },
-          transaction
+          transaction,
         });
 
         if (existingCompany) {
           await transaction.rollback();
           return next(
-            new AppError('Ya existe una compañía con este correo electrónico', StatusCodes.BAD_REQUEST)
+            new AppError(
+              'Ya existe una compañía con este correo electrónico',
+              StatusCodes.BAD_REQUEST
+            )
           );
         }
       }
@@ -115,7 +119,7 @@ exports.register = async (req, res, next) => {
       // Crear nueva compañía solo con los campos proporcionados
       const companyData = {
         name: company_name || 'Nueva Compañía',
-        is_active: true
+        is_active: true,
       };
 
       // Agregar campos opcionales solo si están presentes
@@ -123,9 +127,9 @@ exports.register = async (req, res, next) => {
       if (company_email) companyData.contact_email = company_email;
       if (company_address) companyData.address = company_address;
       if (company_distribution_emails) {
-        companyData.distribution_emails = Array.isArray(company_distribution_emails) ? 
-          company_distribution_emails : 
-          [company_distribution_emails].filter(Boolean);
+        companyData.distribution_emails = Array.isArray(company_distribution_emails)
+          ? company_distribution_emails
+          : [company_distribution_emails].filter(Boolean);
       }
 
       const newCompany = await Company.create(companyData, { transaction });
@@ -135,18 +139,14 @@ exports.register = async (req, res, next) => {
       const companyExists = await Company.findByPk(company_id, { transaction });
       if (!companyExists) {
         await transaction.rollback();
-        return next(
-          new AppError('La compañía especificada no existe', StatusCodes.BAD_REQUEST)
-        );
+        return next(new AppError('La compañía especificada no existe', StatusCodes.BAD_REQUEST));
       }
     }
 
     // 3) Validar que las contraseñas coincidan
     if (password !== password_confirmation) {
       await transaction.rollback();
-      return next(
-        new AppError('Las contraseñas no coinciden', StatusCodes.BAD_REQUEST)
-      );
+      return next(new AppError('Las contraseñas no coinciden', StatusCodes.BAD_REQUEST));
     }
 
     // 4) Validar que la contraseña cumpla con los requisitos
@@ -160,7 +160,7 @@ exports.register = async (req, res, next) => {
         )
       );
     }
-    
+
     // Validar el formato del correo electrónico
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
@@ -171,42 +171,52 @@ exports.register = async (req, res, next) => {
     }
 
     // 5) Crear el usuario
-    const newUser = await User.create({
-      name,
-      email,
-      password,
-      role,
-      company_id: companyId,
-      is_active: true // Asegurarse de que el campo coincida con la base de datos
-    }, { transaction });
-    
+    const newUser = await User.create(
+      {
+        name,
+        email,
+        password,
+        role,
+        company_id: companyId,
+        is_active: true, // Asegurarse de que el campo coincida con la base de datos
+      },
+      { transaction }
+    );
+
     await transaction.commit();
-    
+    sendEmail(email, 'register', {
+      name: name,
+      companyName: company_name,
+      message: `Tu cuenta ha sido creada exitosamente. Aqui tienes tus datos para iniciar sesión: <br /> Email: ${email} <br /> Contraseña: ${password} <br /> 
+      Te recomendamos cambiar tu contraseña después de tu primer acceso para mayor seguridad. <br />
+`,
+    });
+
     return createSendToken(newUser, StatusCodes.CREATED, res);
-    
   } catch (error) {
     console.error('Error en el registro:', error);
-    
+
     // Si hay una transacción activa, hacer rollback
     if (transaction && transaction.finished !== 'commit' && transaction.finished !== 'rollback') {
       await transaction.rollback();
     }
-    
+
     // Manejar errores específicos
-    if (error.name === 'SequelizeValidationError' || error.name === 'SequelizeUniqueConstraintError') {
+    if (
+      error.name === 'SequelizeValidationError' ||
+      error.name === 'SequelizeUniqueConstraintError'
+    ) {
       const messages = error.errors ? error.errors.map(err => err.message) : [error.message];
       return next(
-        new AppError(
-          `Error de validación: ${messages.join('. ')}`,
-          StatusCodes.BAD_REQUEST
-        )
+        new AppError(`Error de validación: ${messages.join('. ')}`, StatusCodes.BAD_REQUEST)
       );
     }
-    
+
     // Para otros errores, devolver un mensaje genérico
     return next(
       new AppError(
-        error.message || 'Ocurrió un error al procesar tu solicitud. Por favor, inténtalo de nuevo más tarde.',
+        error.message ||
+          'Ocurrió un error al procesar tu solicitud. Por favor, inténtalo de nuevo más tarde.',
         error.statusCode || StatusCodes.INTERNAL_SERVER_ERROR
       )
     );
@@ -217,15 +227,13 @@ exports.login = async (req, res, next) => {
   try {
     console.log('=== Intento de inicio de sesión ===');
     console.log('Email recibido:', req.body.email);
-    
+
     const { email, password } = req.body;
 
     // 1) Check if email and password exist
     if (!email || !password) {
       console.log('Error: Falta email o contraseña');
-      return next(
-        new AppError('Please provide email and password!', StatusCodes.BAD_REQUEST)
-      );
+      return next(new AppError('Please provide email and password!', StatusCodes.BAD_REQUEST));
     }
 
     // 2) Check if user exists
@@ -235,9 +243,7 @@ exports.login = async (req, res, next) => {
 
     if (!user) {
       console.log('Error: Usuario no encontrado');
-      return next(
-        new AppError('Incorrect email or password', StatusCodes.UNAUTHORIZED)
-      );
+      return next(new AppError('Incorrect email or password', StatusCodes.UNAUTHORIZED));
     }
 
     // 3) Check if password is correct
@@ -247,9 +253,7 @@ exports.login = async (req, res, next) => {
 
     if (!isPasswordCorrect) {
       console.log('Error: Contraseña incorrecta');
-      return next(
-        new AppError('Incorrect email or password', StatusCodes.UNAUTHORIZED)
-      );
+      return next(new AppError('Incorrect email or password', StatusCodes.UNAUTHORIZED));
     }
 
     // 3) If everything ok, send token to client
@@ -263,10 +267,7 @@ exports.protect = async (req, res, next) => {
   try {
     // 1) Getting token and check if it's there
     let token;
-    if (
-      req.headers.authorization &&
-      req.headers.authorization.startsWith('Bearer')
-    ) {
+    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
       token = req.headers.authorization.split(' ')[1];
     } else if (req.cookies.jwt) {
       token = req.cookies.jwt;
@@ -274,7 +275,10 @@ exports.protect = async (req, res, next) => {
 
     if (!token) {
       return next(
-        new AppError('You are not logged in! Please log in to get access.', StatusCodes.UNAUTHORIZED)
+        new AppError(
+          'You are not logged in! Please log in to get access.',
+          StatusCodes.UNAUTHORIZED
+        )
       );
     }
 
@@ -292,7 +296,10 @@ exports.protect = async (req, res, next) => {
     // 4) Check if user changed password after the token was issued
     if (currentUser.changedPasswordAfter(decoded.iat)) {
       return next(
-        new AppError('User recently changed password! Please log in again.', StatusCodes.UNAUTHORIZED)
+        new AppError(
+          'User recently changed password! Please log in again.',
+          StatusCodes.UNAUTHORIZED
+        )
       );
     }
 
@@ -310,10 +317,7 @@ exports.isLoggedIn = async (req, res, next) => {
   if (req.cookies.jwt) {
     try {
       // 1) Verify token
-      const decoded = await promisify(jwt.verify)(
-        req.cookies.jwt,
-        process.env.JWT_SECRET
-      );
+      const decoded = await promisify(jwt.verify)(req.cookies.jwt, process.env.JWT_SECRET);
 
       // 2) Check if user still exists
       const currentUser = await User.findByPk(decoded.id);
@@ -353,10 +357,9 @@ exports.forgotPassword = async (req, res, next) => {
   try {
     // 1) Get user based on POSTed email
     const user = await User.findOne({ where: { email: req.body.email } });
+    const company = await Company.findOne({ where: { id: user.company_id } });
     if (!user) {
-      return next(
-        new AppError('There is no user with that email address.', StatusCodes.NOT_FOUND)
-      );
+      return next(new AppError('There is no user with that email address.', StatusCodes.NOT_FOUND));
     }
 
     // 2) Generate the random reset token
@@ -368,13 +371,16 @@ exports.forgotPassword = async (req, res, next) => {
       'host'
     )}/api/v1/users/resetPassword/${resetToken}`;
 
-    const message = `Forgot your password? Submit a PATCH request with your new password and passwordConfirm to: ${resetURL}.\nIf you didn't forget your password, please ignore this email!`;
-
     try {
-      await sendEmail({
-        email: user.email,
-        subject: 'Your password reset token (valid for 10 min)',
-        message,
+      sendEmail(user.email, 'resetPassword', {
+        name: user.name,
+        companyName: company.name,
+        message: `
+        Hola.
+Recibimos una solicitud para restablecer tu contraseña.
+Por favor, haz click en el siguiente enlace para crear una nueva contraseña:
+      `,
+        resetLink: resetURL,
       });
 
       res.status(StatusCodes.OK).json({
@@ -399,10 +405,7 @@ exports.forgotPassword = async (req, res, next) => {
 exports.resetPassword = async (req, res, next) => {
   try {
     // 1) Get user based on the token
-    const hashedToken = crypto
-      .createHash('sha256')
-      .update(req.params.token)
-      .digest('hex');
+    const hashedToken = crypto.createHash('sha256').update(req.params.token).digest('hex');
 
     const user = await User.findOne({
       where: {

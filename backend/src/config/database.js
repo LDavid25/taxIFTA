@@ -10,8 +10,11 @@ module.exports = {
     dialect: 'postgres',
     logging: process.env.NODE_ENV === 'development' ? console.log : false,
     dialectOptions: {
-      ssl: false
-    }
+      ssl: {
+        require: true,
+        rejectUnauthorized: false,
+      },
+    },
   },
   test: {
     username: process.env.TEST_DB_USER || 'postgres',
@@ -22,8 +25,8 @@ module.exports = {
     dialect: 'postgres',
     logging: false,
     dialectOptions: {
-      ssl: false
-    }
+      ssl: false,
+    },
   },
   production: {
     username: process.env.PROD_DB_USER,
@@ -36,8 +39,8 @@ module.exports = {
     dialectOptions: {
       ssl: {
         require: true,
-        rejectUnauthorized: false
-      }
-    }
-  }
+        rejectUnauthorized: false,
+      },
+    },
+  },
 };
