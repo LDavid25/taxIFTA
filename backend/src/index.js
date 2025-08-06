@@ -88,7 +88,8 @@ const corsOptions = {
       'http://localhost:3001',
       'http://127.0.0.1:3001',
       'http://localhost:3000',
-      'http://127.0.0.1:3000'
+      'http://127.0.0.1:3000',
+      'https://web-ubq6gq6jr2lw.up-de-fra1-k8s-1.apps.run-on-seenode.com'
     ];
     
     // En desarrollo, permitir cualquier origen
