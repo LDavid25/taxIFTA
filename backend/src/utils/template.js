@@ -28,6 +28,23 @@ const emailTemplate = {
       </div>
     `,
   },
+
+  inicioSesion: {
+    subject: () => 'Haz iniciado sesion.',
+    html: (message) => `
+      <div>
+        <h2>
+          Hola, haz iniciado sesion.
+        </h2>
+        <p>
+          ${message} || 'Gracias por iniciar sesion.'
+        </p>
+        <p>
+          Saludos.
+        </p>
+      </div>
+     `
+  }
 };
 
 module.exports = emailTemplate;
