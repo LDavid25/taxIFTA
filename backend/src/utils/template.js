@@ -31,13 +31,13 @@ const emailTemplate = {
 
   inicioSesion: {
     subject: () => 'Haz iniciado sesion.',
-    html: (message) => `
+    html: ({message}) => `
       <div>
         <h2>
           Hola, haz iniciado sesion.
         </h2>
         <p>
-          ${message} || 'Gracias por iniciar sesion.'
+          ${message  || 'Gracias por iniciar sesion.'}
         </p>
         <p>
           Saludos.
