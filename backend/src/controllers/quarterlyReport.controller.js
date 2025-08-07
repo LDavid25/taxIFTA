@@ -3,6 +3,12 @@ const { Op } = require('sequelize');
 const AppError = require('../utils/appError');
 const { IftaQuarterlyReport, IftaReport } = require('../models');
 
+// Funcion envio de correo
+const sendEmail = require('../utils/email');
+
+//Nombre del servicio (temporal)
+const serviceName = 'TaxIFTA'
+
 /**
  * Obtiene todos los reportes agrupados por compañía y trimestre
  * @param {Object} req - Objeto de solicitud de Express
@@ -603,6 +609,17 @@ exports.getQuarterlyReport = async (req, res, next) => {
       year: quarterlyReport.year,
       reportCount: quarterlyReport.report_count
     });
+
+    const company = Company.findOne({ where: { company_id }});
+    const companyName = company.name;
+    const emailsToSend = company.distribution_emails.join(',');
+
+    sendEmail( emailToSend, 'declaration', {
+      companyName: companyName,
+      serviceName: serviceName,
+      quarter: quarterlyReport.quarter,
+      year: quarterlyReport.year
+    })
     
     res.status(200).json({
       status: 'success',

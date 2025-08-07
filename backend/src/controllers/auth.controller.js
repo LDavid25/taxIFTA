@@ -17,6 +17,9 @@ console.log('JWT_EXPIRES_IN:', process.env.JWT_EXPIRES_IN || 'No configurado');
 console.log('JWT_COOKIE_EXPIRES_IN:', process.env.JWT_COOKIE_EXPIRES_IN || 'No configurado');
 console.log('===========================');
 
+// Variables Globales
+const serviceName = 'TaxIFTA'
+
 const signToken = (id, company_id) => {
   return jwt.sign(
     {
@@ -186,7 +189,7 @@ exports.register = async (req, res, next) => {
     await transaction.commit();
     sendEmail(email, 'register', {
       name: name,
-      companyName: company_name,
+      serviceName: serviceName,
       message: `Tu cuenta ha sido creada exitosamente. Aqui tienes tus datos para iniciar sesión: <br /> Email: ${email} <br /> Contraseña: ${password} <br /> 
       Te recomendamos cambiar tu contraseña después de tu primer acceso para mayor seguridad. <br />
 `,
@@ -379,11 +382,11 @@ exports.forgotPassword = async (req, res, next) => {
     try {
       sendEmail(user.email, 'resetPassword', {
         name: user.name,
-        companyName: company.name,
+        serviceName: serviceName,
         message: `
-        Hola.
-Recibimos una solicitud para restablecer tu contraseña.
-Por favor, haz click en el siguiente enlace para crear una nueva contraseña:
+          Hola.
+          Recibimos una solicitud para restablecer tu contraseña.
+          Por favor, haz click en el siguiente enlace para crear una nueva contraseña:
       `,
         resetLink: resetURL,
       });

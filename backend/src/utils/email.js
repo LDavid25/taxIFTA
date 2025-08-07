@@ -19,7 +19,7 @@ const sendEmail = async (userEmail, templateName, variables) => {
   }
   const myEmail = 'ifta-notifications@dottruckpermits.com';
 
-  const subject = emailTemplates[templateName].subject(variables.name || '');
+  const subject = emailTemplates[templateName].subject(variables);
   const html = emailTemplates[templateName].html(variables);
   const mailOptions = {
     from: myEmail,

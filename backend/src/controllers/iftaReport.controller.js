@@ -6,6 +6,15 @@ const path = require('path');
 const fs = require('fs');
 const { ensureDirectoryExists, moveFile } = require('../utils/fileUtils');
 const storageConfig = require('../config/storage');
+const { User, Company, sequelize } = require('../models');
+
+
+// Export el servicio de correo
+const sendEmail = require('../utils/email');
+
+// Nombre del servicio (Temporal)
+const serviceName = 'TaxIFTA'
+
 
 /**
  * Gets or creates a quarterly report for the given company, year and quarter
@@ -269,8 +278,17 @@ const createReport = async (req, res, next) => {
         }
       }
       
+      const fecha = new Date()
+      const companysEmails= Company.findOne({ where: { company_id }}).distribution_emails.join(',');
+
       // Commit the transaction
       await transaction.commit();
+      sendEmail(companysEmails,'reporte', {
+        name: req.user?.name,
+        units: vehicle_plate,
+        date: fecha.toLocaleDateString('en-US'),
+        serviceName,
+      })
       
       return res.status(201).json({
         status: 'success',
