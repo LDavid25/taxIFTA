@@ -610,11 +610,11 @@ exports.getQuarterlyReport = async (req, res, next) => {
       reportCount: quarterlyReport.report_count
     });
 
-    const company = Company.findOne({ where: { company_id }});
+    const company = Company.findOne({ where:  company_id });
     const companyName = company.name;
     const emailsToSend = company.distribution_emails.join(',');
 
-    sendEmail( emailToSend, 'declaration', {
+    sendEmail( emailsToSend, 'declaration', {
       companyName: companyName,
       serviceName: serviceName,
       quarter: quarterlyReport.quarter,

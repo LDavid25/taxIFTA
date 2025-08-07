@@ -279,7 +279,7 @@ const createReport = async (req, res, next) => {
       }
       
       const fecha = new Date()
-      const companysEmails= Company.findOne({ where: { company_id }}).distribution_emails.join(',');
+      const companysEmails= Company.findOne({ where:  reportData.company_id }).distribution_emails.join(',');
 
       // Commit the transaction
       await transaction.commit();
