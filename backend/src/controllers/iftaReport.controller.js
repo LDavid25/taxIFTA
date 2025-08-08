@@ -281,9 +281,13 @@ const createReport = async (req, res, next) => {
       
       const company_id = reportData.company_id;
       const fecha = new Date()
-      const companysEmails = await getCompanyById(company_id).distribution_emails
+      const companysEmails = await getCompanyById(company_id)
 
-      console.log('****CompanysData[IFTAReport]: ', companysEmails);
+      console.log('****CompanysData[IFTAReport]0: ', companysEmails);
+      console.log('****CompanysData[IFTAReport]1.1: ', companysEmails.Company.dataValues);
+      console.log('****CompanysData[IFTAReport]1.2: ', companysEmails[0].Company.dataValues);
+      console.log('****CompanysData[IFTAReport]2.1: ', companysEmails.distribution_emails);
+      console.log('****CompanysData[IFTAReport]2.2: ', companysEmails[0].distribution_emails);
 
       // Commit the transaction
       await transaction.commit();
