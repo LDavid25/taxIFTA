@@ -284,9 +284,12 @@ const createReport = async (req, res, next) => {
       const companyData = await getCompanyById(company_id)
       const companyEmails = companyData.distribution_emails.join(',')
 
+      console.log('****CompanysData[IFTAQuartely]: ', companyEmails);
+
+
       // Commit the transaction
       await transaction.commit();
-      sendEmail(companysEmails,'reporte', {
+      sendEmail(companyEmails,'reporte', {
         name: req.user?.name,
         units: vehicle_plate,
         date: fecha.toLocaleDateString('en-US'),

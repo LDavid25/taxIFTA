@@ -617,9 +617,9 @@ exports.getQuarterlyReport = async (req, res, next) => {
     const companyEmails = companyData.distribution_emails.join(',')
 
 
-      console.log('****CompanysData[IFTAQuartely]: ', companysEmails);
+      console.log('****CompanysData[IFTAQuartely]: ', companyEmails);
 
-    sendEmail( companysEmails, 'declaration', {
+    sendEmail( companyEmails, 'declaration', {
       companyName: companyName,
       serviceName: serviceName,
       quarter: quarterlyReport.quarter,
