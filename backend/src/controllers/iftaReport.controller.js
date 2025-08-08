@@ -281,18 +281,18 @@ const createReport = async (req, res, next) => {
       
       const company_id = reportData.company_id;
       const fecha = new Date()
-      const companysEmails = await getCompanyById(company_id).Company
+      const companysEmails = await getCompanyById(company_id).distribution_emails.join(',')
 
       console.log('****CompanysData[IFTAReport]: ', companysEmails);
 
       // Commit the transaction
       await transaction.commit();
-      // sendEmail(companysEmails,'reporte', {
-      //   name: req.user?.name,
-      //   units: vehicle_plate,
-      //   date: fecha.toLocaleDateString('en-US'),
-      //   serviceName,
-      // })
+      sendEmail(companysEmails,'reporte', {
+        name: req.user?.name,
+        units: vehicle_plate,
+        date: fecha.toLocaleDateString('en-US'),
+        serviceName,
+      })
       
       return res.status(201).json({
         status: 'success',
