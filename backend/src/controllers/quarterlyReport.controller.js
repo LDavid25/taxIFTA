@@ -611,9 +611,9 @@ exports.getQuarterlyReport = async (req, res, next) => {
       reportCount: quarterlyReport.report_count
     });
 
-    const company = getCompanyById(company_id);
+    const company = await getCompanyById(company_id);
     const companyName = company.name;
-    const companysEmails = company
+    const companysEmails = company.Company.dataValues.distribution_emails.join(',')
 
       console.log('****CompanysData[IFTAQuartely]: ', companysEmails);
 

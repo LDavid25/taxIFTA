@@ -281,7 +281,7 @@ const createReport = async (req, res, next) => {
       
       const company_id = reportData.company_id;
       const fecha = new Date()
-      const companysEmails = await getCompanyById(company_id)
+      const companysEmails = await getCompanyById(company_id).Company.dataValues.distribution_emails.join(',')
 
       console.log('****CompanysData[IFTAReport]: ', companysEmails);
 
