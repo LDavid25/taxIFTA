@@ -11,6 +11,7 @@ const { User, Company, sequelize } = require('../models');
 
 // Export el servicio de correo
 const sendEmail = require('../utils/email');
+const { getCompanyById } = require('./company.controller');
 
 // Nombre del servicio (Temporal)
 const serviceName = 'TaxIFTA'
@@ -280,7 +281,7 @@ const createReport = async (req, res, next) => {
       
       const company_id = reportData.company_id;
       const fecha = new Date()
-      const companysEmails= Company.findOne({ where: {company_id} }).distribution_emails.join(',');
+      const companysEmails= getCompanyById(company_id).distribution_emails.join(',');
 
       // Commit the transaction
       await transaction.commit();

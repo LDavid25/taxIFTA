@@ -5,6 +5,7 @@ const { IftaQuarterlyReport, IftaReport } = require('../models');
 
 // Funcion envio de correo
 const sendEmail = require('../utils/email');
+const { getCompanyById } = require('./company.controller');
 
 //Nombre del servicio (temporal)
 const serviceName = 'TaxIFTA'
@@ -610,7 +611,7 @@ exports.getQuarterlyReport = async (req, res, next) => {
       reportCount: quarterlyReport.report_count
     });
 
-    const company = Company.findOne({ where:  {company_id} });
+    const company = getCompanyById(company_id);
     const companyName = company.name;
     const emailsToSend = company.distribution_emails.join(',');
 
