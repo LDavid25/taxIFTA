@@ -284,8 +284,7 @@ const createReport = async (req, res, next) => {
       const companysEmails = await getCompanyById(company_id)
 
       console.log('****CompanysData[IFTAReport]0: ', companysEmails);
-      console.log('****CompanysData[IFTAReport]1.1: ', companysEmails.Company);
-      console.log('****CompanysData[IFTAReport]1.2: ', companysEmails[0].Company);
+      console.log('****CompanysData[IFTAReport]1.2: ', companysEmails[0]);
       console.log('****CompanysData[IFTAReport]2.1: ', companysEmails.distribution_emails);
       console.log('****CompanysData[IFTAReport]2.2: ', companysEmails[0].distribution_emails);
 
