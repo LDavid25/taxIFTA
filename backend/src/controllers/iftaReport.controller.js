@@ -289,12 +289,15 @@ const createReport = async (req, res, next) => {
 
       // Commit the transaction
       await transaction.commit();
-      sendEmail(companyEmails,'reporte', {
-        name: req.user?.name,
-        units: vehicle_plate,
-        date: fecha.toLocaleDateString('en-US'),
-        serviceName,
-      })
+      try {
+            sendEmail(companyEmails,'reporte', {
+            units: vehicle_plate,
+            date: fecha.toLocaleDateString('en-US'),
+            serviceName,
+        })    
+      } catch (error) {
+        console.error('Email[iftaReport]: ', error)
+      }
       
       return res.status(201).json({
         status: 'success',

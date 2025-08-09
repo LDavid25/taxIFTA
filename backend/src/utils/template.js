@@ -31,14 +31,11 @@ const emailTemplate = {
 
   inicioSesion: {
     subject: () => 'Haz iniciado sesion.',
-    html: ({message}) => `
+    html: () => `
       <div>
         <h2>
           Hola, haz iniciado sesion.
         </h2>
-        <p>
-          ${message  || 'Gracias por iniciar sesion.'}
-        </p>
         <p>
           Saludos.
         </p>
@@ -48,10 +45,10 @@ const emailTemplate = {
 
   reporte: {
     subject: () => 'Nuevo reporte Consumption generado',
-    html: ({ name, units, date, companyName, serviceName }) => `
+    html: ({ units, date, companyName, serviceName }) => `
       <div>
         <p>
-            Hola ${name}
+            Hola.
         </p>
         <p>
             Tu reporte de Consumption ha sido creado exitosamente.

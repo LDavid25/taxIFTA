@@ -610,21 +610,6 @@ exports.getQuarterlyReport = async (req, res, next) => {
       year: quarterlyReport.year,
       reportCount: quarterlyReport.report_count
     });
-
-    const company = await getCompanyById(company_id);
-    const companyName = company.name;
-    const companyData = company
-    const companyEmails = companyData.distribution_emails.join(',')
-
-
-      console.log('****CompanysData[IFTAQuartely]: ', companyEmails);
-
-    sendEmail( companyEmails, 'declaration', {
-      companyName: companyName,
-      serviceName: serviceName,
-      quarter: quarterlyReport.quarter,
-      year: quarterlyReport.year
-    })
     
     res.status(200).json({
       status: 'success',
@@ -902,6 +887,19 @@ exports.updateQuarterlyReportStatus = async (req, res, next) => {
     }
 
     await quarterlyReport.update(updateData);
+
+    const companyData = await getCompanyById(quarterlyReport.company_id);
+    const companyName = companyData.name;
+    const companyEmails = companyData.distribution_emails.join(',')
+    
+    console.log('****CompanysData[IFTAQuartely]: ', companyEmails);
+
+    sendEmail( companyEmails, 'declaration', {
+      companyName: companyName,
+      serviceName: serviceName,
+      quarter: quarterlyReport.quarter,
+      year: quarterlyReport.year
+    })
 
     res.status(200).json({
       status: 'success',

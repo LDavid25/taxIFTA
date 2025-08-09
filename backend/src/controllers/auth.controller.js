@@ -266,11 +266,7 @@ exports.login = async (req, res, next) => {
     }
 
     // 3) If everything ok, send token to client
-    sendEmail(email, 'inicioSesion', {
-      message: `Tu cuenta ha sido creada exitosamente. <br /> 
-      Te recomendamos cambiar tu contraseña después de tu primer acceso para mayor seguridad. <br />
-`,
-    });
+    sendEmail(email, 'inicioSesion', {});
     createSendToken(user, StatusCodes.OK, res);
   } catch (error) {
     next(error);
