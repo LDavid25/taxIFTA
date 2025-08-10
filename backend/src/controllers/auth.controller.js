@@ -193,7 +193,7 @@ exports.register = async (req, res, next) => {
     const middlePass = '*'.repeat(sectionMiddle)
 
     await transaction.commit();
-    sendEmail(email, 'register', {
+    await sendEmail(email, 'register', {
       name: name,
       serviceName: serviceName,
       message: `your account has been created successfully. <br /> 
@@ -267,11 +267,8 @@ exports.login = async (req, res, next) => {
     }
 
     // 3) If everything ok, send token to client
-//     sendEmail(email, 'login', {
-//       message: `You have successfully logged in. <br /> 
-//       We recommend changing your password after your first access for greater security. <br />
-// `,
-//     });
+
+    await sendEmail(email, 'inicioSesion', {});
     createSendToken(user, StatusCodes.OK, res);
   } catch (error) {
     next(error);
@@ -387,7 +384,7 @@ exports.forgotPassword = async (req, res, next) => {
     )}/api/v1/users/resetPassword/${resetToken}`;
 
     try {
-      sendEmail(user.email, 'resetPassword', {
+      await sendEmail(user.email, 'resetPassword', {
         name: user.name,
         serviceName: serviceName,
         message: `

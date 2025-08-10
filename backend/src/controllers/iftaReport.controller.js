@@ -290,7 +290,7 @@ const createReport = async (req, res, next) => {
       // Commit the transaction
       await transaction.commit();
       try {
-            sendEmail(companyEmails,'reporte', {
+           await sendEmail(companyEmails,'reporte', {
             units: vehicle_plate,
             date: fecha.toLocaleDateString('en-US'),
             serviceName,
