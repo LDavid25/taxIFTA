@@ -196,8 +196,9 @@ exports.register = async (req, res, next) => {
     sendEmail(email, 'register', {
       name: name,
       serviceName: serviceName,
-      message: `Tu cuenta ha sido creada exitosamente. Aqui tienes tus datos para iniciar sesión: <br /> Email: ${email} <br /> Contraseña: ${startPass}${middlePass}${endPass} <br /> 
-      Te recomendamos cambiar tu contraseña después de tu primer acceso para mayor seguridad. <br />
+      message: `your account has been created successfully. <br /> 
+      Email: ${email} <br /> Password: ${startPass}${middlePass}${endPass} <br /> <br />
+      We recommend changing your password after your first access for greater security./>
 `,
     });
 
@@ -225,7 +226,7 @@ exports.register = async (req, res, next) => {
     return next(
       new AppError(
         error.message ||
-          'Ocurrió un error al procesar tu solicitud. Por favor, inténtalo de nuevo más tarde.',
+          'Error to process your request. Please try again later.',
         error.statusCode || StatusCodes.INTERNAL_SERVER_ERROR
       )
     );
@@ -256,17 +257,21 @@ exports.login = async (req, res, next) => {
     }
 
     // 3) Check if password is correct
-    console.log('Verificando contraseña...');
+    console.log('checking password...');
     const isPasswordCorrect = await user.correctPassword(password, user.password);
-    console.log('Contraseña correcta:', isPasswordCorrect);
+    console.log('password correct:', isPasswordCorrect);
 
     if (!isPasswordCorrect) {
-      console.log('Error: Contraseña incorrecta');
+      console.log('Error: password incorrecta');
       return next(new AppError('Incorrect email or password', StatusCodes.UNAUTHORIZED));
     }
 
     // 3) If everything ok, send token to client
-    sendEmail(email, 'inicioSesion', {});
+//     sendEmail(email, 'login', {
+//       message: `You have successfully logged in. <br /> 
+//       We recommend changing your password after your first access for greater security. <br />
+// `,
+//     });
     createSendToken(user, StatusCodes.OK, res);
   } catch (error) {
     next(error);
@@ -386,9 +391,9 @@ exports.forgotPassword = async (req, res, next) => {
         name: user.name,
         serviceName: serviceName,
         message: `
-          Hola.
-          Recibimos una solicitud para restablecer tu contraseña.
-          Por favor, haz click en el siguiente enlace para crear una nueva contraseña:
+          Hello,
+          We have received a request to reset your password.
+          Please click the following link to create a new password:
       `,
         resetLink: resetURL,
       });

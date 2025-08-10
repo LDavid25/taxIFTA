@@ -235,10 +235,18 @@ const UserEditForm = ({ user: userProp, onSubmit, loading: saving }) => {
                     onChange={formik.handleChange}
                     onBlur={formik.handleBlur}
                     label="Status"
+                    disabled={user?.role === 'admin'}
                   >
-                    <MenuItem value={true}>Active</MenuItem>
-                    <MenuItem value={false}>Inactive</MenuItem>
+                    <MenuItem value={true}>
+                      {user?.role === 'admin' ? 'Active (Admin)' : 'Active'}
+                    </MenuItem>
+                    <MenuItem value={false}>
+                      {user?.role === 'admin' ? 'Inactive (Admin)' : 'Inactive'}
+                    </MenuItem>
                   </Select>
+                  {user?.role === 'admin' && (
+                    <FormHelperText>Admin user status cannot be changed</FormHelperText>
+                  )}
                 </FormControl>
               </Grid>
 

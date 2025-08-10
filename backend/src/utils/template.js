@@ -1,103 +1,92 @@
 const emailTemplate = {
   register: {
-    subject: ({serviceName}) => `¡Bienvenido a ${serviceName} - tus credenciales de acceso!`,
+    subject: ({serviceName}) => `Welcome to ${serviceName} - your access credentials!`,
     html: ({ name, serviceName, message }) => `
       <div style="font-family: Arial, sans-serif;">
         <h1>Hola ${name || 'Usuario'} 👋</h1>
-        <p>${message || 'Gracias por unirte a nosotros.'}</p>
+        <p>${message || 'Thank you for joining us.'}</p>
         <p style="margin-top: 30px;">
-          ¡Bienvenido a bordo!
+          Welcome!
         </p>
-        <p> Saludos. </p>
-        <p>El equipo de ${serviceName}</p>
       </div>
     `,
   },
 
   resetPassword: {
-    subject: ({serviceName}) => `Recupera tu contraseña en ${serviceName}`,
+    subject: ({serviceName}) => `Reset your password in ${serviceName}`,
     html: ({ name, message, resetLink, serviceName }) => `
       <div>
-        <h2>Hola ${name},</h2>
-        <p>${message || 'Haz clic en el siguiente enlace para restablecer tu contraseña: '}</p>
+        <h2>Hello</h2>
+        <p>${message || 'Click the following link to reset your password: '}</p>
         <a href="${resetLink}">${resetLink}</a>
-        <p>Si no solicitaste este cambio, Ignora este mensaje.</p>
-        <p>Gracias por confiar en nosotros.</p>
-        <p>Saludos.</p>
-        <p>El equipo de ${serviceName}</p>
+        <p>If you did not request this change, ignore this message.</p>
+        <p>Thank you for trusting us.</p>
       </div>
     `,
   },
 
   inicioSesion: {
-    subject: () => 'Haz iniciado sesion.',
-    html: () => `
+    subject: () => 'You have logged in.',
+    html: ({message}) => `
       <div>
         <h2>
-          Hola, haz iniciado sesion.
+          Hello, you have logged in.
         </h2>
         <p>
-          Saludos.
+          ${message  || 'Thank you for logging in.'}
         </p>
       </div>
      `
   },
 
   reporte: {
-    subject: () => 'Nuevo reporte Consumption generado',
-    html: ({ units, date, companyName, serviceName }) => `
+    subject: () => 'New Consumption report generated',
+    html: ({ name, units, date, companyName, serviceName }) => `
       <div>
         <p>
-            Hola.
+            Hello
         </p>
         <p>
-            Tu reporte de Consumption ha sido creado exitosamente.
+            Your Consumption report has been created successfully.
             <br>
-            Detalles del reporte:
+            Report details:
         </p>
         <p>
-            Nombre del usuario: ${name}
+            User created: ${name}
             <br>
-            Número de unidades: ${units}
+            Company name: ${companyName}
             <br>
-            fecha de creación: ${date}
+            Number of units: ${units}
+            <br>
+            Creation date: ${date}
         </p>
         <p>
-            Puedes acceder y revisar el reporte en tu área personal.
+            You can access and review the report in your personal area.
             <br>
-            Gracias por usar nuestro servicio.
-        </p>
-        <p>
-            Saludos.
-            El equipo de ${serviceName}
+            Thank you for using our service.
         </p>
       </div>
     `
   },
 
   declaration: {
-    subject: ({companyName}) => `Finalización de Declaration para ${companyName}`,
+    subject: ({companyName}) => `Completion of declaration for ${companyName}`,
     html: ({ quarter, year, companyName, serviceName }) => `
       <div>
           <p>
-              Hola,
-              Te informamos que la declaración correspondiente a:
+              Hello,
+              We inform you that the declaration corresponding to:
           </p>
           <p>
               Quarter: ${quarter}
               <br>
-              Año: ${year}
+              Year: ${year}
               <br>
-              Compañia: ${companyName}
+              Company: ${companyName}
           </p>
           <p>
-              Ha sido finalizada correctamente.
-              Si tienes alguna duda o requieres más información, no dudes en contactarnos.
-          </p>
-          <p>
-              Saludos.
-              <br>
-              El equipo de ${serviceName}
+              Has been finalized successfully.
+              If you have any questions or require more information, do not hesitate to contact us.
           </p>
       </div>
     `

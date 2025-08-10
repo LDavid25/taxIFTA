@@ -93,7 +93,7 @@ exports.getDashboardStats = async (req, res) => {
     console.log('Datos enviados al frontend:', JSON.stringify(responseData, null, 2));
     return res.status(200).json({
       success: true,
-      message: 'Estadísticas del dashboard obtenidas correctamente',
+      message: 'Dashboard stats retrieved successfully',
       data: responseData
     });
 
@@ -105,7 +105,7 @@ exports.getDashboardStats = async (req, res) => {
     // Enviar respuesta de error detallada
     res.status(500).json({
       success: false,
-      message: 'Error al obtener las estadísticas del dashboard',
+      message: 'Error fetching dashboard stats',
       error: error.message,
       errorType: error.name,
       details: process.env.NODE_ENV === 'development' ? {

@@ -16,8 +16,8 @@ import { forgotPassword } from '../../services/authService';
 // Esquema de validación con Yup
 const validationSchema = Yup.object({
   email: Yup.string()
-    .email('Ingrese un correo electrónico válido')
-    .required('El correo electrónico es requerido')
+    .email('Email is required')
+    .required('Email is required')
 });
 
 const ForgotPassword = () => {
@@ -38,7 +38,7 @@ const ForgotPassword = () => {
         
         setAlert({
           open: true,
-          message: 'Se ha enviado un correo electrónico con instrucciones para restablecer su contraseña.',
+          message: 'Email send successfully. Check your email and follow the instructions.',
           severity: 'success'
         });
         
@@ -46,7 +46,7 @@ const ForgotPassword = () => {
       } catch (error) {
         setAlert({
           open: true,
-          message: error.response?.data?.message || 'Error al enviar el correo. Inténtelo de nuevo.',
+          message: error.response?.data?.message || 'Error to send email. Try again.',
           severity: 'error'
         });
       } finally {
@@ -72,10 +72,10 @@ const ForgotPassword = () => {
       
       <Box sx={{ mb: 3, textAlign: 'center' }}>
         <Typography variant="h4" component="h1" gutterBottom>
-          Recuperar Contraseña
+          Forgot Password
         </Typography>
         <Typography variant="body1" color="text.secondary">
-          Ingrese su correo electrónico para recibir instrucciones
+          Enter your email to receive instructions
         </Typography>
       </Box>
       
@@ -85,7 +85,7 @@ const ForgotPassword = () => {
             fullWidth
             id="email"
             name="email"
-            label="Correo Electrónico"
+            label="Email"
             value={formik.values.email}
             onChange={formik.handleChange}
             onBlur={formik.handleBlur}
@@ -104,13 +104,13 @@ const ForgotPassword = () => {
             disabled={loading || !formik.isValid}
             sx={{ mt: 3, mb: 2 }}
           >
-            {loading ? <CircularProgress size={24} /> : 'Enviar Instrucciones'}
+            {loading ? <CircularProgress size={24} /> : 'Send Instructions'}
           </Button>
           
           <Box sx={{ textAlign: 'center' }}>
             <Typography variant="body2">
               <Link component={RouterLink} to="/login" variant="body2">
-                Volver al inicio de sesión
+                Back to Login
               </Link>
             </Typography>
           </Box>
@@ -118,10 +118,10 @@ const ForgotPassword = () => {
       ) : (
         <Box sx={{ textAlign: 'center', mt: 3 }}>
           <Typography variant="body1" paragraph>
-            Se ha enviado un correo electrónico a <strong>{formik.values.email}</strong> con instrucciones para restablecer su contraseña.
+            An email has been sent to <strong>{formik.values.email}</strong> with instructions to reset your password.
           </Typography>
           <Typography variant="body1" paragraph>
-            Por favor, revise su bandeja de entrada y siga las instrucciones proporcionadas.
+            Please check your inbox and follow the instructions provided.
           </Typography>
           <Button
             component={RouterLink}
@@ -130,7 +130,7 @@ const ForgotPassword = () => {
             color="primary"
             sx={{ mt: 2 }}
           >
-            Volver al inicio de sesión
+            Back to Login
           </Button>
         </Box>
       )}
