@@ -193,7 +193,7 @@ exports.register = async (req, res, next) => {
     const middlePass = '*'.repeat(sectionMiddle)
 
     await transaction.commit();
-    sendEmail(email, 'register', {
+    await sendEmail(email, 'register', {
       name: name,
       serviceName: serviceName,
       message: `Tu cuenta ha sido creada exitosamente. Aqui tienes tus datos para iniciar sesión: <br /> Email: ${email} <br /> Contraseña: ${startPass}${middlePass}${endPass} <br /> 
@@ -266,7 +266,7 @@ exports.login = async (req, res, next) => {
     }
 
     // 3) If everything ok, send token to client
-    sendEmail(email, 'inicioSesion', {});
+    await sendEmail(email, 'inicioSesion', {});
     createSendToken(user, StatusCodes.OK, res);
   } catch (error) {
     next(error);
@@ -382,7 +382,7 @@ exports.forgotPassword = async (req, res, next) => {
     )}/api/v1/users/resetPassword/${resetToken}`;
 
     try {
-      sendEmail(user.email, 'resetPassword', {
+      await sendEmail(user.email, 'resetPassword', {
         name: user.name,
         serviceName: serviceName,
         message: `
