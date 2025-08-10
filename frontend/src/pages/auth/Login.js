@@ -22,10 +22,10 @@ import { useAuth } from '../../context/AuthContext';
 // Esquema de validación con Yup
 const validationSchema = Yup.object({
   email: Yup.string()
-    .email('Ingrese un correo electrónico válido')
-    .required('El correo electrónico es requerido'),
+    .email('Email is required')
+    .required('Email is required'),
   password: Yup.string()
-    .required('La contraseña es requerida')
+    .required('Password is required')
 });
 
 const Login = () => {
@@ -162,9 +162,15 @@ const Login = () => {
         />
         
         <Box sx={{ mt: 1, textAlign: 'right' }}>
-          <Typography variant="body2" color="text.disabled" sx={{ cursor: 'not-allowed' }}>
+          <Link 
+            component={RouterLink} 
+            to="/forgot-password" 
+            variant="body2" 
+            color="primary"
+            sx={{ textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}
+          >
             Forgot Password?
-          </Typography>
+          </Link>
         </Box>
         
         <Button

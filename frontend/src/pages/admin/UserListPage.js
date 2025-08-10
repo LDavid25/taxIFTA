@@ -187,6 +187,9 @@ const UserListPage = () => {
   const renderStatusSwitch = (user) => {
     if (!user) return null;
     
+    const isAdmin = user.role === 'admin';
+    const isDisabled = isAdmin || updatingStatus[user.id];
+    
     return (
       <Box onClick={(e) => e.stopPropagation()}>
         <FormControlLabel
@@ -197,14 +200,14 @@ const UserListPage = () => {
                 e.stopPropagation();
                 handleToggleStatus(user.id, user.is_active);
               }}
-              disabled={updatingStatus[user.id]}
+              disabled={isDisabled}
               color="primary"
               inputProps={{ 'aria-label': 'user status switch' }}
             />
           }
           label={
             <Box component="span" ml={1}>
-              {user.is_active ? 'Active' : 'Inactive'}
+              {isAdmin ? 'Admin' : (user.is_active ? 'Active' : 'Inactive')}
             </Box>
           }
           labelPlacement="end"

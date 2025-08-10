@@ -137,7 +137,7 @@ const EditUserPage = () => {
           color="primary" 
           onClick={handleBack}
         >
-          Volver atrás
+          back to users
         </Button>
       </Container>
     );
@@ -156,7 +156,7 @@ const EditUserPage = () => {
             sx={{ display: 'flex', alignItems: 'center' }}
           >
             <HomeIcon sx={{ mr: 0.5 }} fontSize="inherit" />
-            Inicio
+            Home
           </Link>
           <Link
             underline="hover"

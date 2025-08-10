@@ -2,28 +2,6 @@ import api from './api';
 
 const API_URL = '/v1';
 
-// Datos de prueba por defecto
-const getSampleCompanies = () => [
-  { 
-    id: 1, 
-    name: 'Compañía de Prueba 1', 
-    contactName: 'Contacto 1', 
-    contactEmail: 'contacto1@ejemplo.com', 
-    status: 'active',
-    createdAt: '2023-01-01T00:00:00.000Z',
-    updatedAt: '2023-01-01T00:00:00.000Z'
-  },
-  { 
-    id: 2, 
-    name: 'Compañía de Prueba 2', 
-    contactName: 'Contacto 2', 
-    contactEmail: 'contacto2@ejemplo.com', 
-    status: 'inactive',
-    createdAt: '2023-01-15T00:00:00.000Z',
-    updatedAt: '2023-01-15T00:00:00.000Z'
-  }
-];
-
 // Función para normalizar los datos de la compañía
 const normalizeCompany = (company) => ({
   id: company.id,

@@ -15,7 +15,7 @@ const transporter = nodemailer.createTransport({
 
 const sendEmail = async (userEmail, templateName, variables) => {
   if (!emailTemplates[templateName]) {
-    throw new Error('planilla no encontrada');
+    throw new Error('template not found');
   }
   const myEmail = 'ifta-notifications@dottruckpermits.com';
 
@@ -29,9 +29,9 @@ const sendEmail = async (userEmail, templateName, variables) => {
   };
 
   try {
-    await transporter.sendMail(mailOptions).then(console.log('Correo enviado a: ', userEmail));
+    await transporter.sendMail(mailOptions).then(console.log('Email sent to: ', userEmail));
   } catch (error) {
-    console.error('Error en [email.js]: ', error);
+    console.error('Error in [email.js]: ', error);
   }
 };
 

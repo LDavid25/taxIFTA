@@ -35,7 +35,7 @@ const getCompanies = async () => {
       console.error('Error original:', error.original);
     }
     
-    throw new CustomError(500, 'Error al obtener las compañías: ' + error.message);
+    throw new CustomError(500, 'Error fetching companies: ' + error.message);
   }
 };
 
@@ -47,7 +47,7 @@ const getCompanies = async () => {
 const getCompanyById = async (id) => {
   const company = await Company.findByPk(id);
   if (!company) {
-    throw new CustomError(404, 'Compañía no encontrada');
+    throw new CustomError(404, 'Company not found');
   }
   return company;
 };
@@ -63,7 +63,7 @@ const createCompany = async (companyData) => {
     return company;
   } catch (error) {
     if (error.name === 'SequelizeUniqueConstraintError') {
-      throw new CustomError(httpStatus.BAD_REQUEST, 'El nombre de la compañía ya está en uso');
+      throw new CustomError(httpStatus.BAD_REQUEST, 'The company name is already in use');
     }
     throw error;
   }
@@ -108,7 +108,7 @@ const updateCompanyStatus = async (id, isActive) => {
   try {
     const company = await Company.findByPk(id);
     if (!company) {
-      throw new CustomError('Compañía no encontrada', 404);
+      throw new CustomError('Company not found', 404);
     }
 
     company.is_active = isActive;
