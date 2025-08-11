@@ -894,7 +894,7 @@ exports.updateQuarterlyReportStatus = async (req, res, next) => {
     
     console.log('****CompanysData[IFTAQuartely]: ', companyEmails);
 
-    sendEmail( companyEmails, 'declaration', {
+    await sendEmail( companyEmails, 'declaration', {
       companyName: companyName,
       serviceName: serviceName,
       quarter: quarterlyReport.quarter,

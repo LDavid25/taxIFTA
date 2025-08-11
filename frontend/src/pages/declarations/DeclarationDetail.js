@@ -4,6 +4,8 @@ import { useAuth } from '../../context/AuthContext';
 import { ROLES } from '../../constants/roles';
 import api from '../../services/api';
 import { format, parseISO, startOfMonth, endOfMonth, eachMonthOfInterval } from 'date-fns';
+import { PDFDownloadLink } from '@react-pdf/renderer';
+import DeclarationPDF from '../../components/pdf/DeclarationPDF';
 import { es } from 'date-fns/locale';
 import {
   getQuarterlyReportDetails,
@@ -52,7 +54,6 @@ import {
   ArrowBackIos as PrevIcon,
   ArrowForwardIos as NextIcon,
   Assignment as AssignmentIcon,
-  Print as PrintIcon
 } from '@mui/icons-material';
 import { getDeclarationById } from '../../services/declarationService';
 import AlertMessage from '../../components/common/AlertMessage';
@@ -134,8 +135,12 @@ const formatDate = (dateString) => {
   }
 };
 
-const formatNumber = (num) => {
-  return new Intl.NumberFormat('en-US').format(num);
+const formatNumber = (num, decimals = 2) => {
+  const number = typeof num === 'number' ? num : parseFloat(num) || 0;
+  return new Intl.NumberFormat('en-US', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: decimals
+  }).format(number);
 };
 
 const calculateMPG = (miles, gallons) => {
@@ -585,10 +590,6 @@ const DeclarationDetail = () => {
     'AS': '#ffc107'
   };
 
-  // Handle print
-  const handlePrint = () => {
-    window.print();
-  };
 
   // Handle complete declaration
   const handleCompleteDeclaration = async (e) => {
@@ -1613,15 +1614,45 @@ const DeclarationDetail = () => {
             </Box>
 
             <Box sx={{ display: 'flex', gap: 1, flexDirection: { xs: 'column', sm: 'row' }}}>
-              <Button
-                variant="outlined"
-                color="primary"
-                onClick={handlePrint}
-                startIcon={<PrintIcon />}
-                sx={{ minWidth: '120px' }}
-              >
-                Print
-              </Button>
+              
+              {/* Botón de descarga de PDF */}
+              {reportData.status === 'completed' && (
+                <PDFDownloadLink
+                  document={
+                    <DeclarationPDF
+                      companyName={companyName}
+                      reportDate={new Date()}
+                      unitNumber={filters.vehicle === 'all' ? 'All Units' : filters.vehicle}
+                      stateSummary={stateSummary}
+                      quarter={quarter}
+                      year={year}
+                      vehicleStateData={vehicleStateTableData}
+                    />
+                  }
+                  fileName={`reporte-ifta-${companyName?.replace(/\s+/g, '-').toLowerCase() || 'empresa'}-Q${quarter}-${year}.pdf`}
+                >
+                  {({ blob, url, loading, error }) => (
+                    <Button
+                      variant="contained"
+                      color="secondary"
+                      disabled={loading}
+                      startIcon={<PdfIcon />}
+                      sx={{ 
+                        minWidth: '150px',
+                        backgroundColor: '#21cd18',
+                        '&:hover': { 
+                          backgroundColor: '#21cd18',
+                          boxShadow: '0 2px 10px rgba(33, 205, 24, 0.4)'
+                        },
+                        transition: 'all 0.3s ease',
+                        ml: 1
+                      }}
+                    >
+                      {loading ? 'Generating...' : 'Download declaration in PDF'}
+                    </Button>
+                  )}
+                </PDFDownloadLink>
+              )}
               
               {reportData.status === 'completed' ? (
                 <Button
@@ -1757,10 +1788,10 @@ const DeclarationDetail = () => {
 
                 {/* Total Row */}
                 {(() => {
-                  // Calculate totals for each quarter
+                  // Calculate totals for each quarter based on filtered data
                   const totals = { Q1: 0, Q2: 0, Q3: 0, Q4: 0, total: 0 };
 
-                  reportData.individual_reports?.forEach(report => {
+                  (filters.vehicle !== 'all' ? filteredReports : reportData.individual_reports)?.forEach(report => {
                     const quarter = Math.ceil((report.report_month || 1) / 3);
                     const quarterKey = `Q${quarter}`;
                     const miles = parseFloat(report.total_miles) || 0;
@@ -1796,99 +1827,91 @@ const DeclarationDetail = () => {
               State Summary
             </Typography>
             <TableContainer component={Paper}>
-              <Table>
+              <Table sx={{ width: '100%', tableLayout: 'fixed' }}>
                 <TableHead>
                   <TableRow>
-                    <TableCell>State</TableCell>
-                    <TableCell align="right">Miles</TableCell>
-                    <TableCell align="right">Gallons</TableCell>
-                    {isUserAdmin && <TableCell align="right">MPG</TableCell>}
-                    <TableCell align="right">% of Total</TableCell>
+                    <TableCell sx={{ width: '30%' }}>State</TableCell>
+                    <TableCell align="right" sx={{ width: '20%' }}>Miles</TableCell>
+                    <TableCell align="right" sx={{ width: '20%' }}>Gallons</TableCell>
+                    {isUserAdmin && <TableCell align="right" sx={{ width: '15%' }}>MPG</TableCell>}
+                    <TableCell align="right" sx={{ width: isUserAdmin ? '15%' : '30%' }}>% of Total</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {stateSummary.map((state, index) => (
-                    <TableRow key={`${state.state}-${index}`}>
-                      <TableCell>{stateCodeToName(state.state)}</TableCell>
-                      <TableCell align="right">{formatNumber(state.miles)}</TableCell>
-                      <TableCell align="right">{formatNumber(state.gallons)}</TableCell>
-                      {isUserAdmin && <TableCell align="right">{state.mpg}</TableCell>}
-                      <TableCell align="right">{state.percentage.toFixed(2)}%</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          </CardContent>
-        </Card>
-      )}
-
-      {activeTab === 1 && (
-        <Card>
-          <CardContent>
-            <Typography variant="h6" gutterBottom>
-              Vehicle Details
-            </Typography>
-            <TableContainer component={Paper}>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Plate</TableCell>
-                    <TableCell>Date</TableCell>
-                    <TableCell align="right">Miles</TableCell>
-                    <TableCell align="right">Gallons</TableCell>
-                    <TableCell>States</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {reportData.individual_reports.map((report, index) => (
-                    <TableRow key={index} hover>
-                      <TableCell><strong>{report.vehicle_plate || 'N/A'}</strong></TableCell>
-                      <TableCell>{report.report_date ? formatDate(report.report_date) : 'N/A'}</TableCell>
-                      <TableCell align="right">{formatNumber(report.total_miles)}</TableCell>
-                      <TableCell align="right">{formatNumber(report.total_gallons)}</TableCell>
-                      <TableCell>
-                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                          {report.state_data?.map((state, i) => (
-                            <Chip
-                              key={i}
-                              label={state.state_code}
-                              size="small"
-                              sx={{
-                                bgcolor: stateColors[state.state_code] || '#e0e0e0',
-                                color: 'white',
-                                fontWeight: 'bold'
-                              }}
-                            />
-                          ))}
-                        </Box>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  <TableRow sx={{ '&:last-child td': { borderBottom: 0 }, backgroundColor: 'action.hover' }}>
-                    <TableCell><strong>Total</strong></TableCell>
-                    <TableCell align="right"><strong>{formatNumber(reportSummary.total_miles)}</strong></TableCell>
-                    <TableCell align="right"><strong>{formatNumber(reportSummary.total_gallons)}</strong></TableCell>
-                    <TableCell align="right">
-                      <strong>{calculateMPG(reportSummary.total_miles, reportSummary.total_gallons)}</strong>
-                    </TableCell>
-                    <TableCell>
-                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                        {stateSummary?.map((state, i) => (
-                          <Chip
-                            key={i}
-                            label={state.state}
-                            size="small"
-                            sx={{
-                              bgcolor: stateColors[state.state] || '#e0e0e0',
-                              color: 'white',
-                              fontWeight: 'bold'
-                            }}
-                          />
+                  {(() => {
+                    // Filter state summary based on selected vehicle
+                    let filteredStateSummary = [];
+                    let totalMiles = 0;
+                    let totalGallons = 0;
+                    
+                    if (filters.vehicle === 'all' || !filters.vehicle) {
+                      // Use the original state summary if no vehicle filter is applied
+                      // Filter out the TOTAL row if it exists in stateSummary
+                      filteredStateSummary = stateSummary.filter(state => state.state !== 'TOTAL');
+                      totalMiles = filteredStateSummary.reduce((sum, state) => sum + (parseFloat(state.miles) || 0), 0);
+                      totalGallons = filteredStateSummary.reduce((sum, state) => sum + (parseFloat(state.gallons) || 0), 0);
+                    } else {
+                      // Get all state data for the selected vehicle
+                      const vehicleStateData = reportData.individual_reports
+                        .filter(report => report.vehicle_plate === filters.vehicle)
+                        .flatMap(report => report.state_data || []);
+                      
+                      // Create a map to aggregate state data for the selected vehicle
+                      const stateMap = new Map();
+                      
+                      vehicleStateData.forEach(state => {
+                        if (!stateMap.has(state.state_code)) {
+                          stateMap.set(state.state_code, {
+                            state: state.state_code,
+                            miles: 0,
+                            gallons: 0
+                          });
+                        }
+                        const stateEntry = stateMap.get(state.state_code);
+                        stateEntry.miles += parseFloat(state.miles || 0);
+                        stateEntry.gallons += parseFloat(state.gallons || 0);
+                      });
+                      
+                      // Calculate totals for the filtered data
+                      const statesData = Array.from(stateMap.values());
+                      totalMiles = statesData.reduce((sum, state) => sum + state.miles, 0);
+                      totalGallons = statesData.reduce((sum, state) => sum + state.gallons, 0);
+                      
+                      // Calculate percentages and format the data
+                      filteredStateSummary = statesData.map(state => ({
+                        ...state,
+                        mpg: calculateMPG(state.miles, state.gallons),
+                        percentage: totalMiles > 0 ? (state.miles / totalMiles) * 100 : 0
+                      }));
+                    }
+                    
+                    return (
+                      <>
+                        {filteredStateSummary.map((state, index) => (
+                          <TableRow key={`${state.state}-${index}`}>
+                            <TableCell sx={{ width: '30%' }}>{stateCodeToName(state.state)}</TableCell>
+                            <TableCell align="right" sx={{ width: '20%' }}>{formatNumber(state.miles)}</TableCell>
+                            <TableCell align="right" sx={{ width: '20%' }}>{formatNumber(state.gallons)}</TableCell>
+                            {isUserAdmin && <TableCell align="right" sx={{ width: '15%' }}>{state.mpg}</TableCell>}
+                            <TableCell align="right" sx={{ width: isUserAdmin ? '15%' : '30%' }}>{state.percentage.toFixed(2)}%</TableCell>
+                          </TableRow>
                         ))}
-                      </Box>
-                    </TableCell>
-                  </TableRow>
+                        {filteredStateSummary.length > 0 && (
+                          <TableRow sx={{ '& > *': { fontWeight: 'bold', backgroundColor: '#f5f5f5' } }}>
+                            <TableCell sx={{ width: '30%' }}>TOTAL</TableCell>
+                            <TableCell align="right" sx={{ width: '20%' }}>{formatNumber(totalMiles)}</TableCell>
+                            <TableCell align="right" sx={{ width: '20%' }}>{formatNumber(totalGallons)}</TableCell>
+                            {isUserAdmin && (
+                              <TableCell align="right" sx={{ width: '15%' }}>
+                                {parseFloat(calculateMPG(totalMiles, totalGallons)).toFixed(2)}
+                              </TableCell>
+                            )}
+                            <TableCell align="right" sx={{ width: isUserAdmin ? '15%' : '30%' }}>100.00%</TableCell>
+                          </TableRow>
+                        )}
+                      </>
+                    );
+                  })()}
                 </TableBody>
               </Table>
             </TableContainer>
