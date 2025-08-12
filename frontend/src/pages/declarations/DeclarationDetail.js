@@ -3,10 +3,14 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { ROLES } from '../../constants/roles';
 import api from '../../services/api';
-import { format, parseISO, startOfMonth, endOfMonth, eachMonthOfInterval } from 'date-fns';
+import format from 'date-fns/format';
+import parseISO from 'date-fns/parseISO';
+import startOfMonth from 'date-fns/startOfMonth';
+import endOfMonth from 'date-fns/endOfMonth';
+import eachMonthOfInterval from 'date-fns/eachMonthOfInterval';
+import es from 'date-fns/locale/es';
 import { PDFDownloadLink } from '@react-pdf/renderer';
 import DeclarationPDF from '../../components/pdf/DeclarationPDF';
-import { es } from 'date-fns/locale';
 import {
   getQuarterlyReportDetails,
   updateQuarterlyReportStatus,

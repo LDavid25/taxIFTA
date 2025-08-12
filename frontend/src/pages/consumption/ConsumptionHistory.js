@@ -40,8 +40,9 @@ import {
 } from '@mui/icons-material';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-import { format, parseISO } from 'date-fns';
-import { es } from 'date-fns/locale';
+import format from 'date-fns/format';
+import parseISO from 'date-fns/parseISO';
+import es from 'date-fns/locale/es';
 import { getConsumptionReports } from '../../services/consumptionService';
 import { useSnackbar } from 'notistack';
 import { CircularProgress, Alert, MenuItem } from '@mui/material';
