@@ -80,18 +80,11 @@ const DeclarationList = () => {
 	useEffect(() => {
 		const checkAuthAndLoadReports = async () => {
 			try {
-				// Verificar si hay un token en localStorage
 				const token = localStorage.getItem('token');
-				// console.log('Token en localStorage:', token ? 'Presente' : 'Ausente');
-
 				if (!token) {
 					throw new Error('You are not authenticated. Please log in.');
 				}
-
-				// Configurar el token en los headers de axios
 				api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-
-				// Cargar los reportes
 				await fetchGroupedReports();
 			} catch (error) {
 				console.error('Error de autenticación:', error);
@@ -104,31 +97,32 @@ const DeclarationList = () => {
 		};
 
 		const fetchGroupedReports = async () => {
-			// console.log('=== Iniciando carga de reportes agrupados ===');
 			setLoading(true);
-
 			try {
-				// Clear previous errors
 				setAlert({
 					open: false,
 					message: '',
 					severity: 'info',
 				});
-
-				// Get reports from the service
-				// console.log('Obteniendo reportes...');
 				let reports = await getGroupedQuarterlyReports();
 
-				// If user is not admin, filter by their company
-				if (!isAdmin && currentUser?.companyId) {
+				// Esperar a que currentUser y isAdmin estén definidos
+				if (
+					typeof isAdmin === 'undefined' ||
+					typeof currentUser === 'undefined'
+				) {
+					return; // Esperar a que estén listos
+				}
+
+				if (!isAdmin && currentUser?.company_id) {
 					console.log(
 						'Filtering reports by user company:',
-						currentUser.companyId
+						currentUser.company_id
 					);
 					reports = reports.filter(
 						(report) =>
-							report.company_id === currentUser.companyId ||
-							report.companyId === currentUser.companyId
+							report.company_id === currentUser.company_id ||
+							report.companyId === currentUser.company_id
 					);
 					console.log(`Reports after filtering: ${reports.length} found`);
 				}
@@ -193,13 +187,12 @@ const DeclarationList = () => {
 			}
 		};
 
-		checkAuthAndLoadReports();
-
-		// Clean up when component unmounts
-		return () => {
-			// console.log('DeclarationList component unmounted');
-		};
-	}, []);
+		// Solo ejecutar si currentUser y isAdmin están definidos
+		if (typeof isAdmin !== 'undefined' && typeof currentUser !== 'undefined') {
+			checkAuthAndLoadReports();
+		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [isAdmin, currentUser]);
 
 	// Handle alert close
 	const handleAlertClose = () => {
