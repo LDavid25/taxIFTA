@@ -2,20 +2,16 @@ const { sequelize } = require('../models');
 
 // Obtener estadísticas generales para el dashboard
 exports.getDashboardStats = async (req, res) => {
-
   try {
-
     // Obtener el primer y último día del mes actual
     const now = new Date();
     const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const firstDayNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
 
-
     // 1. Consulta para obtener el total de usuarios creados este mes
-    const [totalUsersResult] = await sequelize.query(
-      'SELECT COUNT(*) as count FROM users;',
-      { type: sequelize.QueryTypes.SELECT }
-    );
+    const [totalUsersResult] = await sequelize.query('SELECT COUNT(*) as count FROM users;', {
+      type: sequelize.QueryTypes.SELECT,
+    });
 
     // 2. Consulta para obtener usuarios activos (todos los usuarios activos, sin filtro de fecha)
     const [activeUsersResult] = await sequelize.query(
@@ -29,7 +25,6 @@ exports.getDashboardStats = async (req, res) => {
       { type: sequelize.QueryTypes.SELECT }
     );
 
-
     // 4. Consulta para obtener el total de informes creados este mes
     const [totalReportsResult] = await sequelize.query(
       `SELECT COUNT(*) as count 
@@ -39,45 +34,48 @@ exports.getDashboardStats = async (req, res) => {
       {
         replacements: {
           firstDayOfMonth: firstDayOfMonth.toISOString(),
-          firstDayNextMonth: firstDayNextMonth.toISOString()
+          firstDayNextMonth: firstDayNextMonth.toISOString(),
         },
-        type: sequelize.QueryTypes.SELECT
+        type: sequelize.QueryTypes.SELECT,
       }
     );
 
+    const firstDayOfYear = new Date(new Date().getFullYear(), 0, 1); // 1 enero
+    const firstDayOfNextYear = new Date(new Date().getFullYear() + 1, 0, 1); // 1 enero año siguiente
+
     // 5. Consulta de estados más recorridos del mes
-  
-      
-    const topStatesResult = await sequelize.query(
-      `SELECT state_code, COALESCE(SUM(miles), 0) as total_miles, COALESCE(SUM(gallons), 0) as total_gallons 
-      FROM ifta_report_states 
-      WHERE report_id IN (
-        SELECT id 
-        FROM ifta_reports 
-        WHERE created_at >= :firstDayOfMonth 
-          AND created_at < :firstDayNextMonth
-      )
-      GROUP BY state_code
-      ORDER BY total_miles DESC
-      LIMIT 5`,
+    const companiesPerMonthResult = await sequelize.query(
+      `WITH months AS (
+     SELECT generate_series(
+              date_trunc('month', :startDate::timestamptz),
+              date_trunc('month', :endDate::timestamptz) - interval '1 month',
+              interval '1 month'
+            ) AS month_start
+   )
+   SELECT
+     to_char(m.month_start, 'YYYY-MM') AS month,
+     COALESCE(COUNT(c.id), 0)::int AS total_companies
+   FROM months m
+   LEFT JOIN companies c
+     ON date_trunc('month', c.created_at) = m.month_start
+   GROUP BY m.month_start
+   ORDER BY m.month_start ASC`,
       {
         replacements: {
-          firstDayOfMonth: firstDayOfMonth.toISOString(),
-          firstDayNextMonth: firstDayNextMonth.toISOString()
+          startDate: firstDayOfYear.toISOString(),
+          endDate: firstDayOfNextYear.toISOString(),
         },
         type: sequelize.QueryTypes.SELECT,
-        logging: console.log
+        logging: console.log,
       }
     );
-    
-    // Asegurar que topStates sea un array de objetos con la estructura correcta
-    const topStates = Array.isArray(topStatesResult) 
-      ? topStatesResult.map(item => ({
-          state_code: item.state_code,
-          total_miles: Number(item.total_miles) || 0,
-          total_gallons: Number(item.total_gallons) || 0
-        }))
-      : [];
+
+    console.log('Resultados de las consulta:', companiesPerMonthResult);
+
+    const companiesPerMonth = companiesPerMonthResult.map(row => ({
+      month: row.month, // "YYYY-MM"
+      total_companies: Number(row.total_companies) || 0,
+    }));
 
     // Guardar los resultados en responseData
     const responseData = {
@@ -87,16 +85,15 @@ exports.getDashboardStats = async (req, res) => {
         totalCompanies: parseInt(totalCompaniesResult.count) || 0,
         totalReports: parseInt(totalReportsResult.count) || 0,
       },
-      topStates: topStates
+      companiesPerMonth: companiesPerMonth,
     };
-    
+
     console.log('Datos enviados al frontend:', JSON.stringify(responseData, null, 2));
     return res.status(200).json({
       success: true,
       message: 'Dashboard stats retrieved successfully',
-      data: responseData
+      data: responseData,
     });
-
   } catch (error) {
     console.error('=== ERROR EN GETDASHBOARDSTATS ===');
     console.error('Mensaje de error:', error.message);
@@ -108,10 +105,12 @@ exports.getDashboardStats = async (req, res) => {
       message: 'Error fetching dashboard stats',
       error: error.message,
       errorType: error.name,
-      details: process.env.NODE_ENV === 'development' ? {
-        stack: error.stack
-      } : undefined
+      details:
+        process.env.NODE_ENV === 'development'
+          ? {
+              stack: error.stack,
+            }
+          : undefined,
     });
   }
 };
-
