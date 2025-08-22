@@ -140,6 +140,8 @@ const formatDate = (dateString) => {
 };
 
 const getQuarter = (dateString) => {
+	console.log('getQuarter called with:', dateString);
+
 	try {
 		if (!dateString) return 'N/A';
 
@@ -1073,9 +1075,7 @@ const ConsumptionHistory = () => {
 										)
 										.map((row) => (
 											<TableRow key={row.id} hover>
-												<TableCell align="left">
-													{getQuarter(row.date)}
-												</TableCell>
+												<TableCell align="left">{row.quarter}</TableCell>
 												<TableCell align="left">
 													{formatDate(row.date)}
 												</TableCell>
