@@ -47,8 +47,11 @@ import Tooltip from '@mui/material/Tooltip';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
-import { format } from 'date-fns';
+import { format, min } from 'date-fns';
 import { Link as RouterLink } from 'react-router-dom';
+
+const minDateToSelect = new Date().getFullYear() - 10; // 10 years ago
+const maxDateToSelect = new Date().getFullYear() + 1; // Next year
 
 // Validation Schema
 const validationSchema = Yup.object({
@@ -59,8 +62,8 @@ const validationSchema = Yup.object({
 		.typeError('Must be a number')
 		.required('Year is required')
 		.integer('Must be a valid year')
-		.min(2000, 'Year must be 2000 or later')
-		.max(2100, 'Year cannot be after 2100'),
+		.min(minDateToSelect, `Year must be ${minDateToSelect} or later`)
+		.max(maxDateToSelect, `Year cannot be after ${maxDateToSelect}`),
 	month: Yup.number()
 		.typeError('Must be a number')
 		.required('Month is required')
@@ -71,15 +74,15 @@ const validationSchema = Yup.object({
 		Yup.object().shape({
 			state: Yup.string()
 				.matches(/^[A-Z]{2}$/, 'Invalid state code')
-				.required('State is required'),
+				.nullable(),
 			miles: Yup.number()
 				.typeError('Must be a number')
-				.min(0, 'Miles cannot be negative')
-				.required('Miles is required'),
+				.nullable()
+				.min(1, 'Miles cannot be negative'),
 			gallons: Yup.number()
 				.typeError('Must be a number')
-				.min(1, 'Gallons cannot be negative')
-				.required('Gallons is required'),
+				.nullable()
+				.min(1, 'Gallons cannot be negative'),
 		})
 	),
 });
@@ -634,7 +637,7 @@ const ConsumptionCreate = () => {
 
 		// In second step, check jurisdictions and if report is validated
 		const isJurisdictionsValid = formik.values.stateEntries?.some(
-			(entry) => entry.state && (entry.miles || entry.gallons)
+			(entry) => entry.state && entry.miles && entry.gallons
 		);
 
 		return isUnitPeriodValid && isJurisdictionsValid && isReportValid;
@@ -687,7 +690,7 @@ const ConsumptionCreate = () => {
 			formik.values.stateEntries.length === 0
 		) {
 			formik.setFieldValue('stateEntries', [
-				{ state: 'AL', miles: '1', gallons: '1' },
+				{ state: '', miles: '', gallons: '' },
 			]);
 		}
 	}, []);
@@ -796,7 +799,7 @@ const ConsumptionCreate = () => {
 
 								<Grid container spacing={3}>
 									{/* Unit Number */}
-									<Grid item xs={12} sm={6} md={4}>
+									<Grid item xs={12} sm={6} md={5}>
 										<TextField
 											fullWidth
 											id="unitNumber"
@@ -821,35 +824,9 @@ const ConsumptionCreate = () => {
 										/>
 									</Grid>
 
-									{/* Year */}
-									<Grid item xs={12} sm={6} md={4}>
-										<TextField
-											fullWidth
-											id="year"
-											name="year"
-											label="Year"
-											type="number"
-											value={formik.values.year}
-											onChange={formik.handleChange}
-											onBlur={formik.handleBlur}
-											error={formik.touched.year && Boolean(formik.errors.year)}
-											helperText={formik.touched.year && formik.errors.year}
-											disabled={true}
-											variant="outlined"
-											size="small"
-											InputLabelProps={{
-												shrink: true,
-											}}
-											inputProps={{
-												min: 2000,
-												max: new Date().getFullYear() + 1,
-											}}
-										/>
-									</Grid>
-
 									{/* Company (Admin only) */}
 									{isAdmin && (
-										<Grid item xs={12} sm={6} md={4}>
+										<Grid item xs={12} sm={6} md={5}>
 											<FormControl
 												fullWidth
 												error={
@@ -892,8 +869,47 @@ const ConsumptionCreate = () => {
 										</Grid>
 									)}
 
-									{/* Month and Quarter */}
+									{/* Year, Month and Quarter */}
+									<Grid item xs={12} sm={6} md={4}>
+										<TextField
+											fullWidth
+											id="year"
+											name="year"
+											label="Year"
+											type="number"
+											value={formik.values.year}
+											onChange={formik.handleChange}
+											onBlur={formik.handleBlur}
+											error={formik.touched.year && Boolean(formik.errors.year)}
+											helperText={formik.touched.year && formik.errors.year}
+											disabled={false}
+											variant="outlined"
+											size="small"
+											InputLabelProps={{
+												shrink: true,
+											}}
+											inputProps={{
+												min: minDateToSelect,
+												max: maxDateToSelect,
+											}}
+										/>
+									</Grid>
 									<Grid item container spacing={2} xs={12} sm={6}>
+										<Grid item xs={6}>
+											<TextField
+												fullWidth
+												id="quarter"
+												name="quarter"
+												label="Quarter"
+												value={`Q${formik.values.quarter}`}
+												disabled
+												variant="outlined"
+												size="small"
+												InputLabelProps={{
+													shrink: true,
+												}}
+											/>
+										</Grid>
 										<Grid item xs={6}>
 											<FormControl
 												fullWidth
@@ -939,21 +955,6 @@ const ConsumptionCreate = () => {
 													<FormHelperText>{formik.errors.month}</FormHelperText>
 												)}
 											</FormControl>
-										</Grid>
-										<Grid item xs={6}>
-											<TextField
-												fullWidth
-												id="quarter"
-												name="quarter"
-												label="Quarter"
-												value={`Q${formik.values.quarter}`}
-												disabled
-												variant="outlined"
-												size="small"
-												InputLabelProps={{
-													shrink: true,
-												}}
-											/>
 										</Grid>
 									</Grid>
 
@@ -1567,27 +1568,28 @@ const ConsumptionCreate = () => {
 											<Grid item xs={6}>
 												<Typography variant="body2">
 													Total Miles: <br />
-													{formik.values.stateEntries
-														.reduce(
+													{Math.round(
+														formik.values.stateEntries.reduce(
 															(sum, entry) =>
 																sum + (parseFloat(entry.miles) || 0),
 															0
 														)
-														.toFixed(2)}
+													)}
 												</Typography>
 											</Grid>
 											<Grid item xs={6}>
 												<Typography variant="body2">
 													Total Gallons: <br />
-													{formik.values.stateEntries
-														.reduce(
+													{Math.round(
+														formik.values.stateEntries.reduce(
 															(sum, entry) =>
 																sum + (parseFloat(entry.gallons) || 0),
 															0
 														)
-														.toFixed(3)}
+													)}
 												</Typography>
 											</Grid>
+
 											{/* MPG - Only visible for Admin */}
 											{currentUser?.role === 'admin' && (
 												<Grid item xs={12}>
