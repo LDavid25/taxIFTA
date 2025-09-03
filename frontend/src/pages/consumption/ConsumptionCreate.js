@@ -1,10 +1,13 @@
-import React, { useState, useEffect } from 'react';
 import { useFormik } from 'formik';
-import * as Yup from 'yup';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import * as Yup from 'yup';
 import { useAuth } from '../../context/AuthContext';
-import { createConsumptionReport, checkExistingReport } from '../../services/consumptionService';
 import { getCompanies } from '../../services/companyService';
+import {
+	checkExistingReport,
+	createConsumptionReport,
+} from '../../services/consumptionService';
 
 import {
   Alert,
@@ -42,46 +45,81 @@ import LocalGasStationIcon from '@mui/icons-material/LocalGasStation';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
 import ImageIcon from '@mui/icons-material/Image';
+import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
+import LocalGasStationIcon from '@mui/icons-material/LocalGasStation';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
-import CancelIcon from '@mui/icons-material/Cancel';
+import UploadFileIcon from '@mui/icons-material/UploadFile';
+import {
+	Alert,
+	Autocomplete,
+	Box,
+	Breadcrumbs,
+	Button,
+	CircularProgress,
+	Dialog,
+	DialogActions,
+	DialogContent,
+	DialogTitle,
+	Divider,
+	FormControl,
+	FormHelperText,
+	Grid,
+	IconButton,
+	InputLabel,
+	Link,
+	MenuItem,
+	Paper,
+	Select,
+	Snackbar,
+	TextField,
+	Typography,
+} from '@mui/material';
 import Tooltip from '@mui/material/Tooltip';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { format, min } from 'date-fns';
+import { Link as RouterLink } from 'react-router-dom';
+
+const maxDateToSelect = new Date().getFullYear(); // current year
+const minDateToSelect = maxDateToSelect - 10; // 10 years ago
 
 // Validation Schema
 const validationSchema = Yup.object({
-  unitNumber: Yup.string()
-    .required('Unit number is required')
-    .matches(/^[A-Z0-9-]+$/, 'Please enter a valid unit number'),
-  year: Yup.number()
-    .typeError('Must be a number')
-    .required('Year is required')
-    .integer('Must be a valid year')
-    .min(2000, 'Year must be 2000 or later')
-    .max(2100, 'Year cannot be after 2100'),
-  month: Yup.number()
-    .typeError('Must be a number')
-    .required('Month is required')
-    .integer('Must be a valid month')
-    .min(1, 'Month must be between 1 and 12')
-    .max(12, 'Month must be between 1 and 12'),
-  stateEntries: Yup.array()
-    .of(
-      Yup.object().shape({
-        state: Yup.string()
-          .nullable()
-          .matches(/^[A-Z]{2}$/, 'Invalid state code'),
-        miles: Yup.number()
-          .typeError('Must be a number')
-          .nullable()
-          .min(0, 'Miles cannot be negative'),
-        gallons: Yup.number()
-          .typeError('Must be a number')
-          .nullable()
-          .min(0, 'Gallons cannot be negative')
-      })
-    )
+	unitNumber: Yup.string()
+		.required('Unit number is required')
+		.matches(/^[A-Za-z0-9-]+$/, 'Please enter a valid unit number'),
+	year: Yup.number()
+		.typeError('Must be a number')
+		.required('Year is required')
+		.integer('Must be a valid year')
+		.min(minDateToSelect, `Year must be ${minDateToSelect} or later`)
+		.max(maxDateToSelect, `Year cannot be after ${maxDateToSelect}`),
+	month: Yup.number()
+		.typeError('Must be a number')
+		.required('Month is required')
+		.integer('Must be a valid month')
+		.min(1, 'Month must be between 1 and 12')
+		.max(12, 'Month must be between 1 and 12'),
+	stateEntries: Yup.array().of(
+		Yup.object().shape({
+			state: Yup.string()
+				.matches(/^[A-Z]{2}$/, 'Invalid state code')
+				.nullable(),
+			miles: Yup.number()
+				.typeError('Must be a number')
+				.nullable()
+				.min(1, 'Miles cannot be negative'),
+			gallons: Yup.number()
+				.typeError('Must be a number')
+				.nullable()
+				.min(0, 'Gallons cannot be negative'),
+		})
+	),
 });
 
 const ConsumptionCreate = () => {
+
   const { currentUser, isAdmin } = useAuth(); // Get currentUser and isAdmin from auth context
   const [isLoading, setIsLoading] = useState(false);
   const [openConfirmDialog, setOpenConfirmDialog] = useState(false);
@@ -90,10 +128,14 @@ const ConsumptionCreate = () => {
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [isReportValid, setIsReportValid] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
+  const [open, setOpen] = useState(false);
   const [companies, setCompanies] = useState([]);
   const [isLoadingCompanies, setIsLoadingCompanies] = useState(false);
   const navigate = useNavigate();
 
+  const handleOpen = () => setOpen(true);
+	const handleClose = () => setOpen(false);
+  
   const handleFileUpload = (newFiles) => {
     const validFiles = Array.from(newFiles).filter(file =>
       ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'].includes(file.type)
@@ -666,6 +708,7 @@ const ConsumptionCreate = () => {
             </Box>
           </Box>
         </Box> */}
+
 
         <Breadcrumbs aria-label="breadcrumb" sx={{ mb: 3 }}>
           <Link
@@ -1431,25 +1474,47 @@ const ConsumptionCreate = () => {
                   >
                     Cancel
                   </Button>
-                  <Button
-                    type="submit"
-                    variant="contained"
-                    color="primary"
-                    disabled={!isFormValid() || !isReportValid || isLoading}
-                    startIcon={isLoading ? null : <Save />}
-                    sx={{ minWidth: 180 }}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      setOpenConfirmDialog(true);
-                    }}
-                  >
-                    {isLoading ? <CircularProgress size={24} /> : 'Save and Submit Report'}
-                  </Button>
+                 <Button
+										type="button"
+										variant="contained"
+										color="success"
+										onClick={handleOpen}
+										disabled={!isFormValid() || !isReportValid || isLoading}
+										startIcon={isLoading ? null : <Save />}
+										sx={{ minWidth: 180, color: 'white' }}
+									>
+										{isLoading ? (
+											<CircularProgress size={24} />
+										) : (
+											'Save and Submit Report'
+										)}
+									</Button>
                 </Box>
               </Paper>
             </Grid>
           </Grid>
         </form>
+        
+        <Dialog open={open} onClose={handleClose}>
+					<DialogContent>
+						<Typography>
+							Are you sure? This option will send your information for
+							transmission to IFTA. You will be able to edit this information
+							later only if the status is not completed
+						</Typography>
+					</DialogContent>
+					<DialogActions>
+						<Button onClick={handleClose}>Close</Button>
+						<Button
+							type="submit"
+							form="myForm"
+							variant="contained"
+							color="success"
+						>
+							Save
+						</Button>
+					</DialogActions>
+				</Dialog>
 
         {/* Single Snackbar for notifications */}
         <Snackbar
