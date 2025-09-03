@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from 'react';
-import { useFormik } from 'formik';
-import * as Yup from 'yup';
-import { useParams } from 'react-router-dom';
-import { useSnackbar } from 'notistack';
+import React, { useEffect, useState } from "react";
+import { useFormik } from "formik";
+import * as Yup from "yup";
+import { useParams } from "react-router-dom";
+import { useSnackbar } from "notistack";
 import {
   Box,
   Card,
@@ -20,24 +20,28 @@ import {
   FormHelperText,
   InputAdornment,
   IconButton,
-  CircularProgress
-} from '@mui/material';
-import { Person as PersonIcon, Visibility, VisibilityOff } from '@mui/icons-material';
-import { getUserById } from '../services/userService';
+  CircularProgress,
+} from "@mui/material";
+import {
+  Person as PersonIcon,
+  Visibility,
+  VisibilityOff,
+} from "@mui/icons-material";
+import { getUserById } from "../services/userService";
 
 // Validation schema
 const validationSchema = Yup.object({
   name: Yup.string()
-    .max(100, 'Name cannot be longer than 100 characters')
+    .max(100, "Name cannot be longer than 100 characters")
     .nullable()
-    .transform((value) => (value === '' ? null : value)),
+    .transform((value) => (value === "" ? null : value)),
   email: Yup.string()
-    .email('Please enter a valid email')
+    .email("Please enter a valid email")
     .nullable()
-    .transform((value) => (value === '' ? null : value)),
+    .transform((value) => (value === "" ? null : value)),
   password: Yup.string()
     .nullable()
-    .transform((value) => (value === '' ? null : value))
+    .transform((value) => (value === "" ? null : value)),
 });
 
 const UserEditForm = ({ user: userProp, onSubmit, loading: saving }) => {
@@ -50,14 +54,12 @@ const UserEditForm = ({ user: userProp, onSubmit, loading: saving }) => {
 
   // Initial form values based on user prop
   const initialValues = {
-    name: user?.name || '',
-    email: user?.email || '',
+    name: user?.name || "",
+    email: user?.email || "",
     is_active: user?.is_active ?? true,
-    role: user?.role || 'user',
-    password: ''
+    role: user?.role || "user",
+    password: "",
   };
-  
-
 
   // Form validation function
   const validate = (values) => {
@@ -65,14 +67,14 @@ const UserEditForm = ({ user: userProp, onSubmit, loading: saving }) => {
     // Check that at least one field has a value
     const hasChanges = Object.entries(values).some(([key, value]) => {
       // Ignore is_active field in change verification
-      if (key === 'is_active') return false;
-      return value !== null && value !== '' && value !== initialValues[key];
+      if (key === "is_active") return false;
+      return value !== null && value !== "" && value !== initialValues[key];
     });
-    
+
     if (!hasChanges) {
-      errors._form = 'You must make at least one change to save';
+      errors._form = "You must make at least one change to save";
     }
-    
+
     return errors;
   };
 
@@ -86,21 +88,21 @@ const UserEditForm = ({ user: userProp, onSubmit, loading: saving }) => {
       try {
         // Filter only fields that have a value
         const changes = Object.entries(values).reduce((acc, [key, value]) => {
-          if (value !== null && value !== '' && value !== initialValues[key]) {
+          if (value !== null && value !== "" && value !== initialValues[key]) {
             acc[key] = value;
           }
           return acc;
         }, {});
-        
+
         await onSubmit(changes);
       } catch (error) {
-        console.error('Error saving changes:', error);
+        console.error("Error saving changes:", error);
       } finally {
         setSubmitting(false);
       }
-    }
+    },
   });
-  
+
   const handleClickShowPassword = () => {
     setShowPassword(!showPassword);
   };
@@ -110,41 +112,43 @@ const UserEditForm = ({ user: userProp, onSubmit, loading: saving }) => {
   useEffect(() => {
     if (user) {
       const newValues = {
-        name: user.name || '',
-        email: user.email || '',
+        name: user.name || "",
+        email: user.email || "",
         is_active: user.is_active ?? true,
-        role: user.role || 'user',
-        password: ''
+        role: user.role || "user",
+        password: "",
       };
       formik.setValues(newValues);
     }
   }, [user]);
 
+  console.log("[userEditForm]", user);
   return (
     <Box>
       <Card>
         <CardContent>
-          <Box sx={{ display: 'flex', alignItems: 'center', mb: 4 }}>
+          <Box sx={{ display: "flex", alignItems: "center", mb: 4 }}>
             <Avatar
-              sx={{ 
-                width: 64, 
-                height: 64, 
-                mr: 2, 
-                bgcolor: 'primary.main',
-                fontSize: '2rem'
+              sx={{
+                width: 64,
+                height: 64,
+                mr: 2,
+                bgcolor: "primary.main",
+                fontSize: "2rem",
               }}
             >
               {user?.name?.charAt(0)?.toUpperCase() || <PersonIcon />}
             </Avatar>
             <Box>
-              <Typography variant="h6">
-                {user?.name || 'User'}
+              <Typography variant="h6">{user?.name || "User"}</Typography>
+              <Typography variant="body2" color="text.secondary">
+                {user?.company_name || "No asigned company"}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                {user?.email || 'No email provided'}
+                {user?.email || "No email provided"}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                {user?.role === 'admin' ? 'Administrator' : 'User'}
+                {user?.role === "admin" ? "Administrator" : "User"}
               </Typography>
             </Box>
           </Box>
@@ -171,7 +175,7 @@ const UserEditForm = ({ user: userProp, onSubmit, loading: saving }) => {
                   variant="outlined"
                 />
               </Grid>
-              
+
               <Grid item xs={12} md={6}>
                 <TextField
                   fullWidth
@@ -195,11 +199,13 @@ const UserEditForm = ({ user: userProp, onSubmit, loading: saving }) => {
                   id="password"
                   name="password"
                   label="New Password (optional)"
-                  type={showPassword ? 'text' : 'password'}
+                  type={showPassword ? "text" : "password"}
                   value={formik.values.password}
                   onChange={formik.handleChange}
                   onBlur={formik.handleBlur}
-                  error={formik.touched.password && Boolean(formik.errors.password)}
+                  error={
+                    formik.touched.password && Boolean(formik.errors.password)
+                  }
                   helperText={formik.touched.password && formik.errors.password}
                   margin="normal"
                   variant="outlined"
@@ -221,11 +227,7 @@ const UserEditForm = ({ user: userProp, onSubmit, loading: saving }) => {
               </Grid>
 
               <Grid item xs={12} md={6}>
-                <FormControl 
-                  fullWidth 
-                  margin="normal"
-                  variant="outlined"
-                >
+                <FormControl fullWidth margin="normal" variant="outlined">
                   <InputLabel id="status-label">Status</InputLabel>
                   <Select
                     labelId="status-label"
@@ -235,17 +237,19 @@ const UserEditForm = ({ user: userProp, onSubmit, loading: saving }) => {
                     onChange={formik.handleChange}
                     onBlur={formik.handleBlur}
                     label="Status"
-                    disabled={user?.role === 'admin'}
+                    disabled={user?.role === "admin"}
                   >
                     <MenuItem value={true}>
-                      {user?.role === 'admin' ? 'Active (Admin)' : 'Active'}
+                      {user?.role === "admin" ? "Active (Admin)" : "Active"}
                     </MenuItem>
                     <MenuItem value={false}>
-                      {user?.role === 'admin' ? 'Inactive (Admin)' : 'Inactive'}
+                      {user?.role === "admin" ? "Inactive (Admin)" : "Inactive"}
                     </MenuItem>
                   </Select>
-                  {user?.role === 'admin' && (
-                    <FormHelperText>Admin user status cannot be changed</FormHelperText>
+                  {user?.role === "admin" && (
+                    <FormHelperText>
+                      Admin user status cannot be changed
+                    </FormHelperText>
                   )}
                 </FormControl>
               </Grid>
@@ -263,19 +267,27 @@ const UserEditForm = ({ user: userProp, onSubmit, loading: saving }) => {
                     Cancel
                   </Button>
                   {formik.errors._form && (
-                <Typography color="error" variant="body2" sx={{ mt: 1, mb: 1 }}>
-                  {formik.errors._form}
-                </Typography>
-              )}
-              <Button
-                type="submit"
-                variant="contained"
-                color="primary"
-                disabled={saving || Object.keys(formik.touched).length === 0 || formik.errors._form}
-                sx={{ mt: 2 }}
-              >
-                {saving ? 'Saving...' : 'Save Changes'}
-              </Button>
+                    <Typography
+                      color="error"
+                      variant="body2"
+                      sx={{ mt: 1, mb: 1 }}
+                    >
+                      {formik.errors._form}
+                    </Typography>
+                  )}
+                  <Button
+                    type="submit"
+                    variant="contained"
+                    color="primary"
+                    disabled={
+                      saving ||
+                      Object.keys(formik.touched).length === 0 ||
+                      formik.errors._form
+                    }
+                    sx={{ mt: 2 }}
+                  >
+                    {saving ? "Saving..." : "Save Changes"}
+                  </Button>
                 </Box>
               </Grid>
             </Grid>

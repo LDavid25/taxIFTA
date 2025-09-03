@@ -7,13 +7,13 @@ const fs = require('fs');
 const { ensureDirectoryExists, moveFile } = require('../utils/fileUtils');
 const storageConfig = require('../config/storage');
 const { User, Company, sequelize } = require('../models');
-
 // Export el servicio de correo
 const sendEmail = require('../utils/email');
 const { getCompanyById } = require('./company.controller');
 
 // Nombre del servicio (Temporal)
 const serviceName = 'TaxIFTA';
+const baseUrl = process.env.PRODUCTION_FRONTEND_URL || 'http://localhost:3000';
 
 /**
  * Gets or creates a quarterly report for the given company, year and quarter
@@ -134,7 +134,7 @@ const createReport = async (req, res, next) => {
       console.log('Usuario normal creando reporte para su company_id:', companyId);
     }
 
-    const { user_id } = req;
+    const { user_id, name } = req;
     const { vehicle_plate, report_year, quarter, report_month, notes, quarterly_report_id } =
       req.body;
     const files = req.files?.attachments || [];
@@ -295,16 +295,27 @@ const createReport = async (req, res, next) => {
       const fecha = new Date();
       const companyData = await getCompanyById(company_id);
       const companyEmails = companyData.distribution_emails.join(',');
+      const creationDate = fecha.toLocaleDateString('en-US', {
+        month: '2-digit',
+        day: '2-digit',
+        year: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+      });
 
-      console.log('****CompanysData[IFTAQuartely]: ', companyEmails);
+      console.log('CompanysData[IFTAQuartely]: ', companyData);
 
       // Commit the transaction
       await transaction.commit();
       try {
         await sendEmail(companyEmails, 'reporte', {
+          name: name,
+          companyName: companyData.name,
           units: vehicle_plate,
-          date: fecha.toLocaleDateString('en-US'),
+          date: creationDate,
           serviceName,
+          url: `${baseUrl}/client/declarations/company/${company_id}/quarter/${quarter}/year/${report_year}`,
         });
       } catch (error) {
         console.error('Email[iftaReport]: ', error);

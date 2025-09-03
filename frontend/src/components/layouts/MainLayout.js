@@ -151,17 +151,17 @@ const MainLayout = () => {
   const menuItems = [
     // Common items for all authenticated users
     {
-      text: "Dashboard",
+      text: "Portal Home",
       icon: <DashboardIcon />,
       path: isAdmin ? "/admin/dashboard" : "/client/dashboard",
     },
     {
-      text: "Fuel Consumption History",
+      text: "Review",
       icon: <HistoryIcon />,
       path: isAdmin ? "/admin/consumption" : "/client/consumption",
     },
     {
-      text: "Reports",
+      text: "History",
       icon: <DescriptionIcon />,
       path: isAdmin ? "/admin/declarations" : "/client/declarations",
     },
@@ -180,7 +180,7 @@ const MainLayout = () => {
             path: "/admin/users",
           },
           {
-            text: "Register User",
+            text: "Register Users",
             icon: <PersonAddIcon />,
             path: "/admin/register-user",
           },
@@ -203,7 +203,7 @@ const MainLayout = () => {
             <MenuIcon />
           </IconButton>
           <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
-            IFTA Easy Tax System
+            IFTA - Quarterly Capture Summary
           </Typography>
 
           {/* Avatar y menú de usuario */}
