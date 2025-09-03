@@ -241,12 +241,9 @@ const MobileTableRow = ({ row, onViewReceipt }) => {
                 </Typography>
               </Grid>
               <Grid item xs={6}>
-                <Typography variant="body2" color="textSecondary">
-                  Gallons
-                </Typography>
-                <Typography variant="body1">
-                  {row.totalGallons.toFixed(2)}
-                </Typography>
+                <Typography variant="body2" color="textSecondary">Gallons</Typography>
+                <Typography variant="body1">{row.totalGallons.toFixed(3)}</Typography>
+
               </Grid>
               <Grid item xs={6}>
                 <Typography variant="body2" color="textSecondary">
@@ -1047,42 +1044,58 @@ const ConsumptionHistory = () => {
                 ))}
             </Box>
           ) : (
-            // Vista escritorio - Tabla
-            <TableContainer>
-              <Table>
-                <TableHead>
-                  <TableRow sx={{ backgroundColor: "#f5f5f5" }}>
-                    <TableCell align="left">Quarter</TableCell>
-                    <TableCell align="left">Date</TableCell>
-                    {isAdmin(currentUser) && (
-                      <TableCell align="left">Company</TableCell>
-                    )}
-                    <TableCell align="left">Unit #</TableCell>
-                    <TableCell align="left">Miles Traveled</TableCell>
-                    <TableCell align="left">Total Gallons</TableCell>
-                    {isAdmin(currentUser) && (
-                      <TableCell align="left">MPG</TableCell>
-                    )}
-                    <TableCell align="left">Status</TableCell>
-                    <TableCell align="left">Actions</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {filteredData
-                    .slice(
-                      pagination.page * pagination.rowsPerPage,
-                      pagination.page * pagination.rowsPerPage +
-                        pagination.rowsPerPage,
-                    )
-                    .map((row) => (
-                      <TableRow key={row.id} hover>
-                        <TableCell align="left">{row.quarter}</TableCell>
-                        <TableCell align="left">
-                          {formatDate(row.date)}
-                        </TableCell>
-                        {isAdmin(currentUser) && (
-                          <TableCell align="left">
-                            {row.companyName || "N/A"}
+            isMobile ? (
+              // Mobile view - Cards
+              <Box sx={{ p: 2 }}>
+                {filteredData
+                  .slice(pagination.page * pagination.rowsPerPage, pagination.page * pagination.rowsPerPage + pagination.rowsPerPage)
+                  .map((row) => (
+                    <MobileTableRow
+                      key={row.id}
+                      row={row}
+                      onViewReceipt={handleViewReceipt}
+                    />
+                  ))}
+              </Box>
+            ) : (
+              // Vista escritorio - Tabla
+              <TableContainer>
+                <Table>
+                  <TableHead>
+                    <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
+                      <TableCell>Date</TableCell>
+                      <TableCell>Unit #</TableCell>
+                      {isAdmin(currentUser) && <TableCell>Company</TableCell>}
+                      <TableCell>Quarter</TableCell>
+                      <TableCell align="right">Miles Traveled</TableCell>
+                      <TableCell align="right">Total Gallons</TableCell>
+                      {isAdmin(currentUser) && <TableCell align="right">MPG</TableCell>}
+                      <TableCell>Status</TableCell>
+                      <TableCell>Actions</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {filteredData
+                      .slice(pagination.page * pagination.rowsPerPage, pagination.page * pagination.rowsPerPage + pagination.rowsPerPage)
+                      .map((row) => (
+                        <TableRow key={row.id} hover>
+                          <TableCell>{formatDate(row.date)}</TableCell>
+                          <TableCell>{row.unitNumber}</TableCell>
+                          {isAdmin(currentUser) && <TableCell>{row.companyName || 'N/A'}</TableCell>}
+                          <TableCell>{getQuarter(row.date)}</TableCell>
+                          <TableCell align="right">{row.milesTraveled.toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
+                          <TableCell align="right">{row.totalGallons.toFixed(3)}</TableCell>
+                          {isAdmin(currentUser) && <TableCell align="right">{row.mpg}</TableCell>}
+                          <TableCell>
+                            <Chip
+                              label={row.status}
+                              color={
+                                row.status === 'Paid' ? 'success' :
+                                  row.status === 'Pending' ? 'warning' : 'default'
+                              }
+                              size="small"
+                              sx={{ minWidth: 80, borderRadius: 1 }}
+                            />
                           </TableCell>
                         )}
                         <TableCell align="left">{row.unitNumber}</TableCell>

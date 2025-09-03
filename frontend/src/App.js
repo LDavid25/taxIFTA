@@ -44,6 +44,7 @@ import ConsumptionDetail from './pages/consumption/ConsumptionDetail';
 
 // Páginas de compañías
 import CompanyListPage from './pages/companies/CompanyListPage';
+import CompanyEdit from './pages/companies/CompanyEdit';
 
 // Páginas de administración
 import RegisterUser from './pages/admin/RegisterUser';
@@ -197,6 +198,7 @@ function App() {
               <Route path="register-user" element={<RegisterUser />} />
               <Route path="users" element={<UserListPage />} />
               <Route path="users/edit/:id" element={<EditUserPage />} />
+              <Route path="companies/edit/:id" element={<CompanyEdit />} />
               <Route path="declarations" element={<DeclarationList />} />
               <Route path="declarations/company/:companyId/quarter/:quarter/year/:year" element={<DeclarationDetail />} />
               <Route path="declarations/:id" element={<DeclarationDetail />} />

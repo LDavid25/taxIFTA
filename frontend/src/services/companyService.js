@@ -61,11 +61,37 @@ export const getCompanies = async () => {
 // Obtener una compañía por ID
 export const getCompanyById = async (id) => {
   try {
+    console.log(`Fetching company with ID: ${id}`);
     const response = await api.get(`${API_URL}/companies/${id}`);
-    return response.data;
+    
+    // Verificar si la respuesta tiene el formato esperado
+    if (response.data && (response.data.data || response.data.id)) {
+      // Si la respuesta ya tiene un formato { status, data }
+      if (response.data.data) {
+        return response.data;
+      }
+      // Si la respuesta es el objeto de la compañía directamente
+      return {
+        status: 'success',
+        data: response.data
+      };
+    }
+    
+    throw new Error('Formato de respuesta inesperado del servidor');
   } catch (error) {
-    console.error(`Error al obtener la compañía con ID ${id}:`, error);
-    throw error.response?.data || { message: 'Error al obtener la compañía' };
+    console.error('Error al obtener la compañía:', {
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status
+    });
+    
+    // Mejorar el mensaje de error
+    const errorMessage = error.response?.data?.message || 
+                       (error.response?.data?.error || '') || 
+                       error.message || 
+                       'Error al obtener los datos de la compañía';
+    
+    throw new Error(errorMessage);
   }
 };
 
@@ -83,11 +109,50 @@ export const createCompany = async (companyData) => {
 // Actualizar una compañía existente
 export const updateCompany = async (id, companyData) => {
   try {
-    const response = await api.patch(`${API_URL}/companies/${id}`, companyData);
-    return response.data;
+    console.log('Actualizando compañía con ID:', id, 'Datos:', companyData);
+    
+    // Asegurarse de que los campos estén en el formato correcto
+    const formattedData = {
+      ...companyData,
+      contactEmail: companyData.contactEmail || companyData.contact_email || '',
+      phone: companyData.phone || '',
+      distributionMail: companyData.distributionMail || companyData.distribution_mail || '',
+      status: companyData.status || (companyData.is_active ? 'active' : 'inactive')
+    };
+    
+    console.log('Datos formateados para actualización:', formattedData);
+    
+    const response = await api.patch(`${API_URL}/companies/${id}`, formattedData);
+    console.log('Respuesta de actualización:', response.data);
+    
+    // Verificar si la respuesta tiene el formato esperado
+    if (response.data && (response.data.data || response.data.id)) {
+      // Si la respuesta ya tiene un formato { status, data }
+      if (response.data.data) {
+        return response.data;
+      }
+      // Si la respuesta es el objeto de la compañía directamente
+      return {
+        status: 'success',
+        data: response.data
+      };
+    }
+    
+    throw new Error('Formato de respuesta inesperado del servidor');
   } catch (error) {
-    console.error(`Error al actualizar la compañía con ID ${id}:`, error);
-    throw error.response?.data || { message: 'Error al actualizar la compañía' };
+    console.error('Error al actualizar la compañía:', {
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status
+    });
+    
+    // Mejorar el mensaje de error
+    const errorMessage = error.response?.data?.message || 
+                       (error.response?.data?.error || '') || 
+                       error.message || 
+                       'Error al actualizar la compañía';
+    
+    throw new Error(errorMessage);
   }
 };
 

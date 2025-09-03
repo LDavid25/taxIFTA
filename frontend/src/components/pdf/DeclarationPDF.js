@@ -260,8 +260,8 @@ const DeclarationPDF = ({
                           <View key={`${month}-${state.code}-${index}`} style={styles.tableRow}>
                             <Text style={[styles.tableCell, styles.colUnit, styles.cellCenter]}>{unitNumber}</Text>
                             <Text style={[styles.tableCell, styles.colState]}>{state.name}</Text>
-                            <Text style={[styles.tableCell, styles.colMiles, styles.cellRight]}>{formatNumber(state.miles)}</Text>
-                            <Text style={[styles.tableCell, styles.colGallons, styles.cellRight]}>{formatNumber(state.gallons, 1)}</Text>
+                            <Text style={[styles.tableCell, styles.colMiles, styles.cellRight]}>{formatNumber(state.miles, 0)}</Text>
+                            <Text style={[styles.tableCell, styles.colGallons, styles.cellRight]}>{formatNumber(state.gallons, 3)}</Text>
                           </View>
                         ))}
                         
@@ -274,10 +274,10 @@ const DeclarationPDF = ({
                             {`${monthName.toUpperCase()} TOTAL`}
                           </Text>
                           <Text style={[styles.tableCell, styles.colMiles, styles.cellRight, { fontWeight: 'bold' }]}>
-                            {formatNumber(monthMiles)}
+                            {formatNumber(monthMiles, 0)}
                           </Text>
                           <Text style={[styles.tableCell, styles.colGallons, styles.cellRight, { fontWeight: 'bold' }]}>
-                            {formatNumber(monthGallons, 1)}
+                            {formatNumber(monthGallons, 3)}
                           </Text>
                         </View>
                         
@@ -293,10 +293,10 @@ const DeclarationPDF = ({
                       <Text style={[styles.tableCell, styles.colUnit, styles.cellCenter, { fontWeight: 'bold' }]}>TOTAL</Text>
                       <Text style={[styles.tableCell, styles.colState, { fontWeight: 'bold' }]}>ALL MONTHS - ALL STATES</Text>
                       <Text style={[styles.tableCell, styles.colMiles, styles.cellRight, { fontWeight: 'bold' }]}>
-                        {formatNumber(grandTotalMiles)}
+                        {formatNumber(grandTotalMiles, 0)}
                       </Text>
                       <Text style={[styles.tableCell, styles.colGallons, styles.cellRight, { fontWeight: 'bold' }]}>
-                        {formatNumber(grandTotalGallons, 1)}
+                        {formatNumber(grandTotalGallons, 3)}
                       </Text>
                     </View>
                   )}

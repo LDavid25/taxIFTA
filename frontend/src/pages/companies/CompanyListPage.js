@@ -25,7 +25,7 @@ import {
   Switch,
   FormControlLabel
 } from '@mui/material';
-import { Visibility, Add as AddIcon, Search as SearchIcon } from '@mui/icons-material';
+import { Visibility, Add as AddIcon, Search as SearchIcon, Edit as EditIcon } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useSnackbar } from 'notistack';
@@ -263,30 +263,42 @@ const CompanyListPage = () => {
                 }}
               />
 
-              <TableContainer component={Paper}>
-                <Table>
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Company</TableCell>
-                      <TableCell>Contact Email</TableCell>
-                      <TableCell>Phone</TableCell>
-                      <TableCell align="center">Status</TableCell>
+            <TableContainer component={Paper}>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Company</TableCell>
+                    <TableCell>Contact Email</TableCell>
+                    <TableCell>Phone</TableCell>
+                    <TableCell align="center">Status</TableCell>
+                    <TableCell align="center">Actions</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {paginatedCompanies.map((company) => (
+                    <TableRow key={company.id} hover>
+                      <TableCell>{company.name || 'N/A'}</TableCell>
+                      <TableCell>{company.contact_email || 'N/A'}</TableCell>
+                      <TableCell>{company.phone || 'N/A'}</TableCell>
+                      <TableCell align="center">
+                        {renderStatusSwitch(company)}
+                      </TableCell>
+                      <TableCell align="center">
+                        <Tooltip title="Edit Company">
+                          <IconButton 
+                            onClick={() => navigate(`/admin/companies/edit/${company.id}`)}
+                            color="primary"
+                            size="small"
+                          >
+                            <EditIcon />
+                          </IconButton>
+                        </Tooltip>
+                      </TableCell>
                     </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {paginatedCompanies.map((company) => (
-                      <TableRow key={company.id} hover>
-                        <TableCell>{company.name || 'N/A'}</TableCell>
-                        <TableCell>{company.contact_email || 'N/A'}</TableCell>
-                        <TableCell>{company.phone || 'N/A'}</TableCell>
-                        <TableCell align="center">
-                          {renderStatusSwitch(company)}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
 
               <TablePagination
                 rowsPerPageOptions={[5, 10, 25]}
