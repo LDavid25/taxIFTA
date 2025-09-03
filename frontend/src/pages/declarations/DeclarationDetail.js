@@ -972,13 +972,19 @@ const DeclarationDetail = () => {
     const columnWidth = 120; // px
     const tableWidth = totalColumns * columnWidth;
 
-    // Función para formatear números con separadores de miles
-    const formatCellNumber = (num) => {
-      if (num === undefined || num === null) return '0.00';
-      return new Intl.NumberFormat('en-US', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
-      }).format(num);
+    // Función para formatear millas (números enteros)
+    const formatMiles = (num) => {
+      if (num === undefined || num === null) return '0';
+      return Math.round(num).toLocaleString('en-US');
+    };
+
+    // Función para formatear galones (3 decimales)
+    const formatGallons = (num) => {
+      if (num === undefined || num === null) return '0.000';
+      return num.toLocaleString('en-US', {
+        minimumFractionDigits: 3,
+        maximumFractionDigits: 3
+      });
     };
 
     return (
@@ -1111,7 +1117,7 @@ const DeclarationDetail = () => {
                 sx={{
                   fontWeight: 'bold',
                   backgroundColor: '#e3f2fd',
-                  minWidth: '100px',
+                  minWidth: '120px',
                   textAlign: 'center',
                   borderRight: '1px solid #e0e0e0',
                   boxShadow: '-2px 0 5px -2px rgba(0,0,0,0.1)',
@@ -1290,9 +1296,9 @@ const DeclarationDetail = () => {
                             color: monthData.miles > 0 ? 'inherit' : '#999',
                             fontStyle: monthData.miles > 0 ? 'normal' : 'italic'
                           }}
-                          title={`${formatCellNumber(monthData.miles)} miles`}
+                          title={`${monthData.miles.toLocaleString('en-US')} miles`}
                         >
-                          {monthData.miles > 0 ? formatCellNumber(monthData.miles) : '-'}
+                          {monthData.miles > 0 ? Math.round(monthData.miles).toLocaleString('en-US') : '-'}
                         </TableCell>,
                         <TableCell
                           key={`${vIdx}-${sIdx}-${monthKey}-gal`}
@@ -1305,9 +1311,9 @@ const DeclarationDetail = () => {
                             color: monthData.gallons > 0 ? 'inherit' : '#999',
                             fontStyle: monthData.gallons > 0 ? 'normal' : 'italic'
                           }}
-                          title={`${formatCellNumber(monthData.gallons)} gallons`}
+                          title={`${monthData.gallons.toLocaleString('en-US', {minimumFractionDigits: 3, maximumFractionDigits: 3})} gallons`}
                         >
-                          {monthData.gallons > 0 ? formatCellNumber(monthData.gallons) : '-'}
+                          {monthData.gallons > 0 ? parseFloat(monthData.gallons).toLocaleString('en-US', {minimumFractionDigits: 3, maximumFractionDigits: 3}) : '-'}
                         </TableCell>
                       ];
                     })}
@@ -1324,9 +1330,9 @@ const DeclarationDetail = () => {
                         padding: '4px 8px !important',
                         fontSize: '0.8rem'
                       }}
-                      title={`Total miles: ${formatCellNumber(state.totalMiles)}`}
+                      title={`Total miles: ${state.totalMiles.toLocaleString('en-US')}`}
                     >
-                      {state.totalMiles > 0 ? formatCellNumber(state.totalMiles) : '-'}
+                      {state.totalMiles > 0 ? Math.round(state.totalMiles).toLocaleString('en-US') : '-'}
                     </TableCell>
                     <TableCell
                       sx={{
@@ -1339,9 +1345,9 @@ const DeclarationDetail = () => {
                         padding: '4px 8px !important',
                         fontSize: '0.8rem'
                       }}
-                      title={`Total gallons: ${formatCellNumber(state.totalGallons)}`}
+                      title={`Total gallons: ${state.totalGallons.toLocaleString('en-US', {minimumFractionDigits: 3, maximumFractionDigits: 3})}`}
                     >
-                      {state.totalGallons > 0 ? formatCellNumber(state.totalGallons) : '-'}
+                      {state.totalGallons > 0 ? parseFloat(state.totalGallons).toLocaleString('en-US', {minimumFractionDigits: 3, maximumFractionDigits: 3}) : '-'}
                     </TableCell>
 
                     {/* MPG for this state - Only visible to admin users */}
@@ -1442,7 +1448,7 @@ const DeclarationDetail = () => {
                           whiteSpace: 'nowrap'
                         }}
                       >
-                        {formatNumber(monthTotal.gallons)}
+                        {parseFloat(monthTotal.gallons).toLocaleString('en-US', {minimumFractionDigits: 3, maximumFractionDigits: 3})}
                       </TableCell>
                     </React.Fragment>
                   );
@@ -1473,7 +1479,7 @@ const DeclarationDetail = () => {
                     whiteSpace: 'nowrap'
                   }}
                 >
-                  {formatNumber(vehicleStateTableData.generalTotal.gallons)}
+                  {parseFloat(vehicleStateTableData.generalTotal.gallons).toLocaleString('en-US', {minimumFractionDigits: 3, maximumFractionDigits: 3})}
                 </TableCell>
 
                 {/* General MPG */}
@@ -1891,7 +1897,7 @@ const DeclarationDetail = () => {
                           <TableRow key={`${state.state}-${index}`}>
                             <TableCell sx={{ width: '30%' }}>{stateCodeToName(state.state)}</TableCell>
                             <TableCell align="right" sx={{ width: '20%' }}>{formatNumber(state.miles)}</TableCell>
-                            <TableCell align="right" sx={{ width: '20%' }}>{formatNumber(state.gallons)}</TableCell>
+                            <TableCell align="right" sx={{ width: '20%' }}>{parseFloat(state.gallons).toLocaleString('en-US', {minimumFractionDigits: 3, maximumFractionDigits: 3})}</TableCell>
                             {isUserAdmin && <TableCell align="right" sx={{ width: '15%' }}>{state.mpg}</TableCell>}
                             <TableCell align="right" sx={{ width: isUserAdmin ? '15%' : '30%' }}>{state.percentage.toFixed(2)}%</TableCell>
                           </TableRow>
@@ -1900,7 +1906,7 @@ const DeclarationDetail = () => {
                           <TableRow sx={{ '& > *': { fontWeight: 'bold', backgroundColor: '#f5f5f5' } }}>
                             <TableCell sx={{ width: '30%' }}>TOTAL</TableCell>
                             <TableCell align="right" sx={{ width: '20%' }}>{formatNumber(totalMiles)}</TableCell>
-                            <TableCell align="right" sx={{ width: '20%' }}>{formatNumber(totalGallons)}</TableCell>
+                            <TableCell align="right" sx={{ width: '20%' }}>{parseFloat(totalGallons).toLocaleString('en-US', {minimumFractionDigits: 3, maximumFractionDigits: 3})}</TableCell>
                             {isUserAdmin && (
                               <TableCell align="right" sx={{ width: '15%' }}>
                                 {parseFloat(calculateMPG(totalMiles, totalGallons)).toFixed(2)}

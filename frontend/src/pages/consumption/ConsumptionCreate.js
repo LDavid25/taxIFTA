@@ -7,6 +7,7 @@ import { createConsumptionReport, checkExistingReport } from '../../services/con
 import { getCompanies } from '../../services/companyService';
 
 import {
+  Alert,
   Box,
   Typography,
   Breadcrumbs,
@@ -21,13 +22,17 @@ import {
   Select,
   FormHelperText,
   CircularProgress,
-  Alert,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
   Snackbar,
   Autocomplete,
   IconButton,
   Divider
 } from '@mui/material';
-import { CheckCircleOutline, Save, Add as AddIcon, DeleteOutline as DeleteOutlineIcon, Visibility as VisibilityIcon } from '@mui/icons-material';
+import { CheckCircleOutline, Save, Add as AddIcon, DeleteOutline as DeleteOutlineIcon, Visibility as VisibilityIcon, Warning } from '@mui/icons-material';
 import { Link as RouterLink } from 'react-router-dom';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
@@ -79,6 +84,7 @@ const validationSchema = Yup.object({
 const ConsumptionCreate = () => {
   const { currentUser, isAdmin } = useAuth(); // Get currentUser and isAdmin from auth context
   const [isLoading, setIsLoading] = useState(false);
+  const [openConfirmDialog, setOpenConfirmDialog] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const [selectedFiles, setSelectedFiles] = useState([]);
@@ -334,6 +340,11 @@ const ConsumptionCreate = () => {
     return false;
   };
 
+  const handleConfirmSubmit = async () => {
+    setOpenConfirmDialog(false);
+    await handleSubmit(formik.values);
+  };
+
   const handleSubmit = async (values) => {
     try {
       setIsLoading(true);
@@ -528,9 +539,13 @@ const ConsumptionCreate = () => {
     unitNumber: '',
     year: formInitialYear,
     month: formInitialMonth,
+    stateEntries: [
+      { state: null, miles: '', gallons: '' },
+      { state: null, miles: '', gallons: '' },
+      { state: null, miles: '', gallons: '' }
+    ],
     quarter: isFirstMonthOfQuarter ? prevQuarter : currentQuarter,
     companyId: isAdmin ? '' : (currentUser?.company_id || currentUser?.companyId || ''),
-    stateEntries: [],
     files: []
   };
 
@@ -696,7 +711,7 @@ const ConsumptionCreate = () => {
                   boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
                 }}
               >
-                <Box sx={{ mb: 4, pb: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
+                <Box sx={{ mb: 2, pb: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
                   <Typography variant="h6" sx={{ fontWeight: 600, color: 'text.primary' }}>
                     Report Information
                   </Typography>
@@ -705,7 +720,7 @@ const ConsumptionCreate = () => {
                   </Typography>
                 </Box>
 
-                <Grid container spacing={3}>
+                <Grid container spacing={2}>
                   {/* Unit Number */}
                   <Grid item xs={12} sm={6} md={4}>
                     <TextField
@@ -909,9 +924,9 @@ const ConsumptionCreate = () => {
                     boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
                   }}
                 >
-                  <Box sx={{ mb: 4, pb: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
+                  <Box sx={{ mb: 2, pb: 1, borderBottom: '1px solid', borderColor: 'divider' }}>
                     <Typography variant="h6" sx={{ fontWeight: 600, color: 'text.primary' }}>
-                      Jurisdictions and Consumption
+                    Add Jurisdiction
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
                       Add states and their corresponding fuel consumption data
@@ -921,10 +936,8 @@ const ConsumptionCreate = () => {
                     <Box
                       key={index}
                       sx={{
-                        p: 2,
-                        mb: 2,
-                        border: '1px solid',
-                        borderColor: 'divider',
+                        p: 0,
+                        mb: 0,                  
                         borderRadius: 1,
                         backgroundColor: 'background.paper',
                         transition: 'all 0.2s ease-in-out',
@@ -987,17 +1000,25 @@ const ConsumptionCreate = () => {
                             type="number"
                             value={entry.miles}
                             onChange={(e) => {
-                              const value = parseFloat(e.target.value);
-                              if (isNaN(value) || value >= 0) {
-                                formik.handleChange(e);
+                              const value = e.target.value;
+                              // Only allow numbers with optional decimal point
+                              if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                                formik.setFieldValue(e.target.name, value);
                               }
                             }}
-                            onBlur={formik.handleBlur}
+                            onBlur={(e) => {
+                              // Round to nearest integer on blur (0.5+ rounds up, <0.5 rounds down)
+                              const value = parseFloat(e.target.value);
+                              if (!isNaN(value)) {
+                                formik.setFieldValue(e.target.name, Math.round(value).toString());
+                              }
+                              formik.handleBlur(e);
+                            }}
                             error={formik.touched.stateEntries?.[index]?.miles &&
                               Boolean(formik.errors.stateEntries?.[index]?.miles)}
                             helperText={formik.touched.stateEntries?.[index]?.miles &&
                               formik.errors.stateEntries?.[index]?.miles}
-                            inputProps={{ min: 0, step: '0.01' }}
+                            inputProps={{ min: 0, step: '1' }}
                           />
                         </Grid>
                         <Grid item xs={12} sm={3}>
@@ -1008,12 +1029,20 @@ const ConsumptionCreate = () => {
                             type="number"
                             value={entry.gallons}
                             onChange={(e) => {
-                              const value = parseFloat(e.target.value);
-                              if (isNaN(value) || value >= 0) {
-                                formik.handleChange(e);
+                              const value = e.target.value;
+                              // Only allow numbers with up to 3 decimal places
+                              if (value === '' || /^\d*\.?\d{0,3}$/.test(value)) {
+                                formik.setFieldValue(e.target.name, value);
                               }
                             }}
-                            onBlur={formik.handleBlur}
+                            onBlur={(e) => {
+                              // Round to 3 decimal places on blur
+                              const value = parseFloat(e.target.value);
+                              if (!isNaN(value)) {
+                                formik.setFieldValue(e.target.name, value.toFixed(3));
+                              }
+                              formik.handleBlur(e);
+                            }}
                             error={formik.touched.stateEntries?.[index]?.gallons &&
                               Boolean(formik.errors.stateEntries?.[index]?.gallons)}
                             helperText={formik.touched.stateEntries?.[index]?.gallons &&
@@ -1312,8 +1341,8 @@ const ConsumptionCreate = () => {
                     <Grid container spacing={2}>
                       <Grid item xs={6}>
                         <Typography variant="body2">
-                          Total Miles: <br />{formik.values.stateEntries.reduce((sum, entry) =>
-                            sum + (parseFloat(entry.miles) || 0), 0).toFixed(2)}
+                          Total Miles: <br />{Math.round(formik.values.stateEntries.reduce((sum, entry) =>
+                            sum + (parseFloat(entry.miles) || 0), 0))}
                         </Typography>
                       </Grid>
                       <Grid item xs={6}>
@@ -1405,12 +1434,16 @@ const ConsumptionCreate = () => {
                   <Button
                     type="submit"
                     variant="contained"
-                    color="success"
+                    color="primary"
                     disabled={!isFormValid() || !isReportValid || isLoading}
                     startIcon={isLoading ? null : <Save />}
                     sx={{ minWidth: 180 }}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setOpenConfirmDialog(true);
+                    }}
                   >
-                    {isLoading ? <CircularProgress size={24} /> : 'Save Report'}
+                    {isLoading ? <CircularProgress size={24} /> : 'Save and Submit Report'}
                   </Button>
                 </Box>
               </Paper>
@@ -1433,6 +1466,30 @@ const ConsumptionCreate = () => {
             {snackbar.message}
           </Alert>
         </Snackbar>
+
+        {/* Confirmation Dialog */}
+        <Dialog
+          open={openConfirmDialog}
+          onClose={() => setOpenConfirmDialog(false)}
+          aria-labelledby="alert-dialog-title"
+          aria-describedby="alert-dialog-description"
+        >
+          <DialogTitle id="alert-dialog-title" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Warning color="warning" />
+            Confirm Submission
+          </DialogTitle>
+          <DialogContent>
+            <DialogContentText id="alert-dialog-description">
+            Are you sure? This option will send your information for transmission to IFTA. You will be able to edit this information later only if the status is not completed
+            </DialogContentText>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setOpenConfirmDialog(false)}>Cancel</Button>
+            <Button onClick={handleConfirmSubmit} autoFocus color="success" variant="contained">
+              Confirm
+            </Button>
+          </DialogActions>
+        </Dialog>
       </Box>
     </LocalizationProvider>
   );

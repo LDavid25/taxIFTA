@@ -211,7 +211,7 @@ const MobileTableRow = ({ row, onViewReceipt }) => {
               </Grid>
               <Grid item xs={6}>
                 <Typography variant="body2" color="textSecondary">Gallons</Typography>
-                <Typography variant="body1">{row.totalGallons.toFixed(2)}</Typography>
+                <Typography variant="body1">{row.totalGallons.toFixed(3)}</Typography>
               </Grid>
               <Grid item xs={6}>
                 <Typography variant="body2" color="textSecondary">MPG</Typography>
@@ -922,7 +922,7 @@ const ConsumptionHistory = () => {
                           {isAdmin(currentUser) && <TableCell>{row.companyName || 'N/A'}</TableCell>}
                           <TableCell>{getQuarter(row.date)}</TableCell>
                           <TableCell align="right">{row.milesTraveled.toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
-                          <TableCell align="right">{row.totalGallons.toFixed(2)}</TableCell>
+                          <TableCell align="right">{row.totalGallons.toFixed(3)}</TableCell>
                           {isAdmin(currentUser) && <TableCell align="right">{row.mpg}</TableCell>}
                           <TableCell>
                             <Chip

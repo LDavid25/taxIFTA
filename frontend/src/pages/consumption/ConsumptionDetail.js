@@ -42,6 +42,9 @@ import {
 } from '@mui/icons-material';
 import { useTheme as useMuiTheme } from '@mui/material/styles';
 import { format, parseISO, parse } from 'date-fns';
+import { PDFViewer, PDFDownloadLink } from '@react-pdf/renderer';
+import { pdf } from '@react-pdf/renderer';
+import ConsumptionPDF from '../../components/pdf/ConsumptionPDF';
 import { enUS } from 'date-fns/locale';
 import { LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -537,8 +540,37 @@ const ConsumptionDetail = () => {
     // Logic to view receipt goes here
   };
 
-  const handlePrint = () => {
-    window.print();
+  const handlePrint = async () => {
+    try {
+      // Generate the PDF blob
+      const pdfBlob = await pdf(
+        <ConsumptionPDF 
+          companyName={currentUser?.companyName || 'IFTA'}
+          reportDate={safeConsumption?.date}
+          unitNumber={safeConsumption?.vehicle_plate || 'N/A'}
+          consumptionDetails={consumptionDetails}
+          totalMiles={safeConsumption?.totalMiles || 0}
+          totalGallons={safeConsumption?.totalGallons || 0}
+          mpg={safeConsumption?.mpg || 0}
+          notes={safeConsumption?.notes || ''}
+        />
+      ).toBlob();
+      
+      // Create a blob URL and open in a new tab for printing
+      const url = URL.createObjectURL(pdfBlob);
+      const printWindow = window.open(url, '_blank');
+      
+      // Clean up the URL after the window loads
+      if (printWindow) {
+        printWindow.onload = () => {
+          URL.revokeObjectURL(url);
+          printWindow.print();
+        };
+      }
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      enqueueSnackbar('Error generating PDF. Please try again.', { variant: 'error' });
+    }
   };
 
 
@@ -852,15 +884,12 @@ const ConsumptionDetail = () => {
                                 })()
                               }</TableCell>
                               <TableCell align="right">
-                                {miles.toLocaleString(undefined, { 
-                                  minimumFractionDigits: 2, 
-                                  maximumFractionDigits: 2 
-                                })}
+                                {Math.round(miles).toLocaleString()}
                               </TableCell>
                               <TableCell align="right">
                                 {gallons.toLocaleString(undefined, { 
-                                  minimumFractionDigits: 2, 
-                                  maximumFractionDigits: 2 
+                                  minimumFractionDigits: 3, 
+                                  maximumFractionDigits: 3 
                                 })}
                               </TableCell>
                             </TableRow>
@@ -870,15 +899,12 @@ const ConsumptionDetail = () => {
                         <TableRow sx={{ '& > *': { borderTop: '2px solid rgba(0, 0, 0, 0.12)', fontWeight: 'bold', backgroundColor: 'rgba(0, 0, 0, 0.02)' } }}>
                           <TableCell>Total</TableCell>
                           <TableCell align="right">
-                            {consumptionDetails.reduce((sum, item) => sum + parseFloat(item.miles || 0), 0).toLocaleString(undefined, { 
-                              minimumFractionDigits: 2, 
-                              maximumFractionDigits: 2 
-                            })}
+                            {Math.round(consumptionDetails.reduce((sum, item) => sum + parseFloat(item.miles || 0), 0)).toLocaleString()}
                           </TableCell>
                           <TableCell align="right">
                             {consumptionDetails.reduce((sum, item) => sum + parseFloat(item.gallons || 0), 0).toLocaleString(undefined, { 
-                              minimumFractionDigits: 2, 
-                              maximumFractionDigits: 2 
+                              minimumFractionDigits: 3, 
+                              maximumFractionDigits: 3 
                             })}
                           </TableCell>
                         </TableRow>
@@ -917,14 +943,14 @@ const ConsumptionDetail = () => {
                 <Box mb={3}>
                   <Typography variant="subtitle2" color="textSecondary">Total Miles</Typography>
                   <Typography variant="h5">
-                    {parseFloat(totalMiles).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} 
-                    <Typography component="span" variant="body2" color="textSecondary">miles</Typography>
+                    {Math.round(totalMiles).toLocaleString()}
+                    <Typography component="span" variant="body2" color="textSecondary"> miles</Typography>
                   </Typography>
                 </Box>
                 <Box mb={3}>
                   <Typography variant="subtitle2" color="textSecondary">Total Gallons</Typography>
                   <Typography variant="h5">
-                    {parseFloat(totalGallons).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} 
+                    {parseFloat(totalGallons).toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 })} 
                     <Typography component="span" variant="body2" color="textSecondary">gallons</Typography>
                   </Typography>
                 </Box>

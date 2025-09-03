@@ -551,6 +551,7 @@ const DeclarationList = () => {
                         </Grid>
                       </Grid>
                     </CardContent>
+                    {isAdmin && (
                     <CardActions sx={{ justifyContent: 'flex-end', p: 2, pt: 0 }}>
                       <Button
                         size="small"
@@ -560,6 +561,7 @@ const DeclarationList = () => {
                         View Details
                       </Button>
                     </CardActions>
+                  )}
                   </Card>
                 </Grid>
               ))}
