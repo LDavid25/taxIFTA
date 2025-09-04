@@ -319,8 +319,9 @@ const CompanyListPage = () => {
 												<TableCell align="center">
 													<Tooltip title="Edit Company">
 														<IconButton
-															// onClick={() => navigate(`/admin/companies/edit/${company.id}`)}
-															onClick={() => navigate(`/admin/dashboard/play`)}
+															onClick={() =>
+																navigate(`/admin/companies/edit/${company.id}`)
+															}
 															color="primary"
 															size="small"
 														>

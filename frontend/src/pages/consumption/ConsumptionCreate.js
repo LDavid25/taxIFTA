@@ -645,7 +645,11 @@ const ConsumptionCreate = () => {
 		companyId: isAdmin
 			? ''
 			: currentUser?.company_id || currentUser?.companyId || '',
-		stateEntries: [],
+		stateEntries: [
+			{ state: null, miles: '', gallons: '' },
+			{ state: null, miles: '', gallons: '' },
+			{ state: null, miles: '', gallons: '' },
+		],
 		files: [],
 	};
 
@@ -680,11 +684,13 @@ const ConsumptionCreate = () => {
 			return isUnitPeriodValid;
 		}
 
-		// In second step, check jurisdictions and if report is validated
-		const isJurisdictionsValid = formik.values.stateEntries?.some(
+		// En el segundo paso, verifica que todas las entradas estén completas
+		const isJurisdictionsValid = formik.values.stateEntries?.every(
 			(entry) =>
 				entry.state &&
-				entry.miles &&
+				entry.miles !== '' &&
+				entry.miles !== null &&
+				!isNaN(entry.miles) &&
 				entry.gallons !== '' &&
 				entry.gallons !== null &&
 				!isNaN(entry.gallons)
@@ -1242,12 +1248,29 @@ const ConsumptionCreate = () => {
 														value={entry.gallons}
 														size="small"
 														onChange={(e) => {
+															const value = e.target.value;
+															// Only allow numbers with up to 3 decimal places
+															if (
+																value === '' ||
+																/^\d*\.?\d{0,3}$/.test(value)
+															) {
+																formik.setFieldValue(e.target.name, value);
+															}
+														}}
+														onBlur={(e) => {
+															// Round to 3 decimal places on blur
 															const value = parseFloat(e.target.value);
 															if (isNaN(value) || value >= 0) {
 																formik.handleChange(e);
 															}
+															if (!isNaN(value)) {
+																formik.setFieldValue(
+																	e.target.name,
+																	value.toFixed(3)
+																);
+															}
+															formik.handleBlur(e);
 														}}
-														onBlur={formik.handleBlur}
 														error={
 															formik.touched.stateEntries?.[index]?.gallons &&
 															Boolean(
