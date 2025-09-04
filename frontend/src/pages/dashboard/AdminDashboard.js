@@ -335,7 +335,7 @@ const AdminDashboard = () => {
 					<Card elevation={3}>
 						<CardContent>
 							<Typography variant="h6" gutterBottom>
-								Clientes registrados por mes
+								 Registered customers per month
 							</Typography>
 							<Box sx={{ height: 400 }}>
 								{data.companiesPerMonth && data.companiesPerMonth.length > 0 ? (
@@ -353,7 +353,7 @@ const AdminDashboard = () => {
 											<XAxis
 												dataKey="month"
 												label={{
-													value: 'Mes',
+													value: 'Month',
 													position: 'insideBottom',
 													offset: -5,
 												}}
@@ -361,7 +361,7 @@ const AdminDashboard = () => {
 											<YAxis
 												domain={[0, 100]} // máximo en 100
 												label={{
-													value: 'Cantidad de Clientes',
+													value: 'Number of costumers',
 													angle: -90,
 													position: 'insideLeft',
 												}}
@@ -376,7 +376,7 @@ const AdminDashboard = () => {
 											{/* Barra con total de compañías */}
 											<Bar
 												dataKey="total_companies"
-												name="Total Clientes"
+												name="Total costumers"
 												fill="#8884d8"
 												radius={[4, 4, 0, 0]}
 											/>

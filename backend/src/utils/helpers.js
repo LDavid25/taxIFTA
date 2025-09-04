@@ -3,12 +3,12 @@
  * @param {Object} user - Objeto de usuario
  * @returns {Object} Usuario sin datos sensibles
  */
-const excludeSensitiveUserData = (user) => {
+const excludeSensitiveUserData = user => {
   if (!user) return null;
-  
+
   // Si es una instancia de Sequelize, convertir a objeto plano
   const userData = user.get ? user.get({ plain: true }) : { ...user };
-  
+
   // Lista de campos sensibles a excluir
   const sensitiveFields = [
     'password',
@@ -20,16 +20,16 @@ const excludeSensitiveUserData = (user) => {
     'twoFactorRecoveryCodes',
     'password_changed_at',
     'resetPasswordToken',
-    'resetPasswordExpire'
+    'resetPasswordExpire',
   ];
-  
+
   // Eliminar campos sensibles
   sensitiveFields.forEach(field => {
     if (field in userData) {
       delete userData[field];
     }
   });
-  
+
   // Asegurar que los campos esperados existan
   return {
     id: userData.id,
@@ -38,8 +38,8 @@ const excludeSensitiveUserData = (user) => {
     role: userData.role || 'user',
     is_active: userData.is_active !== undefined ? userData.is_active : true,
     company_id: userData.company_id || null,
-    company_name: userData.company_name || null,
-    last_login: userData.last_login || userData.lastLogin || null
+    company_name: userData.company.name || null,
+    last_login: userData.last_login || userData.lastLogin || null,
   };
 };
 
@@ -88,5 +88,5 @@ module.exports = {
   excludeSensitiveUserData,
   formatErrorResponse,
   validateUserRole,
-  generateRandomCode
+  generateRandomCode,
 };

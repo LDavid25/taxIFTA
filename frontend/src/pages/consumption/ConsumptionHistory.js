@@ -241,9 +241,12 @@ const MobileTableRow = ({ row, onViewReceipt }) => {
                 </Typography>
               </Grid>
               <Grid item xs={6}>
-                <Typography variant="body2" color="textSecondary">Gallons</Typography>
-                <Typography variant="body1">{row.totalGallons.toFixed(3)}</Typography>
-
+                <Typography variant="body2" color="textSecondary">
+                  Gallons
+                </Typography>
+                <Typography variant="body1">
+                  {row.totalGallons.toFixed(3)}
+                </Typography>
               </Grid>
               <Grid item xs={6}>
                 <Typography variant="body2" color="textSecondary">
@@ -1043,61 +1046,82 @@ const ConsumptionHistory = () => {
                   />
                 ))}
             </Box>
+          ) : isMobile ? (
+            // Mobile view - Cards
+            <Box sx={{ p: 2 }}>
+              {filteredData
+                .slice(
+                  pagination.page * pagination.rowsPerPage,
+                  pagination.page * pagination.rowsPerPage +
+                    pagination.rowsPerPage,
+                )
+                .map((row) => (
+                  <MobileTableRow
+                    key={row.id}
+                    row={row}
+                    onViewReceipt={handleViewReceipt}
+                  />
+                ))}
+            </Box>
           ) : (
-            isMobile ? (
-              // Mobile view - Cards
-              <Box sx={{ p: 2 }}>
-                {filteredData
-                  .slice(pagination.page * pagination.rowsPerPage, pagination.page * pagination.rowsPerPage + pagination.rowsPerPage)
-                  .map((row) => (
-                    <MobileTableRow
-                      key={row.id}
-                      row={row}
-                      onViewReceipt={handleViewReceipt}
-                    />
-                  ))}
-              </Box>
-            ) : (
-              // Vista escritorio - Tabla
-              <TableContainer>
-                <Table>
-                  <TableHead>
-                    <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
-                      <TableCell>Date</TableCell>
-                      <TableCell>Unit #</TableCell>
-                      {isAdmin(currentUser) && <TableCell>Company</TableCell>}
-                      <TableCell>Quarter</TableCell>
-                      <TableCell align="right">Miles Traveled</TableCell>
-                      <TableCell align="right">Total Gallons</TableCell>
-                      {isAdmin(currentUser) && <TableCell align="right">MPG</TableCell>}
-                      <TableCell>Status</TableCell>
-                      <TableCell>Actions</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {filteredData
-                      .slice(pagination.page * pagination.rowsPerPage, pagination.page * pagination.rowsPerPage + pagination.rowsPerPage)
-                      .map((row) => (
-                        <TableRow key={row.id} hover>
-                          <TableCell>{formatDate(row.date)}</TableCell>
-                          <TableCell>{row.unitNumber}</TableCell>
-                          {isAdmin(currentUser) && <TableCell>{row.companyName || 'N/A'}</TableCell>}
-                          <TableCell>{getQuarter(row.date)}</TableCell>
-                          <TableCell align="right">{row.milesTraveled.toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
-                          <TableCell align="right">{row.totalGallons.toFixed(3)}</TableCell>
-                          {isAdmin(currentUser) && <TableCell align="right">{row.mpg}</TableCell>}
-                          <TableCell>
-                            <Chip
-                              label={row.status}
-                              color={
-                                row.status === 'Paid' ? 'success' :
-                                  row.status === 'Pending' ? 'warning' : 'default'
-                              }
-                              size="small"
-                              sx={{ minWidth: 80, borderRadius: 1 }}
-                            />
-                          </TableCell>
+            // Vista escritorio - Tabla
+            <TableContainer>
+              <Table>
+                <TableHead>
+                  <TableRow sx={{ backgroundColor: "#f5f5f5" }}>
+                    <TableCell>Date</TableCell>
+                    <TableCell>Unit #</TableCell>
+                    {isAdmin(currentUser) && <TableCell>Company</TableCell>}
+                    <TableCell>Quarter</TableCell>
+                    <TableCell align="right">Miles Traveled</TableCell>
+                    <TableCell align="right">Total Gallons</TableCell>
+                    {isAdmin(currentUser) && (
+                      <TableCell align="right">MPG</TableCell>
+                    )}
+                    <TableCell>Status</TableCell>
+                    <TableCell>Actions</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {filteredData
+                    .slice(
+                      pagination.page * pagination.rowsPerPage,
+                      pagination.page * pagination.rowsPerPage +
+                        pagination.rowsPerPage,
+                    )
+                    .map((row) => (
+                      <TableRow key={row.id} hover>
+                        <TableCell>{formatDate(row.date)}</TableCell>
+                        <TableCell>{row.unitNumber}</TableCell>
+                        {isAdmin(currentUser) && (
+                          <TableCell>{row.companyName || "N/A"}</TableCell>
                         )}
+                        <TableCell>{getQuarter(row.date)}</TableCell>
+                        <TableCell align="right">
+                          {row.milesTraveled.toLocaleString(undefined, {
+                            maximumFractionDigits: 2,
+                          })}
+                        </TableCell>
+                        <TableCell align="right">
+                          {row.totalGallons.toFixed(3)}
+                        </TableCell>
+                        {isAdmin(currentUser) && (
+                          <TableCell align="right">{row.mpg}</TableCell>
+                        )}
+                        <TableCell>
+                          <Chip
+                            label={row.status}
+                            color={
+                              row.status === "Paid"
+                                ? "success"
+                                : row.status === "Pending"
+                                  ? "warning"
+                                  : "default"
+                            }
+                            size="small"
+                            sx={{ minWidth: 80, borderRadius: 1 }}
+                          />
+                        </TableCell>
                         <TableCell align="left">{row.unitNumber}</TableCell>
                         <TableCell align="left">
                           {row.milesTraveled.toLocaleString(undefined, {
@@ -1107,11 +1131,9 @@ const ConsumptionHistory = () => {
                         <TableCell align="left">
                           {row.totalGallons.toFixed(2)}
                         </TableCell>
-
                         {isAdmin(currentUser) && (
                           <TableCell align="left">{row.mpg}</TableCell>
                         )}
-
                         <TableCell align="left">
                           <Chip
                             label={row.status}
@@ -1138,7 +1160,7 @@ const ConsumptionHistory = () => {
                               color="primary"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                navigate(`/admin/users/edit/${row.companyId}`);
+                                navigate(`/admin/companies/edit/${row.companyId}`);
                               }}
                               aria-label="edit"
                               size="small"
