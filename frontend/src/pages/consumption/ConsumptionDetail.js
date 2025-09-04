@@ -666,7 +666,7 @@ const ConsumptionDetail = () => {
                   to={currentUser?.role === 'admin' ? '/admin/consumption' : '/client/consumption'} 
                   color="inherit"
                 >
-                  Consumption History
+                  Review
                 </Link>
                 <Typography color="textPrimary">Report Details</Typography>
               </Breadcrumbs>

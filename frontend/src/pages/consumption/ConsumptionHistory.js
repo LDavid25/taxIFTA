@@ -795,7 +795,7 @@ const ConsumptionHistory = () => {
           }}
         >
           <Typography variant="h5" component="h1" fontWeight="bold">
-            Consumption History
+            Review
           </Typography>
           <Button
             variant="contained"

@@ -1,6 +1,13 @@
 const express = require('express');
 const router = express.Router();
-const { getCompanies, getCompanyById, createCompany, updateCompany, deleteCompany, updateCompanyStatus } = require('../controllers/company.controller');
+const {
+  getCompanies,
+  getCompanyById,
+  createCompany,
+  updateCompany,
+  deleteCompany,
+  updateCompanyStatus,
+} = require('../controllers/company.controller');
 const { protect, restrictTo } = require('../middlewares/auth.middleware');
 
 console.log('Company routes module loaded');
@@ -37,7 +44,7 @@ router.get('/', async (req, res, next) => {
     const companies = await getCompanies();
     res.json({
       status: 'success',
-      data: companies
+      data: companies,
     });
   } catch (error) {
     next(error);
@@ -66,7 +73,17 @@ router.get('/', async (req, res, next) => {
  *             schema:
  *               $ref: '#/components/schemas/Company'
  */
-router.get('/:id', getCompanyById);
+router.get('/:id', async (req, res, next) => {
+  try {
+    const company = await getCompanyById(req.params.id);
+    res.json({
+      status: 'success',
+      data: company,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
 
 // Solo administradores pueden crear, actualizar o eliminar compañías
 router.use(restrictTo('admin'));
@@ -200,14 +217,14 @@ router.patch('/:id/status', async (req, res, next) => {
     if (typeof is_active !== 'boolean') {
       return res.status(400).json({
         status: 'fail',
-        message: 'El campo is_active es requerido y debe ser un valor booleano'
+        message: 'El campo is_active es requerido y debe ser un valor booleano',
       });
     }
 
     const result = await updateCompanyStatus(req.params.id, is_active);
     res.json({
       status: 'success',
-      data: result
+      data: result,
     });
   } catch (error) {
     next(error);

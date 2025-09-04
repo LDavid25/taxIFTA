@@ -8,14 +8,14 @@ const CustomError = require('../utils/CustomError');
 const getCompanies = async () => {
   try {
     console.log('🔍 Iniciando consulta de compañías...');
-    
+
     // Consulta directa a la tabla de compañías
     const companies = await Company.findAll({
       attributes: ['id', 'name', 'contact_email', 'phone', 'is_active'],
       order: [['name', 'ASC']],
-      distinct: true
+      distinct: true,
     });
-    
+
     console.log(`✅ Se encontraron ${companies.length} compañías`);
     return companies;
   } catch (error) {
@@ -23,18 +23,18 @@ const getCompanies = async () => {
     console.error('Tipo de error:', error.name);
     console.error('Mensaje:', error.message);
     console.error('Stack completo:', error.stack);
-    
+
     if (error.original) {
       console.error('Error original:', error.original);
     }
     console.error('Mensaje:', error.message);
     console.error('Stack:', error.stack);
-    
+
     // Verificar si es un error de conexión a la base de datos
     if (error.original) {
       console.error('Error original:', error.original);
     }
-    
+
     throw new CustomError(500, 'Error fetching companies: ' + error.message);
   }
 };
@@ -44,12 +44,16 @@ const getCompanies = async () => {
  * @param {string} id
  * @returns {Promise<Company>}
  */
-const getCompanyById = async (id) => {
-  const company = await Company.findByPk(id);
-  if (!company) {
-    throw new CustomError(404, 'Company not found');
+const getCompanyById = async id => {
+  try {
+    const company = await Company.findByPk(id);
+    if (!company) {
+      throw new CustomError(404, 'Company not found');
+    }
+    return company;
+  } catch (error) {
+    throw error;
   }
-  return company;
 };
 
 /**
@@ -57,7 +61,7 @@ const getCompanyById = async (id) => {
  * @param {Object} companyData
  * @returns {Promise<Company>}
  */
-const createCompany = async (companyData) => {
+const createCompany = async companyData => {
   try {
     const company = await Company.create(companyData);
     return company;
@@ -77,7 +81,7 @@ const createCompany = async (companyData) => {
  */
 const updateCompany = async (id, updateBody) => {
   const company = await getCompanyById(id);
-  
+
   if (updateBody.name && (await Company.isNameTaken(updateBody.name, id))) {
     throw new ApiError(httpStatus.BAD_REQUEST, 'El nombre de la compañía ya está en uso');
   }
@@ -92,7 +96,7 @@ const updateCompany = async (id, updateBody) => {
  * @param {string} id
  * @returns {Promise<Company>}
  */
-const deleteCompany = async (id) => {
+const deleteCompany = async id => {
   const company = await getCompanyById(id);
   await company.destroy();
   return company;
@@ -115,14 +119,11 @@ const updateCompanyStatus = async (id, isActive) => {
     await company.save();
 
     // Actualizar el estado de los usuarios asociados
-    await User.update(
-      { is_active: isActive },
-      { where: { companyId: id } }
-    );
+    await User.update({ is_active: isActive }, { where: { companyId: id } });
 
     return {
       company,
-      message: `Compañía ${isActive ? 'activada' : 'desactivada'} exitosamente`
+      message: `Compañía ${isActive ? 'activada' : 'desactivada'} exitosamente`,
     };
   } catch (error) {
     console.error('Error updating company status:', error);

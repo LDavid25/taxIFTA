@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import {
   Container,
   Paper,
@@ -11,25 +11,25 @@ import {
   CircularProgress,
   Alert,
   FormControlLabel,
-  Switch
-} from '@mui/material';
-import { useSnackbar } from 'notistack';
-import { getCompanyById, updateCompany } from '../../services/companyService';
+  Switch,
+} from "@mui/material";
+import { useSnackbar } from "notistack";
+import { getCompanyById, updateCompany } from "../../services/companyService";
 
 const CompanyEdit = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { enqueueSnackbar } = useSnackbar();
-  
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [company, setCompany] = useState({
-    name: '',
-    contact_email: '',
-    phone: '',
-    distribution_mail: '',
-    is_active: true
+    name: "",
+    contact_email: "",
+    phone: "",
+    distribution_mail: "",
+    is_active: true,
   });
 
   // Fetch company data
@@ -37,31 +37,37 @@ const CompanyEdit = () => {
     const fetchCompany = async () => {
       try {
         setLoading(true);
-        console.log('Fetching company with ID:', id);
         const response = await getCompanyById(id);
-        console.log('Company data received:', response);
-        
+        console.log("Company data received:", response);
+
         if (response && response.data) {
           const companyData = response.data;
           setCompany({
-            name: companyData.name || '',
-            contact_email: companyData.contactEmail || companyData.contact_email || '',
-            phone: companyData.phone || '',
-            distribution_mail: companyData.distributionMail || companyData.distribution_mail || '',
-            is_active: companyData.status === 'active' || companyData.is_active === true
+            name: companyData.name || "",
+            contact_email:
+              companyData.contactEmail || companyData.contact_email || "",
+            phone: companyData.phone || "",
+            distribution_mail: companyData.distribution_emails || "",
+            is_active:
+              companyData.status === "active" || companyData.is_active === true,
           });
         } else {
-          console.error('Invalid response format:', response);
-          throw new Error('Formato de respuesta inválido del servidor');
+          console.error("Invalid response format:", response);
+          throw new Error("Formato de respuesta inválido del servidor");
         }
       } catch (err) {
-        console.error('Error fetching company:', {
+        console.error("Error fetching company:", {
           message: err.message,
           response: err.response?.data,
-          stack: err.stack
+          stack: err.stack,
         });
-        setError('Error al cargar los datos de la compañía: ' + (err.message || 'Error desconocido'));
-        enqueueSnackbar('Error al cargar los datos de la compañía', { variant: 'error' });
+        setError(
+          "Error al cargar los datos de la compañía: " +
+            (err.message || "Error desconocido"),
+        );
+        enqueueSnackbar("Error al cargar los datos de la compañía", {
+          variant: "error",
+        });
       } finally {
         setLoading(false);
       }
@@ -76,52 +82,56 @@ const CompanyEdit = () => {
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setCompany(prev => ({
+    setCompany((prev) => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value
+      [name]: type === "checkbox" ? checked : value,
     }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
-    setError('');
-    
+    setError("");
+
     try {
       const companyData = {
         name: company.name,
         contactEmail: company.contact_email,
         phone: company.phone,
         distributionMail: company.distribution_mail,
-        status: company.is_active ? 'active' : 'inactive'
+        status: company.is_active ? "active" : "inactive",
       };
 
-      console.log('Sending update request with data:', companyData);
-      
+      console.log("Sending update request with data:", companyData);
+
       const response = await updateCompany(id, companyData);
-      console.log('Update response:', response);
-      
-      if (response && (response.status === 'success' || response.data)) {
-        enqueueSnackbar('Compañía actualizada exitosamente', { variant: 'success' });
-        navigate('/admin/companies');
+      console.log("Update response:", response);
+
+      if (response && (response.status === "success" || response.data)) {
+        enqueueSnackbar("Compañía actualizada exitosamente", {
+          variant: "success",
+        });
+        navigate("/admin/companies");
       } else {
-        throw new Error('Respuesta inesperada del servidor');
+        throw new Error("Respuesta inesperada del servidor");
       }
     } catch (err) {
-      console.error('Error updating company:', {
+      console.error("Error updating company:", {
         message: err.message,
         response: err.response?.data,
         status: err.response?.status,
-        config: err.config
+        config: err.config,
       });
-      
-      const errorMessage = err.response?.data?.message || 
-                         (err.response?.data?.error || '') || 
-                         err.message || 
-                         'Error al actualizar la compañía';
-      
+
+      const errorMessage =
+        err.response?.data?.message ||
+        err.response?.data?.error ||
+        "" ||
+        err.message ||
+        "Error al actualizar la compañía";
+
       setError(errorMessage);
-      enqueueSnackbar(errorMessage, { variant: 'error' });
+      enqueueSnackbar(errorMessage, { variant: "error" });
     } finally {
       setSaving(false);
     }
@@ -140,9 +150,13 @@ const CompanyEdit = () => {
       <Paper elevation={3} sx={{ p: 4 }}>
         <Box mb={4}>
           <Typography variant="h5" component="h2" gutterBottom>
-            {id ? 'Editar Compañía' : 'Nueva Compañía'}
+            {id ? "Editar Compañía" : "Nueva Compañía"}
           </Typography>
-          {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+          {error && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {error}
+            </Alert>
+          )}
         </Box>
 
         <form onSubmit={handleSubmit}>
@@ -158,7 +172,7 @@ const CompanyEdit = () => {
                 margin="normal"
               />
             </Grid>
-            
+
             <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
@@ -189,7 +203,7 @@ const CompanyEdit = () => {
                 label="List Email"
                 name="list_email"
                 type="email"
-                value={company.list_email}
+                value={company.distribution_mail}
                 onChange={handleChange}
                 margin="normal"
               />
@@ -205,7 +219,7 @@ const CompanyEdit = () => {
                     color="primary"
                   />
                 }
-                label={company.is_active ? 'Activa' : 'Inactiva'}
+                label={company.is_active ? "Activa" : "Inactiva"}
               />
             </Grid>
 
@@ -213,7 +227,7 @@ const CompanyEdit = () => {
               <Box display="flex" justifyContent="flex-end" gap={2}>
                 <Button
                   variant="outlined"
-                  onClick={() => navigate('/admin/companies')}
+                  onClick={() => navigate("/admin/companies")}
                   disabled={saving}
                 >
                   Cancelar
@@ -224,7 +238,7 @@ const CompanyEdit = () => {
                   color="primary"
                   disabled={saving}
                 >
-                  {saving ? <CircularProgress size={24} /> : 'Guardar Cambios'}
+                  {saving ? <CircularProgress size={24} /> : "Guardar Cambios"}
                 </Button>
               </Box>
             </Grid>
@@ -236,3 +250,4 @@ const CompanyEdit = () => {
 };
 
 export default CompanyEdit;
+
