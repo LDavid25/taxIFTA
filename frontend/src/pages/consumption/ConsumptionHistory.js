@@ -1111,32 +1111,6 @@ const ConsumptionHistory = () => {
 												<TableCell>
 													<Chip
 														label={row.status}
-														color={
-															row.status === 'Paid'
-																? 'success'
-																: row.status === 'Pending'
-																? 'warning'
-																: 'default'
-														}
-														size="small"
-														sx={{ minWidth: 80, borderRadius: 1 }}
-													/>
-												</TableCell>
-												<TableCell align="left">{row.unitNumber}</TableCell>
-												<TableCell align="left">
-													{row.milesTraveled.toLocaleString(undefined, {
-														maximumFractionDigits: 2,
-													})}
-												</TableCell>
-												<TableCell align="left">
-													{row.totalGallons.toFixed(2)}
-												</TableCell>
-												{isAdmin(currentUser) && (
-													<TableCell align="left">{row.mpg}</TableCell>
-												)}
-												<TableCell align="left">
-													<Chip
-														label={row.status}
 														color={getStatusColor(row.status)}
 														size="small"
 														sx={{
@@ -1146,7 +1120,7 @@ const ConsumptionHistory = () => {
 														}}
 													/>
 												</TableCell>
-												<TableCell align="left">
+												<TableCell>
 													<IconButton
 														onClick={() => handleViewReceipt(row.id, row)}
 														size="small"

@@ -813,26 +813,26 @@ const ConsumptionCreate = () => {
 				</Breadcrumbs>
 
 				{isReportValid && (
-					<Alert severity="success" sx={{ mb: 3 }}>
+					<Alert severity="success" sx={{ mb: 1 }}>
 						No duplicates found, please proceed.
 					</Alert>
 				)}
 
-				<Typography variant="h5" sx={{ mb: 3 }}>
+				<Typography variant="h5" sx={{ mb: 1 }}>
 					New Consumption
 				</Typography>
-				<Typography variant="body1" sx={{ mb: 3 }}>
+				<Typography variant="body1" sx={{ mb: 1 }}>
 					Please fill the form below to register a new consumption record.
 				</Typography>
 
 				<form id="myForm" onSubmit={formik.handleSubmit}>
-					<Grid container spacing={3}>
+					<Grid container spacing={0}>
 						{/* Main form section */}
 						<Grid item xs={12} md={8}>
 							<Paper
 								elevation={2}
 								sx={{
-									p: 4,
+									p: 2,
 									borderRadius: 2,
 									backgroundColor: 'background.paper',
 									boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
@@ -840,8 +840,8 @@ const ConsumptionCreate = () => {
 							>
 								<Box
 									sx={{
-										mb: 4,
-										pb: 2,
+										mb: 2,
+										pb: 1,
 										borderBottom: '1px solid',
 										borderColor: 'divider',
 									}}
@@ -857,7 +857,7 @@ const ConsumptionCreate = () => {
 									</Typography>
 								</Box>
 
-								<Grid container spacing={3}>
+								<Grid container spacing={2}>
 									{/* Unit Number */}
 									<Grid item xs={8} sm={5} md={3}>
 										<TextField
@@ -1031,7 +1031,7 @@ const ConsumptionCreate = () => {
 									<Grid
 										item
 										xs={12}
-										sx={{ mt: 1, display: 'flex', justifyContent: 'flex-end' }}
+										sx={{ mt: 0, display: 'flex', justifyContent: 'flex-end' }}
 									>
 										{!isReportValid ? (
 											<Button
@@ -1131,10 +1131,7 @@ const ConsumptionCreate = () => {
 										<Box
 											key={index}
 											sx={{
-												p: 2,
-												mb: 2,
-												border: '1px solid',
-												borderColor: 'divider',
+												mb: 1,
 												borderRadius: 1,
 												backgroundColor: 'background.paper',
 												transition: 'all 0.2s ease-in-out',
@@ -1147,7 +1144,7 @@ const ConsumptionCreate = () => {
 												container
 												spacing={2}
 												alignItems="flex-end"
-												sx={{ paddingBottom: 1 }}
+												sx={{ p: 0.2 }}
 											>
 												<Grid item xs={12} sm={4}>
 													<Autocomplete
