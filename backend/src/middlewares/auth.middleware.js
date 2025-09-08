@@ -6,9 +6,10 @@ const AppError = require('../utils/appError');
 // Middleware para proteger rutas
 exports.protect = async (req, res, next) => {
   try {
-    console.log('=== Auth Middleware ===');
+    console.log('=== Auth Middleware Called ===');
     console.log('URL:', req.originalUrl);
     console.log('Method:', req.method);
+    console.log('Path:', req.path);
     
     // 1) Obtener el token y verificar si existe
     let token;

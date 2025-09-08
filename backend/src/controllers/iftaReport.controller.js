@@ -382,16 +382,49 @@ const getReportById = async (req, res, next) => {
     const { id } = req.params;
     const { company_id } = req;
 
+    console.log('=== DEBUG getReportById ===');
+    console.log('Requested ID:', id);
+    console.log('User company_id:', company_id);
+    console.log('User role:', req.user?.role);
+
+    // First check if report exists at all
+    const reportExists = await IftaReport.findByPk(id);
+    console.log('Report exists in DB:', !!reportExists);
+    if (reportExists) {
+      console.log('Report company_id in DB:', reportExists.company_id);
+      console.log('Report status:', reportExists.status);
+    }
+
+    // For admin users, allow access to any report
+    // For regular users, only allow access to reports from their company
+    const whereCondition = req.user?.role === 'admin'
+      ? { id }
+      : { id, company_id };
+
+    console.log('Where condition:', JSON.stringify(whereCondition, null, 2));
+
     const report = await IftaReport.findOne({
-      where: { id, company_id },
+      where: whereCondition,
       include: [
         { model: IftaReportState, as: 'states' },
         { model: IftaReportAttachment, as: 'attachments' },
         { model: IftaQuarterlyReport, as: 'quarterlyReport' },
+        {
+          model: db.Company,
+          as: 'company',
+          attributes: ['id', 'name'],
+        },
       ],
     });
 
+    console.log('Report found with conditions:', !!report);
+    if (report) {
+      console.log('Report states count:', report.states?.length || 0);
+      console.log('Report company name:', report.company?.name);
+    }
+
     if (!report) {
+      console.log('Report not found - returning 404');
       return next(new AppError('No se encontró el reporte', 404));
     }
 
@@ -572,12 +605,35 @@ const updateReport = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { company_id, user_id } = req;
-    const { vehicle_plate, report_year, report_month, notes, states } = req.body;
+    const { vehicle_plate, report_year, report_month, notes } = req.body;
     const files = req.files?.attachments || [];
 
-    // Buscar el reporte
+    // Parse states from form data (same as createReport)
+    const states = [];
+    Object.keys(req.body).forEach(key => {
+      if (key.startsWith('states[')) {
+        const match = key.match(/states\[(\d+)\]\.(\w+)/);
+        if (match) {
+          const index = parseInt(match[1]);
+          const prop = match[2];
+          if (!states[index]) {
+            states[index] = {};
+          }
+          states[index][prop] = req.body[key];
+        }
+      }
+    });
+
+    // Filter out any undefined entries and validate states
+    const validStates = states.filter(Boolean);
+
+    // Buscar el reporte - permitir acceso de admin a cualquier reporte
+    const whereCondition = req.user?.role === 'admin'
+      ? { id }
+      : { id, company_id };
+
     const report = await IftaReport.findOne({
-      where: { id, company_id },
+      where: whereCondition,
       transaction,
     });
 
@@ -589,7 +645,7 @@ const updateReport = async (req, res, next) => {
     // Verificar si ya existe otro reporte con los mismos datos
     if (vehicle_plate || report_year || report_month) {
       const where = {
-        company_id,
+        company_id: report.company_id, // Usar el company_id del reporte existente
         id: { [Op.ne]: id },
       };
 
@@ -612,7 +668,7 @@ const updateReport = async (req, res, next) => {
     if (notes !== undefined) reportData.notes = notes; // Usar 'notes' para coincidir con la base de datos
 
     // Si se actualizan los estados, recalcular totales
-    if (states && states.length > 0) {
+    if (validStates && validStates.length > 0) {
       const totals = states.reduce(
         (acc, state) => {
           acc.totalMiles += parseFloat(state.miles) || 0;
@@ -632,7 +688,7 @@ const updateReport = async (req, res, next) => {
       });
 
       await Promise.all(
-        states.map(state =>
+        validStates.map(state =>
           IftaReportState.create(
             {
               report_id: id,
@@ -685,6 +741,11 @@ const updateReport = async (req, res, next) => {
         { model: IftaReportState, as: 'states' },
         { model: IftaReportAttachment, as: 'attachments' },
         { model: IftaQuarterlyReport, as: 'quarterlyReport' },
+        {
+          model: db.Company,
+          as: 'company',
+          attributes: ['id', 'name'],
+        },
       ],
     });
 

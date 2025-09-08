@@ -76,5 +76,17 @@ module.exports = (sequelize, DataTypes) => {
     });
   };
 
+  // Check if company name is already taken
+  Company.isNameTaken = async function(name, excludeCompanyId = null) {
+    const where = { name };
+    
+    if (excludeCompanyId) {
+      where.id = { [sequelize.Sequelize.Op.ne]: excludeCompanyId };
+    }
+    
+    const company = await this.findOne({ where });
+    return !!company;
+  };
+
   return Company;
 };

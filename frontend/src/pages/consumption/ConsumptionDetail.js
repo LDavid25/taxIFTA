@@ -703,6 +703,20 @@ const ConsumptionDetail = () => {
             </Grid>
             <Grid item>
               <Box display="flex" gap={1}>
+                {safeConsumption.status !== 'completed' && (
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    startIcon={<EditIcon />}
+                    onClick={() => {
+                      const basePath = currentUser?.role === 'admin' ? '/admin' : '/client';
+                      navigate(`${basePath}/consumption/edit/${id}`);
+                    }}
+                    sx={{ mr: 1 }}
+                  >
+                    Edit Report
+                  </Button>
+                )}
                 <Button
                   variant="outlined"
                   startIcon={<PrintIcon />}

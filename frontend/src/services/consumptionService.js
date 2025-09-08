@@ -75,6 +75,19 @@ export const getConsumptionReportById = async (id) => {
       throw new Error('La respuesta del servidor está vacía');
     }
     
+    // Verificar si la respuesta tiene la estructura esperada
+    if (!response.data.data) {
+      // Si no hay data, asumimos que la respuesta es el reporte directamente
+      const report = response.data;
+      
+      return {
+        ...report,
+        states: report.states || [],
+        attachments: report.attachments || [],
+        company_id: report.company_id || null
+      };
+    }
+    
     // Extraer los datos del informe de la respuesta
     const { report } = response.data.data || {};
     
@@ -88,7 +101,8 @@ export const getConsumptionReportById = async (id) => {
     const formattedReport = {
       id: report.id,
       vehicle_plate: report.vehicle_plate,
-      company_name: report.company_name || report.vehicle?.company?.name || '', // Asegurar que company_name esté incluido
+      company_id: report.company_id || (report.vehicle ? report.vehicle.company_id : null),
+      company_name: report.company_name || (report.vehicle?.company?.name || ''),
       report_year: report.report_year,
       report_month: report.report_month,
       status: report.status,
@@ -97,7 +111,8 @@ export const getConsumptionReportById = async (id) => {
       notes: report.notes || '',
       created_at: report.created_at,
       updated_at: report.updated_at,
-      // Incluir estados si existen
+      states: Array.isArray(report.states) ? report.states : [],
+      attachments: Array.isArray(report.attachments) ? report.attachments : [],
       states: (report.states || []).map(state => ({
         id: state.id,
         state_code: state.state_code,
@@ -132,41 +147,39 @@ export const getConsumptionReportById = async (id) => {
 };
 
 // Actualizar un informe de consumo
-export const updateConsumptionReport = async (id, reportData) => {
+export const updateConsumptionReport = async (id, formData) => {
   try {
-    const formData = new FormData();
+    console.log(`Actualizando informe con ID: ${id}`, formData);
     
-    // Agregar campos del reporte
-    if (reportData.unitNumber) formData.append('vehicle_plate', reportData.unitNumber);
-    if (reportData.year) formData.append('report_year', reportData.year);
-    if (reportData.month) formData.append('report_month', reportData.month);
-    if (reportData.notes !== undefined) formData.append('notes', reportData.notes || '');
-    
-    // Agregar estados si existen
-    if (reportData.stateEntries) {
-      reportData.stateEntries.forEach((entry, index) => {
-        formData.append(`states[${index}].state_code`, entry.state);
-        formData.append(`states[${index}].miles`, entry.miles);
-        formData.append(`states[${index}].gallons`, entry.gallons);
-      });
-    }
-    
-    // Agregar archivos adjuntos si existen
-    if (reportData.files && reportData.files.length > 0) {
-      reportData.files.forEach((file) => {
-        formData.append('attachments', file);
-      });
-    }
-    
-    const response = await api.put(`${API_URL}/${id}`, formData, {
+    // No crear un nuevo FormData, usar el que ya viene
+    // Configurar headers para FormData (Content-Type se establecerá automáticamente con el boundary)
+    const config = {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
+    };
+    
+    const response = await api.patch(`${API_URL}/${id}`, formData, config);
+    
+    if (!response.data) {
+      throw new Error('La respuesta del servidor está vacía');
+    }
+    
+    console.log('Respuesta de actualización:', response.data);
+    return response.data;
+    
+  } catch (error) {
+    console.error('Error en updateConsumptionReport:', {
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status
     });
     
-    return response.data;
-  } catch (error) {
-    throw error.response?.data || { message: 'Error al actualizar el informe de consumo' };
+    const errorMessage = error.response?.data?.message || 
+                        error.message || 
+                        'Error al actualizar el informe de consumo';
+    
+    throw new Error(errorMessage);
   }
 };
 

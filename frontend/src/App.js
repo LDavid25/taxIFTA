@@ -38,6 +38,7 @@ import Profile from './pages/profile/Profile';
 // Páginas privadas - Historial de Consumo
 import ConsumptionCreate from './pages/consumption/ConsumptionCreate';
 import ConsumptionDetail from './pages/consumption/ConsumptionDetail';
+import ConsumptionEdit from './pages/consumption/ConsumptionEdit';
 import ConsumptionHistory from './pages/consumption/ConsumptionHistory';
 
 // Páginas de compañías
@@ -217,6 +218,9 @@ function App() {
 								element={<ConsumptionCreate />}
 							/>
 							<Route path="consumption/:id" element={<ConsumptionDetail />} />
+							<Route path="consumption/edit/:id" element={<ConsumptionEdit />} />
+							<Route path="consumption/edit/:id" element={<ConsumptionEdit />} />
+							<Route path="consumption/edit/:id" element={<ConsumptionEdit />} />
 						</Route>
 
 						{/* Rutas protegidas - Cliente o Usuario */}

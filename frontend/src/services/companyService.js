@@ -110,56 +110,66 @@ export const createCompany = async (companyData) => {
 // Actualizar una compañía existente
 export const updateCompany = async (id, companyData) => {
   try {
-    console.log("Actualizando compañía con ID:", id, "Datos:", companyData);
-
-    // Asegurarse de que los campos estén en el formato correcto
-    const formattedData = {
-      ...companyData,
-      contactEmail: companyData.contactEmail || companyData.contact_email || "",
-      phone: companyData.phone || "",
-      distributionMail:
-        companyData.distributionMail || companyData.distribution_mail || "",
-      status:
-        companyData.status || (companyData.is_active ? "active" : "inactive"),
-    };
-
-    console.log("Datos formateados para actualización:", formattedData);
-
-    const response = await api.patch(
-      `${API_URL}/companies/${id}`,
-      formattedData,
-    );
-    console.log("Respuesta de actualización:", response.data);
-
-    // Verificar si la respuesta tiene el formato esperado
-    if (response.data && (response.data.data || response.data.id)) {
-      // Si la respuesta ya tiene un formato { status, data }
-      if (response.data.data) {
-        return response.data;
-      }
-      // Si la respuesta es el objeto de la compañía directamente
-      return {
-        status: "success",
-        data: response.data,
-      };
+    const companyId = String(id).trim();
+    if (!companyId) {
+      throw new Error("ID de compañía no válido");
     }
 
-    throw new Error("Formato de respuesta inesperado del servidor");
+    // Prepare the data in the exact format expected by the backend
+    const requestData = {
+      name: companyData.name,
+      contactEmail: companyData.contactEmail || companyData.contact_email || "",
+      phone: companyData.phone || "",
+      // Ensure distribution_mail is an array of strings
+      distribution_mail: Array.isArray(companyData.distribution_mail) 
+        ? companyData.distribution_mail.filter(email => 
+            email && typeof email === 'string' && email.includes('@')
+          )
+        : [],
+      status: companyData.status || (companyData.is_active ? "active" : "inactive"),
+    };
+
+    console.log("=== SENDING TO BACKEND ===");
+    console.log(`PATCH ${API_URL}/companies/${companyId}`);
+    console.log("Request Data:", JSON.stringify(requestData, null, 2));
+    
+    const response = await api.patch(
+      `${API_URL}/companies/${companyId}`,
+      requestData,
+      {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+    
+    console.log("=== BACKEND RESPONSE ===");
+    console.log("Status:", response.status);
+    console.log("Data:", response.data);
+    
+    if (!response.data) {
+      throw new Error("El servidor no devolvió datos");
+    }
+    
+    return response.data;
+    
   } catch (error) {
-    console.error("Error al actualizar la compañía:", {
-      message: error.message,
-      response: error.response?.data,
-      status: error.response?.status,
-    });
-
-    // Mejorar el mensaje de error
-    const errorMessage =
-      error.response?.data?.message ||
-      error.response?.data?.error ||
-      "" ||
-      error.message ||
-      "Error al actualizar la compañía";
-
+    console.error("=== ERROR UPDATING COMPANY ===");
+    
+    let errorMessage = "Error al actualizar la compañía";
+    
+    if (error.response) {
+      console.error("Response Status:", error.response.status);
+      console.error("Response Data:", error.response.data);
+      
+      errorMessage = error.response.data?.message || 
+                   error.response.data?.error || 
+                   error.message || 
+                   errorMessage;
+    } else {
+      console.error("Error:", error);
+    }
+    
     throw new Error(errorMessage);
   }
 };

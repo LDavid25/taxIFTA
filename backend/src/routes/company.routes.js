@@ -141,7 +141,30 @@ router.post('/', createCompany);
  *             schema:
  *               $ref: '#/components/schemas/Company'
  */
-router.patch('/:id', updateCompany);
+router.patch('/:id', async (req, res, next) => {
+  try {
+    console.log('PATCH /companies/:id - Request received', {
+      params: req.params,
+      body: req.body,
+      idType: typeof req.params.id
+    });
+    
+    const company = await updateCompany(req.params.id, req.body);
+    
+    res.status(200).json({
+      status: 'success',
+      data: company
+    });
+  } catch (error) {
+    console.error('Error in PATCH /companies/:id:', {
+      error: error.message,
+      stack: error.stack,
+      params: req.params,
+      body: req.body
+    });
+    next(error);
+  }
+});
 
 /**
  * @swagger

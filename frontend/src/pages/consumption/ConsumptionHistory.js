@@ -1134,9 +1134,8 @@ const ConsumptionHistory = () => {
 															color="primary"
 															onClick={(e) => {
 																e.stopPropagation();
-																navigate(
-																	`/admin/consumption/edit/${row.companyId}`
-																);
+																const basePath = currentUser?.role === 'admin' ? '/admin' : '/client';
+																navigate(`${basePath}/consumption/edit/${row.id}`);
 															}}
 															aria-label="edit"
 															size="small"

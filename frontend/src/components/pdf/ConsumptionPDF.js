@@ -11,7 +11,7 @@ import {
 import { format } from 'date-fns';
 import { enUS } from 'date-fns/locale';
 // Base64 encoded transparent 1x1 pixel as fallback
-const logo = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
+import logo from '../../assets/img/dtp-logo.png';
 
 // Register fonts
 Font.register({

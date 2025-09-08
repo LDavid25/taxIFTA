@@ -63,19 +63,8 @@ const UserEditForm = ({ user: userProp, onSubmit, loading: saving }) => {
 
   // Form validation function
   const validate = (values) => {
-    const errors = {};
-    // Check that at least one field has a value
-    const hasChanges = Object.entries(values).some(([key, value]) => {
-      // Ignore is_active field in change verification
-      if (key === "is_active") return false;
-      return value !== null && value !== "" && value !== initialValues[key];
-    });
-
-    if (!hasChanges) {
-      errors._form = "You must make at least one change to save";
-    }
-
-    return errors;
+    // No validation needed for changes
+    return {};
   };
 
   const formik = useFormik({

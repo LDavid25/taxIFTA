@@ -28,7 +28,8 @@ const CompanyEdit = () => {
     name: "",
     contact_email: "",
     phone: "",
-    distribution_mail: "",
+    distribution_mail: [],
+    emailInput: "", // Store raw input here
     is_active: true,
   });
 
@@ -37,19 +38,34 @@ const CompanyEdit = () => {
     const fetchCompany = async () => {
       try {
         setLoading(true);
+        console.log('Fetching company with ID:', id);
         const response = await getCompanyById(id);
-        console.log("Company data received:", response);
-
+        console.log('Company data received:', response);
+        
         if (response && response.data) {
           const companyData = response.data;
+          
+          // Asegurarse de que los correos sean un array
+          let emails = [];
+          if (companyData.distribution_mail) {
+            emails = Array.isArray(companyData.distribution_mail) 
+              ? companyData.distribution_mail 
+              : [companyData.distribution_mail];
+          } else if (companyData.distribution_emails) {
+            emails = Array.isArray(companyData.distribution_emails)
+              ? companyData.distribution_emails
+              : [companyData.distribution_emails];
+          }
+          
+          console.log('Processed emails:', emails);
+          
           setCompany({
             name: companyData.name || "",
-            contact_email:
-              companyData.contactEmail || companyData.contact_email || "",
+            contact_email: companyData.contactEmail || companyData.contact_email || "",
             phone: companyData.phone || "",
-            distribution_mail: companyData.distribution_emails || "",
-            is_active:
-              companyData.status === "active" || companyData.is_active === true,
+            distribution_mail: emails,
+            emailInput: emails.join(', '), // Inicializar el input con los correos
+            is_active: companyData.status === "active" || companyData.is_active === true,
           });
         } else {
           console.error("Invalid response format:", response);
@@ -88,33 +104,75 @@ const CompanyEdit = () => {
     }));
   };
 
+  const handleEmailChange = (e) => {
+    const value = e.target.value;
+    // Solo actualizamos el valor del input cuando el usuario está escribiendo
+    setCompany(prev => ({
+      ...prev,
+      emailInput: value
+    }));
+  };
+
+  // Actualizar la lista de correos cuando el input pierde el foco
+  const handleEmailBlur = () => {
+    const emails = company.emailInput
+      .split(',')
+      .map(email => email.trim())
+      .filter(email => email !== ''); // Filtrar correos vacíos
+      
+    const validEmails = [...new Set(emails.filter(email => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)))];
+    
+    // Mostrar advertencia si hay correos inválidos
+    if (emails.length > validEmails.length) {
+      enqueueSnackbar('some emails are invalid and will not be saved', { variant: 'warning' });
+    }
+    
+    // Actualizar tanto el emailInput como distribution_mail
+    setCompany(prev => ({
+      ...prev,
+      emailInput: validEmails.join(', '),  // Actualizar con correos válidos formateados
+      distribution_mail: validEmails       // Actualizar el array de correos
+    }));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setSaving(true);
     setError("");
+    setSaving(true);
 
     try {
+      // Procesar los correos antes de enviar
+      const emails = company.emailInput
+        .split(',')
+        .map(email => email.trim())
+        .filter(email => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email));
+      
+      const uniqueEmails = [...new Set(emails)];
+      
+      // Preparar los datos para enviar al backend
       const companyData = {
         name: company.name,
         contactEmail: company.contact_email,
         phone: company.phone,
-        distributionMail: company.distribution_mail,
+        distribution_mail: uniqueEmails,
         status: company.is_active ? "active" : "inactive",
       };
-
-      console.log("Sending update request with data:", companyData);
-
+      
+      console.log('Enviando datos al servidor:', companyData);
+      
+      console.log('=== SENDING COMPANY UPDATE ===');
+      console.log('Company ID:', id);
+      console.log('Request data:', JSON.stringify(companyData, null, 2));
+      
       const response = await updateCompany(id, companyData);
-      console.log("Update response:", response);
+      
+      console.log('=== UPDATE SUCCESSFUL ===');
+      console.log('Response:', response);
 
-      if (response && (response.status === "success" || response.data)) {
-        enqueueSnackbar("Compañía actualizada exitosamente", {
-          variant: "success",
-        });
-        navigate("/admin/companies");
-      } else {
-        throw new Error("Respuesta inesperada del servidor");
-      }
+      enqueueSnackbar('Company updated successfully', { variant: 'success' });
+      
+      // Redirect back to companies list after successful update
+      navigate('/admin/companies');
     } catch (err) {
       console.error("Error updating company:", {
         message: err.message,
@@ -150,7 +208,7 @@ const CompanyEdit = () => {
       <Paper elevation={3} sx={{ p: 4 }}>
         <Box mb={4}>
           <Typography variant="h5" component="h2" gutterBottom>
-            {id ? "Editar Compañía" : "Nueva Compañía"}
+            {id ? "Edit Company" : "New Company"}
           </Typography>
           {error && (
             <Alert severity="error" sx={{ mb: 2 }}>
@@ -197,14 +255,17 @@ const CompanyEdit = () => {
               />
             </Grid>
 
-            <Grid item xs={12} md={6}>
+            <Grid item xs={12}>
               <TextField
                 fullWidth
-                label="List Email"
-                name="list_email"
-                type="email"
-                value={company.distribution_mail}
-                onChange={handleChange}
+                label="Notification emails (comma separated)"
+                placeholder="email1@example.com, email2@example.com"
+                value={company.emailInput || ''}
+                onChange={handleEmailChange}
+                onBlur={handleEmailBlur}
+                helperText={company.distribution_mail?.length > 0 
+                  ? `${company.distribution_mail.length} valid email(s) will be saved` 
+                  : "Enter email addresses separated by commas"}
                 margin="normal"
               />
             </Grid>
@@ -219,7 +280,7 @@ const CompanyEdit = () => {
                     color="primary"
                   />
                 }
-                label={company.is_active ? "Activa" : "Inactiva"}
+                label={company.is_active ? "Active" : "Inactive"}
               />
             </Grid>
 
@@ -230,7 +291,7 @@ const CompanyEdit = () => {
                   onClick={() => navigate("/admin/companies")}
                   disabled={saving}
                 >
-                  Cancelar
+                  Cancel
                 </Button>
                 <Button
                   type="submit"
@@ -238,7 +299,7 @@ const CompanyEdit = () => {
                   color="primary"
                   disabled={saving}
                 >
-                  {saving ? <CircularProgress size={24} /> : "Guardar Cambios"}
+                  {saving ? <CircularProgress size={24} /> : "Save Changes"}
                 </Button>
               </Box>
             </Grid>
