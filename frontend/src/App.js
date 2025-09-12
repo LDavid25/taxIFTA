@@ -232,7 +232,7 @@ function App() {
 								</ProtectedRoute>
 							}
 						>
-							<Route index element={<Navigate to="consumption" replace />} />
+							<Route index element={<Navigate to="dashboard" replace />} />
 							<Route path="dashboard" element={<DashboardCliente />} />
 							<Route path="contact" element={<ContactPage />} />
 							<Route path="profile" element={<Profile />} />
@@ -248,6 +248,7 @@ function App() {
 								element={<ConsumptionCreate />}
 							/>
 							<Route path="consumption/:id" element={<ConsumptionDetail />} />
+							<Route path="consumption/edit/:id" element={<ConsumptionEdit />} />
 						</Route>
 
 						{/* Ruta de no autorizado */}

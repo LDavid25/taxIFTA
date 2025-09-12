@@ -812,7 +812,7 @@ const ConsumptionHistory = () => {
 							navigate(`${basePath}/consumption/create`);
 						}}
 					>
-						Add record
+						New capture
 					</Button>
 				</Box>
 

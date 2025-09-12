@@ -82,13 +82,22 @@ const validationSchema = Yup.object({
 			miles: Yup.number()
 				.typeError('Must be a number')
 				.nullable()
-				.min(1, 'Miles cannot be negative'),
+				.test('not-empty', 'Miles cannot be empty', value => value !== '')
+				.min(0, 'Miles must be a positive number'),
 			gallons: Yup.number()
 				.typeError('Must be a number')
 				.nullable()
-				.min(0, 'Gallons cannot be negative'),
+				.test('not-empty', 'Gallons cannot be empty', value => value !== '')
+				.min(0, 'Gallons must be a positive number'),
 		})
-	),
+	).test('no-empty-fields', 'Please fill in all required fields', function (stateEntries) {
+		if (!stateEntries) return true; // Skip if no entries
+
+		return stateEntries.every(entry => {
+			if (!entry.state) return true; // Skip if no state selected
+			return entry.miles !== '' && entry.gallons !== '';
+		});
+	}),
 });
 
 const ConsumptionCreate = () => {
@@ -327,6 +336,7 @@ const ConsumptionCreate = () => {
 
 	const handleContinue = async (values) => {
 		try {
+			// Check required fields
 			if (!values.unitNumber || !values.year || !values.month) {
 				setSnackbar({
 					open: true,
@@ -334,6 +344,44 @@ const ConsumptionCreate = () => {
 					severity: 'error',
 				});
 				return false;
+			}
+
+			// Additional validation for admin users - company is required
+			if (isAdmin && !values.companyId) {
+				setSnackbar({
+					open: true,
+					message: 'Please select a company',
+					severity: 'error',
+				});
+				return false;
+			}
+
+			// Validate state entries
+			if (values.stateEntries) {
+				for (const [index, entry] of values.stateEntries.entries()) {
+					if (entry.state) {
+						// Check if gallons is empty
+						if (!entry.gallons || entry.gallons === '') {
+							setSnackbar({
+								open: true,
+								message: `Please enter gallons for the selected state in row ${index + 1}`,
+								severity: 'error',
+							});
+							return false;
+						}
+
+						// Check if gallons is a valid positive number
+						const gallons = parseFloat(entry.gallons);
+						if (isNaN(gallons) || gallons < 0) {
+							setSnackbar({
+								open: true,
+								message: `Please enter a valid positive number for gallons in row ${index + 1}`,
+								severity: 'error',
+							});
+							return false;
+						}
+					}
+				}
 			}
 
 			setIsChecking(true);
@@ -807,7 +855,7 @@ const ConsumptionCreate = () => {
 						}
 						color="inherit"
 					>
-						Consumption
+						Report
 					</Link>
 					<Typography color="text.primary">New Report</Typography>
 				</Breadcrumbs>
@@ -819,10 +867,10 @@ const ConsumptionCreate = () => {
 				)}
 
 				<Typography variant="h5" sx={{ mb: 1 }}>
-					New Consumption
+					New Report
 				</Typography>
 				<Typography variant="body1" sx={{ mb: 1 }}>
-					Please fill the form below to register a new consumption record.
+					Please fill the form below to register a new Report.
 				</Typography>
 
 				<form id="myForm" onSubmit={formik.handleSubmit}>
@@ -854,13 +902,13 @@ const ConsumptionCreate = () => {
 										Report Information
 									</Typography>
 									<Typography variant="body2" color="text.secondary">
-										Enter the basic information for this consumption report
+										Enter the basic information for this Report
 									</Typography>
 								</Box>
 
-								<Grid container spacing={2} sx={{ flexWrap: { xs: 'wrap', sm: 'nowrap' } }}>
+								<Grid container spacing={1} sx={{ flexWrap: { xs: 'wrap', sm: 'nowrap' } }}>
 									{/* Unit Number */}
-									<Grid item xs={12} sm={5} md={5} sx={{ minWidth: { xs: '100%', sm: 'auto' } }}>
+									<Grid item xs={12} sm={5} md={2} sx={{ minWidth: { xs: '100%', sm: 'auto' } }}>
 										<TextField
 											id="unitNumber"
 											name="unitNumber"
@@ -886,7 +934,7 @@ const ConsumptionCreate = () => {
 
 									{/* Company (Admin only) */}
 									{isAdmin && (
-										<Grid item xs={12} sm={3} md={6} sx={{ minWidth: { xs: '100%', sm: 'auto' } }}>
+										<Grid item xs={12} sm={3} md={2} sx={{ minWidth: { xs: '100%', sm: 'auto' } }}>
 											<FormControl
 												fullWidth
 												error={
@@ -930,7 +978,7 @@ const ConsumptionCreate = () => {
 									)}
 
 									{/* Year, Month and Quarter */}
-									<Grid item xs={12} sm={5} md={1.5} sx={{ minWidth: { xs: '100%', sm: 'auto' } }}>
+									<Grid item xs={12} sm={5} md={3} sx={{ minWidth: { xs: '100%', sm: 'auto' } }}>
 										<TextField
 											select
 											fullWidth
@@ -957,7 +1005,7 @@ const ConsumptionCreate = () => {
 											))}
 										</TextField>
 									</Grid>
-									<Grid item container spacing={2} xs={12} sm={3} sx={{ minWidth: { xs: '100%', sm: 'auto' } }}>
+									<Grid item container spacing={2} xs={12} sm={3} md={7} sx={{ minWidth: { xs: '100%', sm: 'auto' } }}>
 										<Grid item xs={6}>
 											<TextField
 												select
@@ -1032,8 +1080,15 @@ const ConsumptionCreate = () => {
 									<Grid
 										item
 										xs={12}
-										md={6}
-										sx={{ mt: 0, display: 'flex', justifyContent: 'flex-end' }}
+										sm={3}
+										md={2}
+										sx={{
+											mt: 0,
+											display: 'flex',
+											justifyContent: 'flex-end',
+											alignItems: 'center',
+											minWidth: { sm: 'auto' }
+										}}
 									>
 										{!isReportValid ? (
 											<Button
@@ -1042,14 +1097,7 @@ const ConsumptionCreate = () => {
 												color="primary"
 												onClick={async () => {
 													const errors = await formik.validateForm();
-													const hasErrors = Object.values(errors).some(
-														(val) =>
-															(Array.isArray(val) &&
-																val.some(
-																	(item) => item && Object.keys(item).length > 0
-																)) ||
-															(!Array.isArray(val) && val)
-													);
+													const hasErrors = Object.keys(errors).length > 0;
 
 													if (!hasErrors) {
 														await handleContinue(formik.values);
@@ -1062,12 +1110,16 @@ const ConsumptionCreate = () => {
 													isChecking
 												}
 												sx={{
-													minWidth: 120,
+													width: '100%',
 													textTransform: 'none',
 													fontWeight: 500,
 													boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+													whiteSpace: 'nowrap',
 													'&:hover': {
 														boxShadow: '0 4px 8px rgba(0,0,0,0.15)',
+													},
+													'@media (max-width: 600px)': {
+														width: '100%',
 													},
 												}}
 											>
@@ -1078,27 +1130,14 @@ const ConsumptionCreate = () => {
 												)}
 											</Button>
 										) : (
-											<Button
-												type="button"
-												variant="outlined"
-												color="success"
-												startIcon={<CheckCircleOutline />}
-												sx={{
-													borderWidth: '2px',
-													'&:hover': {
-														borderWidth: '2px',
-													},
-												}}
-											>
-												Ready to Submit
-											</Button>
+											<CheckCircleOutline color="success" sx={{ width: '100%', textAlign: 'center' }} />
 										)}
 									</Grid>
 								</Grid>
 							</Paper>
 						</Grid>
 
-						{/* Jurisdictions and Consumption Section */}
+						{/* Jurisdictions and Report Section */}
 						{isReportValid && (
 							<Grid item xs={12} md={8}>
 								<Paper
@@ -1123,10 +1162,10 @@ const ConsumptionCreate = () => {
 											variant="h6"
 											sx={{ fontWeight: 600, color: 'text.primary' }}
 										>
-											Jurisdictions and Consumption
+											Jurisdictions and Report
 										</Typography>
 										<Typography variant="body2" color="text.secondary">
-											Add states and their corresponding fuel consumption data
+											Add states and their corresponding fuel data
 										</Typography>
 									</Box>
 									{formik.values.stateEntries?.map((entry, index) => (
@@ -1219,12 +1258,25 @@ const ConsumptionCreate = () => {
 														value={entry.miles}
 														size="small"
 														onChange={(e) => {
-															const value = parseFloat(e.target.value);
-															if (isNaN(value) || value >= 0) {
-																formik.handleChange(e);
+															const value = e.target.value;
+															// Only allow positive numbers or empty string
+															if (value === '' || (parseFloat(value) > 0 && !isNaN(parseFloat(value)))) {
+																formik.setFieldValue(`stateEntries.${index}.miles`, value);
 															}
 														}}
-														onBlur={formik.handleBlur}
+														onBlur={(e) => {
+															const value = e.target.value;
+															if (value && value !== '') {
+																const num = parseFloat(value);
+																if (!isNaN(num) && num > 0) {
+																	formik.setFieldValue(`stateEntries.${index}.miles`, num.toFixed(2));
+																} else {
+																	// If the value is not a valid positive number, clear the field
+																	formik.setFieldValue(`stateEntries.${index}.miles`, '');
+																}
+															}
+															formik.handleBlur(e);
+														}}
 														error={
 															formik.touched.stateEntries?.[index]?.miles &&
 															Boolean(
@@ -1235,7 +1287,12 @@ const ConsumptionCreate = () => {
 															formik.touched.stateEntries?.[index]?.miles &&
 															formik.errors.stateEntries?.[index]?.miles
 														}
-														inputProps={{ min: 0, step: '0.01' }}
+														inputProps={{
+															step: '0.01',
+															inputMode: 'decimal',
+															min: '0.01',
+															pattern: '^[0-9]*\.?[0-9]*$' // Only allow numbers and decimal point
+														}}
 													/>
 												</Grid>
 												<Grid item xs={12} sm={3}>
@@ -1248,27 +1305,53 @@ const ConsumptionCreate = () => {
 														size="small"
 														onChange={(e) => {
 															const value = e.target.value;
-															// Only allow numbers with up to 3 decimal places
-															if (
-																value === '' ||
-																/^\d*\.?\d{0,3}$/.test(value)
-															) {
-																formik.setFieldValue(e.target.name, value);
+															// Allow empty string, decimal numbers, and 0
+															if (value === '' || /^\d*\.?\d*$/.test(value)) {
+																formik.setFieldValue(
+																	`stateEntries.${index}.gallons`,
+																	value
+																);
 															}
 														}}
 														onBlur={(e) => {
-															// Round to 3 decimal places on blur
-															const value = parseFloat(e.target.value);
-															if (isNaN(value) || value >= 0) {
-																formik.handleChange(e);
-															}
-															if (!isNaN(value)) {
-																formik.setFieldValue(
-																	e.target.name,
-																	value.toFixed(3)
+															// Format the value to have 3 decimal places when focus is lost
+															if (e.target.value && e.target.value !== '') {
+																const num = parseFloat(e.target.value);
+																if (!isNaN(num) && num >= 0) {
+																	formik.setFieldValue(
+																		`stateEntries.${index}.gallons`,
+																		num.toFixed(3)
+																	);
+																} else {
+																	// Show error for negative numbers
+																	formik.setFieldError(
+																		`stateEntries.${index}.gallons`,
+																		'Gallons must be a positive number or zero'
+																	);
+																	return;
+																}
+															} else if (entry.state) {
+																// Show error if state is selected but gallons is empty
+																formik.setFieldError(
+																	`stateEntries.${index}.gallons`,
+																	'Gallons are required when a state is selected'
 																);
+																return;
 															}
 															formik.handleBlur(e);
+														}}
+														onKeyDown={(e) => {
+															// Prevent negative numbers from being entered
+															if (e.key === '-' || e.key === 'e' || e.key === 'E') {
+																e.preventDefault();
+															}
+														}}
+														onPaste={(e) => {
+															// Prevent pasting negative numbers
+															const pastedData = e.clipboardData.getData('text');
+															if (pastedData.startsWith('-') || isNaN(pastedData)) {
+																e.preventDefault();
+															}
 														}}
 														error={
 															formik.touched.stateEntries?.[index]?.gallons &&
@@ -1280,7 +1363,17 @@ const ConsumptionCreate = () => {
 															formik.touched.stateEntries?.[index]?.gallons &&
 															formik.errors.stateEntries?.[index]?.gallons
 														}
-														inputProps={{ min: 0, step: '0.001' }}
+														inputProps={{
+															min: 0,
+															step: '0.001',
+															onPaste: (e) => {
+																// Prevent pasting negative numbers
+																const pastedData = e.clipboardData.getData('text');
+																if (pastedData.startsWith('-') || isNaN(pastedData)) {
+																	e.preventDefault();
+																}
+															}
+														}}
 													/>
 												</Grid>
 												<Grid item xs={12} sm={1} sx={{ textAlign: 'center' }}>
@@ -1347,7 +1440,43 @@ const ConsumptionCreate = () => {
 										boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
 									}}
 								>
-									<Box sx={{ mb: 3 }}>
+
+									<Box>
+										<Typography
+											variant="subtitle1"
+											sx={{ mb: 2, fontWeight: 500 }}
+										>
+											Additional Notes (Optional)
+										</Typography>
+										<TextField
+											fullWidth
+											multiline
+											rows={4}
+											placeholder="Add any additional notes or comments here..."
+											variant="outlined"
+											name="notes"
+											value={formik.values.notes || ''}
+											onChange={formik.handleChange}
+											size="small"
+											sx={{
+												'& .MuiOutlinedInput-root': {
+													'&:hover fieldset': {
+														borderColor: 'primary.main',
+													},
+													'&.Mui-focused fieldset': {
+														borderWidth: '1px',
+													},
+												},
+											}}
+										/>
+									</Box>
+
+									<Box sx={{
+										mt: 4,
+										pt: 3,
+										borderTop: '1px solid',
+										borderColor: 'divider',
+									}}>
 										<Typography
 											variant="h6"
 											sx={{ fontWeight: 600, color: 'text.primary', mb: 1 }}
@@ -1496,7 +1625,7 @@ const ConsumptionCreate = () => {
 																				sx={{ mr: 1, flexShrink: 0 }}
 																			/>
 																		) : fileData.file.type ===
-																		  'application/pdf' ? (
+																			'application/pdf' ? (
 																			<PictureAsPdfIcon
 																				color="error"
 																				sx={{ mr: 1, flexShrink: 0 }}
@@ -1587,42 +1716,7 @@ const ConsumptionCreate = () => {
 											</Box>
 										</label>
 									</Box>
-									<Box
-										sx={{
-											mt: 4,
-											pt: 3,
-											borderTop: '1px solid',
-											borderColor: 'divider',
-										}}
-									>
-										<Typography
-											variant="subtitle1"
-											sx={{ mb: 2, fontWeight: 500 }}
-										>
-											Additional Notes (Optional)
-										</Typography>
-										<TextField
-											fullWidth
-											multiline
-											rows={4}
-											placeholder="Add any additional notes or comments here..."
-											variant="outlined"
-											name="notes"
-											value={formik.values.notes || ''}
-											onChange={formik.handleChange}
-											size="small"
-											sx={{
-												'& .MuiOutlinedInput-root': {
-													'&:hover fieldset': {
-														borderColor: 'primary.main',
-													},
-													'&.Mui-focused fieldset': {
-														borderWidth: '1px',
-													},
-												},
-											}}
-										/>
-									</Box>
+
 								</Paper>
 							</Grid>
 						)}
@@ -1634,7 +1728,8 @@ const ConsumptionCreate = () => {
 									p: 2,
 									m: 1,
 									minHeight: '25%',
-									backgroundColor: 'action.hover',
+									backgroundColor: 'white',
+									shadow: '2px 20px 8px rgba(76, 76, 76, 0.08)',
 									position: { xs: 'static', md: 'fixed' },
 									width: { xs: '100%', md: 'calc(25% - 24px)' },
 									right: { xs: 0, md: 16 },
@@ -1643,7 +1738,7 @@ const ConsumptionCreate = () => {
 								}}
 							>
 								<Typography variant="h6" gutterBottom>
-									Total
+									Summary Repor
 								</Typography>
 								{formik.values.stateEntries?.length > 0 && (
 									<Box
@@ -1654,138 +1749,96 @@ const ConsumptionCreate = () => {
 											borderRadius: 1,
 										}}
 									>
-										<Typography variant="subtitle2" gutterBottom>
-											Summary
-										</Typography>
-										<Grid container spacing={2}>
-											<Grid item xs={6}>
-												<Typography variant="body2">
-													Total Miles: <br />
-													{Math.round(
-														formik.values.stateEntries.reduce(
-															(sum, entry) =>
-																sum + (parseFloat(entry.miles) || 0),
-															0
-														)
-													)}
-												</Typography>
-											</Grid>
-											<Grid item xs={6}>
-												<Typography variant="body2">
-													Total Gallons: <br />
-													{(
-														Math.round(
-															formik.values.stateEntries.reduce(
-																(sum, entry) =>
-																	sum + (parseFloat(entry.gallons) || 0),
-																0
-															) * 1000
-														) / 1000
-													).toFixed(3)}
-												</Typography>
-											</Grid>
-
-											{/* MPG - Only visible for Admin */}
-											{currentUser?.role === 'admin' && (
-												<Grid item xs={12}>
+										{/* MPG - Only visible for Admin */}
+										{currentUser?.role === 'admin' && (
+											<Grid item xs={12}>
+												<Box
+												>
+													<Box>
+														<Typography
+															variant="subtitle2"
+															component="span"
+															color="text.secondary"
+														>
+															Average MPG
+														</Typography>
+													</Box>
 													<Box
 														sx={{
-															display: 'flex',
-															alignItems: 'center',
-															gap: 2,
-															p: 1.5,
-															borderRadius: 1,
-															bgcolor: 'background.paper',
-															boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-															width: 'fit-content',
-															mx: 'auto',
-															minWidth: 180,
-															justifyContent: 'space-between',
+															...(() => {
+																const totalMiles =
+																	formik.values.stateEntries.reduce(
+																		(sum, entry) =>
+																			sum + (parseFloat(entry.miles) || 0),
+																		0
+																	);
+																const totalGallons =
+																	formik.values.stateEntries
+																		.reduce(
+																			(sum, entry) =>
+																				sum +
+																				(parseFloat(entry.gallons) || 0),
+																			0
+																		)
+																		.toFixed(3) || 1;
+																const mpg =
+																	Math.round(
+																		(totalMiles / totalGallons) * 100
+																	) / 100; // Ensure exactly 2 decimal places
+
+																// Calculate color based on distance from 5 (optimal value)
+																const distanceFromOptimal = Math.abs(mpg - 5);
+																// Normalize to 0-1 range where 0 is optimal (5) and 1 is max distance (5+)
+																const normalized = Math.min(
+																	distanceFromOptimal / 5,
+																	1
+																);
+																// Invert so 0 distance = green, max distance = red
+																const hue = ((1 - normalized) * 120).toString(
+																	10
+																);
+
+																return {
+																	color: `hsl(${hue}, 70%, 30%)`,
+																	fontWeight: 600,
+																};
+															})(),
 														}}
 													>
-														<Box
-															sx={{
-																display: 'flex',
-																alignItems: 'center',
-																gap: 1,
-															}}
-														>
-															<LocalGasStationIcon color="action" />
-															<Typography
-																variant="subtitle2"
-																component="span"
-																color="text.secondary"
-															>
-																MPG:
-															</Typography>
-														</Box>
-														<Box
-															sx={{
-																px: 1.5,
-																py: 0.5,
-																borderRadius: 1,
-																...(() => {
-																	const totalMiles =
-																		formik.values.stateEntries.reduce(
-																			(sum, entry) =>
-																				sum + (parseFloat(entry.miles) || 0),
-																			0
-																		);
-																	const totalGallons =
-																		formik.values.stateEntries
-																			.reduce(
-																				(sum, entry) =>
-																					sum +
-																					(parseFloat(entry.gallons) || 0),
-																				0
-																			)
-																			.toFixed(3) || 1;
-																	const mpg =
-																		Math.round(
-																			(totalMiles / totalGallons) * 100
-																		) / 100; // Ensure exactly 2 decimal places
-
-																	// Calculate color based on distance from 5 (optimal value)
-																	const distanceFromOptimal = Math.abs(mpg - 5);
-																	// Normalize to 0-1 range where 0 is optimal (5) and 1 is max distance (5+)
-																	const normalized = Math.min(
-																		distanceFromOptimal / 5,
-																		1
-																	);
-																	// Invert so 0 distance = green, max distance = red
-																	const hue = ((1 - normalized) * 120).toString(
-																		10
-																	);
-
-																	return {
-																		bgcolor: `hsla(${hue}, 80%, 90%, 0.5)`,
-																		color: `hsl(${hue}, 70%, 30%)`,
-																		fontWeight: 600,
-																		transition: 'all 0.3s ease',
-																		'&:hover': {
-																			transform: 'scale(1.03)',
-																			boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-																		},
-																	};
-																})(),
-															}}
-														>
+														<Typography variant="h5">
 															{(
 																formik.values.stateEntries.reduce(
-																	(sum, entry) =>
-																		sum + (parseFloat(entry.miles) || 0),
+																	(sum, entry) => sum + (parseFloat(entry.miles) || 0),
 																	0
 																) /
 																(formik.values.stateEntries.reduce(
-																	(sum, entry) =>
-																		sum + (parseFloat(entry.gallons) || 0),
+																	(sum, entry) => sum + (parseFloat(entry.gallons) || 0),
 																	0
 																) || 1)
-															).toFixed(2)}
-														</Box>
+															).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+															}
+														</Typography>
 													</Box>
-												</Grid>
-											)}
+												</Box>
+											</Grid>
+										)}
+
+										<Grid spacing={2}>
+											<Grid item xs={6} mb={2} mt={2}>
+												<Box>
+													<Typography variant="subtitle2" color="textSecondary">Total Miles:</Typography>
+													<Typography variant="h5" color="primary">{Math.round(formik.values.stateEntries.reduce((sum, entry) => sum + (parseFloat(entry.miles) || 0), 0)).toLocaleString()}</Typography>
+													<Typography variant="body2" color="textSecondary">miles</Typography>
+												</Box>
+											</Grid>
+											<Grid item xs={6}>
+												<Box>
+													<Typography variant="subtitle2" color="textSecondary">Total Gallons:</Typography>
+													<Typography variant="h5" color="primary">{parseFloat(formik.values.stateEntries.reduce((sum, entry) => sum + (parseFloat(entry.gallons) || 0), 0).toFixed(3)).toLocaleString(undefined, { maximumFractionDigits: 3 })}</Typography>
+													<Typography variant="body2" color="textSecondary">gallons</Typography>
+												</Box>
+											</Grid>
+
 										</Grid>
 									</Box>
 								)}

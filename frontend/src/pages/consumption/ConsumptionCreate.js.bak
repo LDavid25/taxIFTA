@@ -1,15 +1,12 @@
-
 import { useFormik } from 'formik';
 import React, { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import * as Yup from 'yup';
 import { useAuth } from '../../context/AuthContext';
 import { getCompanies } from '../../services/companyService';
 import {
 	checkExistingReport,
 	createConsumptionReport,
-	updateConsumptionReport,
-	getConsumptionReportById,
 } from '../../services/consumptionService';
 
 import {
@@ -52,6 +49,7 @@ import {
 } from '@mui/material';
 import Tooltip from '@mui/material/Tooltip';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { format, min } from 'date-fns';
 import { Link as RouterLink } from 'react-router-dom';
@@ -84,20 +82,27 @@ const validationSchema = Yup.object({
 			miles: Yup.number()
 				.typeError('Must be a number')
 				.nullable()
-				.min(1, 'Miles cannot be negative'),
+				.test('not-empty', 'Miles cannot be empty', value => value !== '')
+				.min(0, 'Miles must be a positive number'),
 			gallons: Yup.number()
 				.typeError('Must be a number')
 				.nullable()
-				.min(0, 'Gallons cannot be negative'),
+				.test('not-empty', 'Gallons cannot be empty', value => value !== '')
+				.min(0, 'Gallons must be a positive number'),
 		})
-	),
+	).test('no-empty-fields', 'Please fill in all required fields', function (stateEntries) {
+		if (!stateEntries) return true; // Skip if no entries
+
+		return stateEntries.every(entry => {
+			if (!entry.state) return true; // Skip if no state selected
+			return entry.miles !== '' && entry.gallons !== '';
+		});
+	}),
 });
 
-const ConsumptionEdit = () => {
-	const { id } = useParams();
+const ConsumptionCreate = () => {
 	const { currentUser, isAdmin } = useAuth(); // Get currentUser and isAdmin from auth context
 	const [isLoading, setIsLoading] = useState(false);
-	const [isLoadingReport, setIsLoadingReport] = useState(true);
 	const [snackbar, setSnackbar] = useState({
 		open: false,
 		message: '',
@@ -105,8 +110,6 @@ const ConsumptionEdit = () => {
 	});
 	const [uploadedFiles, setUploadedFiles] = useState([]);
 	const [selectedFiles, setSelectedFiles] = useState([]);
-	const [existingAttachments, setExistingAttachments] = useState([]);
-	const [attachmentsToRemove, setAttachmentsToRemove] = useState([]);
 	const [isReportValid, setIsReportValid] = useState(false);
 	const [isChecking, setIsChecking] = useState(false);
 	const [companies, setCompanies] = useState([]);
@@ -139,14 +142,6 @@ const ConsumptionEdit = () => {
 	};
 
 	const removeFile = (id) => {
-		// Check if it's an existing attachment
-		const existingAttachment = existingAttachments.find(att => att.id === id);
-		if (existingAttachment) {
-			removeExistingAttachment(id);
-			return;
-		}
-
-		// Handle newly uploaded files
 		setUploadedFiles((prev) => {
 			const fileToRemove = prev.find((f) => f.id === id);
 			if (fileToRemove?.preview) {
@@ -154,20 +149,7 @@ const ConsumptionEdit = () => {
 			}
 			return prev.filter((file) => file.id !== id);
 		});
-
-		// Update selected files by removing the one that matches the id
-		setSelectedFiles((prev) =>
-			prev.filter((file) => {
-				// For File objects, we need to match by name since they don't have an id
-				const uploadedFile = uploadedFiles.find(f => f.id === id);
-				return uploadedFile ? file.name !== uploadedFile.file.name : true;
-			})
-		);
-	};
-
-	const removeExistingAttachment = (attachmentId) => {
-		setAttachmentsToRemove((prev) => [...prev, attachmentId]);
-		setExistingAttachments((prev) => prev.filter((att) => att.id !== attachmentId));
+		setSelectedFiles((prev) => prev.filter((file) => file.name !== id));
 	};
 
 	const states = [
@@ -225,15 +207,20 @@ const ConsumptionEdit = () => {
 
 	const currentDate = new Date();
 	const currentYear = currentDate.getFullYear();
-	const currentMonth = currentDate.getMonth() + 1;
+	const currentMonth = currentDate.getMonth() + 1; // 1-12
+
+	// Calculate current quarter and previous quarter
+	const currentQuarter = Math.ceil(currentMonth / 3);
+	const prevQuarter = currentQuarter === 1 ? 4 : currentQuarter - 1;
 
 	const getQuartersForYear = (selectedYear) => {
 		const currentYear = new Date().getFullYear();
-		const maxQuarter = selectedYear === currentYear ? Math.ceil(currentMonth / 3) : 4;
+		const maxQuarter = selectedYear === currentYear ? currentQuarter : 4;
 		return Array.from({ length: maxQuarter }, (_, i) => i + 1);
 	};
 
 	const getMonthsForQuarter = (year, quarter) => {
+		// Definir los meses de cada quarter
 		const quarterMonths = {
 			1: [1, 2, 3],
 			2: [4, 5, 6],
@@ -243,10 +230,12 @@ const ConsumptionEdit = () => {
 
 		let months = quarterMonths[quarter] || [];
 
+		// Si es el año actual, filtrar meses que aún no han llegado
 		if (year === currentYear) {
 			months = months.filter((m) => m <= currentMonth);
 		}
 
+		// Mapear a objeto con info para render
 		return months.map((m) => ({
 			month: m,
 			year,
@@ -255,31 +244,91 @@ const ConsumptionEdit = () => {
 		}));
 	};
 
+	// Check if we're in the first month of the quarter
+	const isFirstMonthOfQuarter = (currentMonth - 1) % 3 === 0;
+
 	const yearsToSelect = Array.from(
 		{ length: maxDateToSelect - minDateToSelect + 1 },
 		(_, i) => maxDateToSelect - i
 	);
 
+	let displayYear = currentYear;
+	let displayMonths = [];
+
+	if (isFirstMonthOfQuarter) {
+		// Show previous quarter's months plus current month
+		const prevQuarterYear =
+			currentQuarter === 1 ? currentYear - 1 : currentYear;
+		const prevQuarterStartMonth = (prevQuarter - 1) * 3 + 1;
+
+		// Add previous quarter's months
+		for (
+			let month = prevQuarterStartMonth;
+			month < prevQuarterStartMonth + 3;
+			month++
+		) {
+			displayMonths.push({
+				month,
+				year: prevQuarterYear,
+				isCurrent: false,
+				showYear: prevQuarterYear !== currentYear,
+			});
+		}
+
+		// Add current month
+		displayMonths.push({
+			month: currentMonth,
+			year: currentYear,
+			isCurrent: true,
+			showYear: false,
+		});
+	} else {
+		// Show current quarter's months up to current month
+		const quarterStartMonth = (currentQuarter - 1) * 3 + 1;
+		for (let month = quarterStartMonth; month <= currentMonth; month++) {
+			displayMonths.push({
+				month,
+				year: currentYear,
+				isCurrent: month === currentMonth,
+				showYear: false,
+			});
+		}
+	}
+
+	// This will be used to set the initial form values
+	// Always use current year and month as default values
+	const formInitialYear = currentYear;
+	const formInitialMonth = currentMonth;
+
 	const [showJurisdictions, setShowJurisdictions] = useState(false);
 	const [formData, setFormData] = useState(null);
 
+	// Asegurarse de que el mes actual esté seleccionado al cargar el componente
 	useEffect(() => {
 		formik.setFieldValue('month', currentMonth);
 		formik.setFieldValue('year', currentYear);
-		formik.setFieldValue('quarter', Math.ceil(currentMonth / 3));
+		formik.setFieldValue('quarter', currentQuarter);
 	}, []);
 
+	// Manejador personalizado para el cambio de mes
 	const handleMonthChange = (event) => {
 		const selectedMonth = parseInt(event.target.value, 10);
-		const selectedMonthData = formik.values.displayMonths?.find(
+
+		// Encontrar el mes seleccionado en displayMonths para obtener su año
+		const selectedMonthData = displayMonths.find(
 			(m) => m.month === selectedMonth
 		);
 
 		if (selectedMonthData) {
+			// Actualizar el mes
 			formik.setFieldValue('month', selectedMonth);
+
+			// Si el mes seleccionado tiene un año diferente al actual, actualizarlo
 			if (selectedMonthData.year !== formik.values.year) {
 				formik.setFieldValue('year', selectedMonthData.year);
 			}
+
+			// Actualizar el trimestre basado en el mes seleccionado
 			const selectedQuarter = Math.ceil(selectedMonth / 3);
 			formik.setFieldValue('quarter', selectedQuarter);
 		}
@@ -287,6 +336,7 @@ const ConsumptionEdit = () => {
 
 	const handleContinue = async (values) => {
 		try {
+			// Check required fields
 			if (!values.unitNumber || !values.year || !values.month) {
 				setSnackbar({
 					open: true,
@@ -296,17 +346,55 @@ const ConsumptionEdit = () => {
 				return false;
 			}
 
+			// Additional validation for admin users - company is required
+			if (isAdmin && !values.companyId) {
+				setSnackbar({
+					open: true,
+					message: 'Please select a company',
+					severity: 'error',
+				});
+				return false;
+			}
+
+			// Validate state entries
+			if (values.stateEntries) {
+				for (const [index, entry] of values.stateEntries.entries()) {
+					if (entry.state) {
+						// Check if gallons is empty
+						if (!entry.gallons || entry.gallons === '') {
+							setSnackbar({
+								open: true,
+								message: `Please enter gallons for the selected state in row ${index + 1}`,
+								severity: 'error',
+							});
+							return false;
+						}
+
+						// Check if gallons is a valid positive number
+						const gallons = parseFloat(entry.gallons);
+						if (isNaN(gallons) || gallons < 0) {
+							setSnackbar({
+								open: true,
+								message: `Please enter a valid positive number for gallons in row ${index + 1}`,
+								severity: 'error',
+							});
+							return false;
+						}
+					}
+				}
+			}
+
 			setIsChecking(true);
 
 			try {
-				// Check if report exists (but allow editing current report)
+				// Check if report exists
 				const existingReport = await checkExistingReport(
 					values.unitNumber,
 					values.year,
 					values.month
 				);
 
-				if (existingReport && existingReport.exists && existingReport.report.id !== id) {
+				if (existingReport && existingReport.exists) {
 					setSnackbar({
 						open: true,
 						message:
@@ -314,40 +402,51 @@ const ConsumptionEdit = () => {
 						severity: 'error',
 						autoHideDuration: 5000,
 					});
-					setIsChecking(false);
+					setIsChecking(false); // Asegurarse de restablecer el estado de verificación
 					return false;
 				}
 
+				// No existe reporte, continuar con el formulario
 				setFormData(values);
 				setShowJurisdictions(true);
 
+				// Show confirmation message
 				setSnackbar({
 					open: true,
-					message: 'Please complete the jurisdiction details.',
+					message:
+						'No existing reports found. Please complete the jurisdiction details.',
 					severity: 'success',
 					autoHideDuration: 5000,
 				});
 
+				// Mark as validated and enable the form
 				setIsReportValid(true);
 				return true;
 			} catch (error) {
 				console.error('Error al verificar reporte existente:', error);
+				// Si hay un error, permitir continuar de todos modos
 				setFormData(values);
 				setShowJurisdictions(true);
 				setIsReportValid(true);
-				setIsChecking(false);
+				setIsChecking(false); // Asegurarse de restablecer el estado de verificación
 				return true;
 			}
 		} catch (error) {
 			console.error('Error al verificar el reporte:', error);
+
 			let errorMessage = 'Error al verificar el reporte';
 
+			// Handle specific error cases
 			if (error.response) {
+				// The request was made and the server responded with a status code
+				// that falls out of the range of 2xx
 				const { status, data } = error.response;
+
 				if (status === 400 && data?.message) {
 					errorMessage = data.message;
 				} else if (status === 401) {
 					errorMessage = 'Unauthorized. Please log in again.';
+					// Redirect to login after showing the error
 					setTimeout(() => navigate('/login'), 2000);
 				} else if (status === 403) {
 					errorMessage = 'You do not have permission to perform this action';
@@ -357,9 +456,11 @@ const ConsumptionEdit = () => {
 					errorMessage = 'Server error. Please try again later.';
 				}
 			} else if (error.request) {
+				// The request was made but no response was received
 				errorMessage =
 					'Could not connect to the server. Please check your internet connection.';
 			} else if (error.message) {
+				// Something happened in setting up the request that triggered an Error
 				errorMessage = error.message;
 			}
 
@@ -371,58 +472,141 @@ const ConsumptionEdit = () => {
 			});
 
 			setIsLoading(false);
-			return false;
+
+			// Log the full error for debugging
+			console.error('Full error details:', {
+				message: error.message,
+				response: error.response?.data,
+				status: error.response?.status,
+				headers: error.response?.headers,
+				request: error.request,
+				config: error.config,
+			});
 		}
+		return false;
 	};
 
 	const handleSubmit = async (values) => {
 		try {
 			setIsLoading(true);
 
+			// Debug log form values
+			console.log('Form values on submit:', values);
+
+			// Basic validation
+			if (!values.unitNumber || !values.year || !values.month) {
+				throw new Error('Please fill in all required fields');
+			}
+
+			// Additional validation for admin users
+			if (isAdmin && !values.companyId) {
+				throw new Error('Please select a company');
+			}
+
+			// Initialize form data
 			const formDataToSend = new FormData();
 
-			// Get user and company info
-			const userId = currentUser?.id || currentUser?._id;
-			const companyId = values.companyId || currentUser?.company_id || currentUser?.companyId;
+			// 1. Add required fields with proper type conversion
+			const vehiclePlate = String(values.unitNumber || '')
+				.trim()
+				.toUpperCase();
+			formDataToSend.append('vehicle_plate', vehiclePlate);
 
-			if (!userId) {
-				throw new Error('User ID not found');
-			}
+			const reportYear = Number(values.year) || new Date().getFullYear();
+			const reportMonth = Number(values.month) || new Date().getMonth() + 1;
+
+			formDataToSend.append('report_year', reportYear.toString());
+			formDataToSend.append('quarter', values.quarter);
+			formDataToSend.append('report_month', reportMonth.toString());
+
+			// Set default status
+			formDataToSend.append('status', 'in_progress');
+
+			// Add user and company info - ensure they are not null/undefined
+			const companyId = isAdmin
+				? values.companyId
+				: currentUser?.company_id || currentUser?.companyId;
+			const userId = currentUser?.id;
 
 			if (!companyId) {
-				throw new Error('Company ID not found');
+				throw new Error('Company ID is required');
 			}
 
-			// Add basic report data
-			formDataToSend.append('vehicle_plate', String(values.unitNumber || '').trim().toUpperCase());
-			formDataToSend.append('report_year', Number(values.year) || new Date().getFullYear());
-			formDataToSend.append('report_month', Number(values.month) || new Date().getMonth() + 1);
+			if (!userId) {
+				throw new Error('User ID is required');
+			}
+
+			// Add company and user references - ensure we're using the correct field name
 			formDataToSend.append('company_id', companyId);
 			formDataToSend.append('created_by', userId);
 
-			// Add notes if present
+			// Add notes if provided
 			if (values.notes) {
 				formDataToSend.append('notes', values.notes);
 			}
 
-			// Add state entries
-			if (values.stateEntries && values.stateEntries.length > 0) {
-				values.stateEntries.forEach((entry, index) => {
-					if (entry && entry.state) {
-						const stateCode = typeof entry.state === 'object'
-							? entry.state.code
-							: String(entry.state).toUpperCase();
+			// 2. Process state entries (optional)
+			const stateEntries = [];
+			let totalMiles = 0;
+			let totalGallons = 0;
 
-						if (stateCode) {
-							formDataToSend.append(`states[${index}].state_code`, stateCode);
-							formDataToSend.append(`states[${index}].miles`, (parseFloat(entry.miles) || 0).toFixed(2));
-							formDataToSend.append(`states[${index}].gallons`, (parseFloat(entry.gallons) || 0).toFixed(3));
+			// Process state entries if they exist
+			if (values.stateEntries && values.stateEntries.length > 0) {
+				values.stateEntries.forEach((entry) => {
+					if (entry && entry.state) {
+						const miles = parseFloat(entry.miles) || 0;
+						const gallons = parseFloat(entry.gallons) || 0;
+
+						// Only process if we have a valid state and either miles or gallons
+						if (entry.state) {
+							// Extract state code if it's an object (from Autocomplete)
+							const stateCode =
+								typeof entry.state === 'object'
+									? entry.state.code
+									: String(entry.state).toUpperCase();
+
+							if (stateCode) {
+								const stateData = {
+									state_code: stateCode,
+									miles: miles.toFixed(2),
+									gallons: gallons.toFixed(3),
+								};
+
+								stateEntries.push(stateData);
+								totalMiles += miles;
+								totalGallons += gallons;
+							}
 						}
 					}
 				});
+
+				// Only append states if we have any
+				if (stateEntries.length > 0) {
+					stateEntries.forEach((state, index) => {
+						formDataToSend.append(
+							`states[${index}].state_code`,
+							state.state_code
+						);
+						formDataToSend.append(
+							`states[${index}].miles`,
+							state.miles.toString()
+						);
+						formDataToSend.append(
+							`states[${index}].gallons`,
+							state.gallons.toString()
+						);
+					});
+				}
 			}
 
-			// Add new files to upload
+			// Add calculated totals with proper decimal places (can be 0 if no states)
+			const totalMilesFixed = totalMiles.toFixed(2);
+			const totalGallonsFixed = totalGallons.toFixed(3);
+
+			formDataToSend.append('total_miles', totalMilesFixed);
+			formDataToSend.append('total_gallons', totalGallonsFixed);
+
+			// 3. Handle file attachments if any
 			if (selectedFiles?.length > 0) {
 				selectedFiles.forEach((file) => {
 					if (file instanceof File) {
@@ -431,54 +615,44 @@ const ConsumptionEdit = () => {
 				});
 			}
 
-			// Add attachments to remove
-			if (attachmentsToRemove.length > 0) {
-				attachmentsToRemove.forEach((attachmentId, index) => {
-					formDataToSend.append(`attachmentsToRemove[${index}]`, attachmentId);
-				});
-			}
+			// Send data to the backend
+			const response = await createConsumptionReport(formDataToSend);
 
-			// Show loading state
+			// Handle successful response
 			setSnackbar({
 				open: true,
-				message: 'Updating report...',
-				severity: 'info',
-				autoHideDuration: null,
-			});
-
-			const response = await updateConsumptionReport(id, formDataToSend);
-
-			// Show success message
-			setSnackbar({
-				open: true,
-				message: 'Report updated successfully',
+				message: 'Report created successfully',
 				severity: 'success',
 				autoHideDuration: 3000,
 			});
 
-			// Reset form and navigate back after a short delay
-			setTimeout(() => {
-				formik.resetForm();
-				setSelectedFiles([]);
-				setUploadedFiles([]);
-				setExistingAttachments([]);
-				setAttachmentsToRemove([]);
+			// Reset form and redirect after successful submission
+			formik.resetForm();
+			setSelectedFiles([]);
+			setUploadedFiles([]);
 
+			// Redirect after a short delay based on user role
+			setTimeout(() => {
 				const basePath = currentUser?.role === 'admin' ? '/admin' : '/client';
 				navigate(`${basePath}/consumption`);
-			}, 1000);
-
+			}, 2000);
 		} catch (error) {
-			console.error('Error updating report:', error);
-			let errorMessage = 'Error updating the report';
+			console.error('Error creating report:', error);
+			let errorMessage = 'Error creating the consumption report';
 
+			// Handle different types of errors
 			if (error.response) {
+				// The request was made and the server responded with a status code
+				// that falls out of the range of 2xx
 				errorMessage = error.response.data?.message || errorMessage;
 				console.error('Error response data:', error.response.data);
 			} else if (error.request) {
-				errorMessage = 'No response received from the server. Please try again.';
+				// The request was made but no response was received
+				errorMessage =
+					'No response received from the server. Please try again.';
 				console.error('No response received:', error.request);
 			} else {
+				// Something happened in setting up the request that triggered an Error
 				errorMessage = error.message || errorMessage;
 			}
 
@@ -498,24 +672,48 @@ const ConsumptionEdit = () => {
 			return await handleContinue(values);
 		}
 
+		// Only allow submission if report has been validated
+		if (!isReportValid) {
+			setSnackbar({
+				open: true,
+				message: 'Please verify the report data first',
+				severity: 'warning',
+			});
+			return false;
+		}
+
 		return await handleSubmit(values);
 	};
 
 	const initialValues = {
 		unitNumber: '',
-		year: currentYear,
-		month: currentMonth,
-		quarter: Math.ceil(currentMonth / 3),
-		companyId: isAdmin ? '' : currentUser?.company_id || currentUser?.companyId || '',
+		year: formInitialYear,
+		month: formInitialMonth,
+		quarter: isFirstMonthOfQuarter ? prevQuarter : currentQuarter,
+		companyId: isAdmin
+			? ''
+			: currentUser?.company_id || currentUser?.companyId || '',
 		stateEntries: [
+			{ state: null, miles: '', gallons: '' },
+			{ state: null, miles: '', gallons: '' },
 			{ state: null, miles: '', gallons: '' },
 		],
 		files: [],
 	};
 
+	const validateForm = (values) => {
+		const errors = {};
+
+		// State entries are now optional, no validation needed here
+		// The validation schema will handle the field-level validation
+
+		return errors;
+	};
+
 	const formik = useFormik({
 		initialValues,
 		validationSchema,
+		validate: validateForm,
 		onSubmit: handleFormSubmit,
 	});
 
@@ -523,10 +721,18 @@ const ConsumptionEdit = () => {
 		setSnackbar((prev) => ({ ...prev, open: false }));
 	};
 
+	// Check if the form is valid
 	const isFormValid = () => {
-		const isUnitPeriodValid = formik.values.unitNumber && formik.values.year && formik.values.month;
-		if (!showJurisdictions) return isUnitPeriodValid;
+		// Check if Unit & Period form is filled
+		const isUnitPeriodValid =
+			formik.values.unitNumber && formik.values.year && formik.values.month;
 
+		// If in first step, only check unit and period
+		if (!showJurisdictions) {
+			return isUnitPeriodValid;
+		}
+
+		// En el segundo paso, verifica que todas las entradas estén completas
 		const isJurisdictionsValid = formik.values.stateEntries?.every(
 			(entry) =>
 				entry.state &&
@@ -542,141 +748,134 @@ const ConsumptionEdit = () => {
 	};
 
 	const quarters = getQuartersForYear(formik.values.year);
-	const displayMonths = getMonthsForQuarter(
+	displayMonths = getMonthsForQuarter(
 		formik.values.year,
 		formik.values.quarter
 	);
-
+	// Update quarter when month changes
 	useEffect(() => {
 		formik.setFieldValue('quarter', Math.ceil(formik.values.month / 3));
 	}, [formik.values.month]);
 
+	// Efecto para monitorear cambios en companyId
+	useEffect(() => {
+		console.log('companyId actualizado:', formik.values.companyId);
+	}, [formik.values.companyId]);
+
+	// Load companies if admin
 	useEffect(() => {
 		const loadCompanies = async () => {
 			if (isAdmin) {
 				try {
 					setIsLoadingCompanies(true);
 					const response = await getCompanies();
-					const companiesData = response?.data?.data || [];
+					const companiesData = response?.data?.data || []; // Access the nested data array
 					setCompanies(companiesData);
+
+					// Set default company if there's only one
+					if (companiesData.length === 1) {
+						formik.setFieldValue('companyId', companiesData[0].id);
+					}
 				} catch (error) {
 					console.error('Error loading companies:', error);
+					setSnackbar({
+						open: true,
+						message: 'Error loading companies',
+						severity: 'error',
+					});
 				} finally {
 					setIsLoadingCompanies(false);
 				}
 			}
 		};
+
 		loadCompanies();
 	}, [isAdmin]);
 
+	// Add first state entry on mount
 	useEffect(() => {
-		const loadReport = async () => {
-			if (!id) return;
-
-			try {
-				setIsLoadingReport(true);
-
-				// Show loading state
-				setSnackbar({
-					open: true,
-					message: 'Cargando informe...',
-					severity: 'info',
-					autoHideDuration: null,
-				});
-
-				// Get the report data
-				const report = await getConsumptionReportById(id);
-
-				if (!report) {
-					throw new Error('Not found');
-				}
-
-				// Set form values
-				formik.setValues({
-					unitNumber: report.vehicle_plate || '',
-					year: report.report_year || currentYear,
-					month: report.report_month || currentMonth,
-					quarter: Math.ceil((report.report_month || currentMonth) / 3),
-					companyId: report.company_id || '',
-					notes: report.notes || '',
-					stateEntries: Array.isArray(report.states) && report.states.length > 0
-						? report.states.map((state, index) => ({
-							state: state.state_code || '',
-							miles: state.miles ? String(state.miles) : '',
-							gallons: state.gallons ? String(state.gallons) : '',
-							index: index,
-						}))
-						: [{ state: null, miles: '', gallons: '' }],
-					files: [],
-				});
-
-				// Set attachments if they exist
-				if (Array.isArray(report.attachments) && report.attachments.length > 0) {
-					setExistingAttachments(report.attachments);
-				}
-
-				setShowJurisdictions(true);
-				setIsReportValid(true);
-
-				// Update success message
-				setSnackbar({
-					open: true,
-					message: 'Informe cargado correctamente',
-					severity: 'success',
-					autoHideDuration: 3000,
-				});
-
-			} catch (error) {
-				console.error('Error al cargar el informe:', error);
-
-				const errorMessage = error.message || 'Error al cargar los datos del informe';
-
-				setSnackbar({
-					open: true,
-					message: errorMessage,
-					severity: 'error',
-					autoHideDuration: 5000,
-				});
-
-				// Navigate back after showing the error
-				setTimeout(() => {
-					navigate(-1);
-				}, 2000);
-			} finally {
-				setIsLoadingReport(false);
-			}
-		};
-
-		loadReport();
-	}, [id, navigate, currentYear, currentMonth]);
-
-	if (isLoadingReport) {
-		return (
-			<Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
-				<CircularProgress size={60} />
-				<Typography variant="h6" sx={{ ml: 2 }}>Loading report...</Typography>
-			</Box>
-		);
-	}
+		if (
+			!formik.values.stateEntries ||
+			formik.values.stateEntries.length === 0
+		) {
+			formik.setFieldValue('stateEntries', [
+				{ state: '', miles: '', gallons: '' },
+			]);
+		}
+	}, []);
 
 	return (
 		<LocalizationProvider dateAdapter={AdapterDateFns}>
 			<Box sx={{ p: 3 }}>
+				{/* Header with company name and quarter */}
+				{/* <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, p: 2, bgcolor: 'background.paper', borderRadius: 1, boxShadow: 1 }}>
+          <Box>
+            <Typography variant="h6">
+              {isAdmin && formik.values.companyId 
+                ? companies.find(c => c.id === formik.values.companyId)?.name || 'COMPANY NAME' 
+                : currentUser?.company_name || 'COMPANY NAME'}
+            </Typography>
+            <Typography variant="subtitle2" color="text.secondary">
+              Quarter {Math.ceil((formik.values.month || currentMonth) / 3)} {formik.values.year || currentYear}
+            </Typography>
+          </Box>
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <Typography variant="subtitle2" sx={{ mr: 1 }}>Valid Reports:</Typography>
+            <Box sx={{ 
+              bgcolor: 'primary.main', 
+              color: 'primary.contrastText', 
+              px: 1.5, 
+              py: 0.5, 
+              borderRadius: 1,
+              fontWeight: 'bold'
+            }}>
+              3
+            </Box>
+          </Box>
+        </Box> */}
+
 				<Breadcrumbs aria-label="breadcrumb" sx={{ mb: 3 }}>
-					<Link component={RouterLink} to={currentUser?.role === 'admin' ? '/admin/dashboard' : '/client/dashboard'} color="inherit">
+					<Link
+						component={RouterLink}
+						to={
+							currentUser?.role === 'admin'
+								? '/admin/dashboard'
+								: '/client/dashboard'
+						}
+						color="inherit"
+					>
 						Home
 					</Link>
-					<Link component={RouterLink} to={currentUser?.role === 'admin' ? '/admin/consumption' : '/client/consumption'} color="inherit">
-						Reports
+					<Link
+						component={RouterLink}
+						to={
+							currentUser?.role === 'admin'
+								? '/admin/consumption'
+								: '/client/consumption'
+						}
+						color="inherit"
+					>
+						Report
 					</Link>
-					<Typography color="text.primary">Edit Report</Typography>
+					<Typography color="text.primary">New Report</Typography>
 				</Breadcrumbs>
 
-				<Typography variant="h5" sx={{ mb: 1 }}>Edit Report</Typography>
-				<Typography variant="body1" sx={{ mb: 1 }}>Modify the report information below.</Typography>
+				{isReportValid && (
+					<Alert severity="success" sx={{ mb: 1 }}>
+						No duplicates found, please proceed.
+					</Alert>
+				)}
+
+				<Typography variant="h5" sx={{ mb: 1 }}>
+					New Report
+				</Typography>
+				<Typography variant="body1" sx={{ mb: 1 }}>
+					Please fill the form below to register a new Report.
+				</Typography>
 
 				<form id="myForm" onSubmit={formik.handleSubmit}>
 					<Grid container spacing={0}>
+						{/* Main form section */}
 						<Grid item xs={12} md={8}>
 							<Paper
 								elevation={2}
@@ -685,6 +884,7 @@ const ConsumptionEdit = () => {
 									borderRadius: 2,
 									backgroundColor: 'background.paper',
 									boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+									nowrap: true,
 								}}
 							>
 								<Box
@@ -702,12 +902,13 @@ const ConsumptionEdit = () => {
 										Report Information
 									</Typography>
 									<Typography variant="body2" color="text.secondary">
-										Enter the basic information for this report
+										Enter the basic information for this Report
 									</Typography>
 								</Box>
 
-								<Grid container spacing={2} sx={{ flexWrap: { xs: 'wrap', sm: 'nowrap' } }}>
-									<Grid item xs={8} sm={5} md={5}>
+								<Grid container spacing={1} sx={{ flexWrap: { xs: 'wrap', sm: 'nowrap' } }}>
+									{/* Unit Number */}
+									<Grid item xs={12} sm={5} md={2} sx={{ minWidth: { xs: '100%', sm: 'auto' } }}>
 										<TextField
 											id="unitNumber"
 											name="unitNumber"
@@ -731,8 +932,9 @@ const ConsumptionEdit = () => {
 										/>
 									</Grid>
 
+									{/* Company (Admin only) */}
 									{isAdmin && (
-										<Grid item xs={8} sm={3} md={2}>
+										<Grid item xs={12} sm={3} md={2} sx={{ minWidth: { xs: '100%', sm: 'auto' } }}>
 											<FormControl
 												fullWidth
 												error={
@@ -765,11 +967,18 @@ const ConsumptionEdit = () => {
 														))
 													)}
 												</Select>
+												{formik.touched.companyId &&
+													formik.errors.companyId && (
+														<FormHelperText>
+															{formik.errors.companyId}
+														</FormHelperText>
+													)}
 											</FormControl>
 										</Grid>
 									)}
 
-									<Grid item xs={8} sm={5} md={2}>
+									{/* Year, Month and Quarter */}
+									<Grid item xs={12} sm={5} md={3} sx={{ minWidth: { xs: '100%', sm: 'auto' } }}>
 										<TextField
 											select
 											fullWidth
@@ -796,7 +1005,7 @@ const ConsumptionEdit = () => {
 											))}
 										</TextField>
 									</Grid>
-									<Grid item container spacing={2} xs={12} sm={4}>
+									<Grid item container spacing={2} xs={12} sm={3} md={7} sx={{ minWidth: { xs: '100%', sm: 'auto' } }}>
 										<Grid item xs={6}>
 											<TextField
 												select
@@ -860,14 +1069,28 @@ const ConsumptionEdit = () => {
 														}
 													)}
 												</Select>
+												{formik.touched.month && formik.errors.month && (
+													<FormHelperText>
+														{formik.errors.month}
+													</FormHelperText>
+												)}
 											</FormControl>
 										</Grid>
 									</Grid>
 
+									{/* Verification Button */}
 									<Grid
 										item
 										xs={12}
-										sx={{ mt: 0, display: 'flex', justifyContent: 'flex-end' }}
+										sm={3}
+										md={2}
+										sx={{
+											mt: 0,
+											display: 'flex',
+											justifyContent: 'flex-end',
+											alignItems: 'center',
+											minWidth: { sm: 'auto' }
+										}}
 									>
 										{!isReportValid ? (
 											<Button
@@ -876,14 +1099,7 @@ const ConsumptionEdit = () => {
 												color="primary"
 												onClick={async () => {
 													const errors = await formik.validateForm();
-													const hasErrors = Object.values(errors).some(
-														(val) =>
-															(Array.isArray(val) &&
-																val.some(
-																	(item) => item && Object.keys(item).length > 0
-																)) ||
-															(!Array.isArray(val) && val)
-													);
+													const hasErrors = Object.keys(errors).length > 0;
 
 													if (!hasErrors) {
 														await handleContinue(formik.values);
@@ -896,12 +1112,16 @@ const ConsumptionEdit = () => {
 													isChecking
 												}
 												sx={{
-													minWidth: 120,
+													width: '100%',
 													textTransform: 'none',
 													fontWeight: 500,
 													boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+													whiteSpace: 'nowrap',
 													'&:hover': {
 														boxShadow: '0 4px 8px rgba(0,0,0,0.15)',
+													},
+													'@media (max-width: 600px)': {
+														width: '100%',
 													},
 												}}
 											>
@@ -912,14 +1132,15 @@ const ConsumptionEdit = () => {
 												)}
 											</Button>
 										) : (
-											<CheckCircleOutline />
+											<CheckCircleOutline color="success" sx={{ width: '100%', textAlign: 'center' }} />
 										)}
 									</Grid>
 								</Grid>
 							</Paper>
 						</Grid>
 
-						{showJurisdictions && (
+						{/* Jurisdictions and Report Section */}
+						{isReportValid && (
 							<Grid item xs={12} md={8}>
 								<Paper
 									elevation={2}
@@ -943,7 +1164,7 @@ const ConsumptionEdit = () => {
 											variant="h6"
 											sx={{ fontWeight: 600, color: 'text.primary' }}
 										>
-											Jurisdictions and  Report
+											Jurisdictions and Report
 										</Typography>
 										<Typography variant="body2" color="text.secondary">
 											Add states and their corresponding fuel data
@@ -988,6 +1209,7 @@ const ConsumptionEdit = () => {
 															);
 														}}
 														renderInput={(params) => {
+															// Extract the key property from params to prevent propagation
 															const { key, ...paramsWithoutKey } = params;
 															return (
 																<TextField
@@ -1014,6 +1236,7 @@ const ConsumptionEdit = () => {
 															</li>
 														)}
 														isOptionEqualToValue={(option, value) => {
+															// Handle both object and string comparisons
 															if (!option || !value) return false;
 															const optionCode =
 																typeof option === 'object'
@@ -1037,12 +1260,23 @@ const ConsumptionEdit = () => {
 														value={entry.miles}
 														size="small"
 														onChange={(e) => {
-															const value = parseFloat(e.target.value);
-															if (isNaN(value) || value >= 0) {
-																formik.handleChange(e);
+															const value = e.target.value;
+															// Allow empty string, '0', or any valid number that's not exactly 0
+															if (value === '' || value === '0' || parseFloat(value) > 0) {
+																formik.setFieldValue(`stateEntries.${index}.miles`, value);
 															}
 														}}
-														onBlur={formik.handleBlur}
+														onBlur={(e) => {
+															// Format the value to have 2 decimal places when focus is lost
+															const value = e.target.value;
+															if (value && value !== '') {
+																const num = parseFloat(value);
+																if (!isNaN(num)) {
+																	formik.setFieldValue(`stateEntries.${index}.miles`, num.toFixed(2));
+																}
+															}
+															formik.handleBlur(e);
+														}}
 														error={
 															formik.touched.stateEntries?.[index]?.miles &&
 															Boolean(
@@ -1053,7 +1287,7 @@ const ConsumptionEdit = () => {
 															formik.touched.stateEntries?.[index]?.miles &&
 															formik.errors.stateEntries?.[index]?.miles
 														}
-														inputProps={{ min: 0, step: '0.01' }}
+														inputProps={{ step: '0.01', inputMode: 'decimal' }}
 													/>
 												</Grid>
 												<Grid item xs={12} sm={3}>
@@ -1066,25 +1300,53 @@ const ConsumptionEdit = () => {
 														size="small"
 														onChange={(e) => {
 															const value = e.target.value;
-															if (
-																value === '' ||
-																/^\d*\.?\d{0,3}$/.test(value)
-															) {
-																formik.setFieldValue(e.target.name, value);
+															// Allow empty string, decimal numbers, and 0
+															if (value === '' || /^\d*\.?\d*$/.test(value)) {
+																formik.setFieldValue(
+																	`stateEntries.${index}.gallons`,
+																	value
+																);
 															}
 														}}
 														onBlur={(e) => {
-															const value = parseFloat(e.target.value);
-															if (isNaN(value) || value >= 0) {
-																formik.handleChange(e);
-															}
-															if (!isNaN(value)) {
-																formik.setFieldValue(
-																	e.target.name,
-																	value.toFixed(3)
+															// Format the value to have 3 decimal places when focus is lost
+															if (e.target.value && e.target.value !== '') {
+																const num = parseFloat(e.target.value);
+																if (!isNaN(num) && num >= 0) {
+																	formik.setFieldValue(
+																		`stateEntries.${index}.gallons`,
+																		num.toFixed(3)
+																	);
+																} else {
+																	// Show error for negative numbers
+																	formik.setFieldError(
+																		`stateEntries.${index}.gallons`,
+																		'Gallons must be a positive number or zero'
+																	);
+																	return;
+																}
+															} else if (entry.state) {
+																// Show error if state is selected but gallons is empty
+																formik.setFieldError(
+																	`stateEntries.${index}.gallons`,
+																	'Gallons are required when a state is selected'
 																);
+																return;
 															}
 															formik.handleBlur(e);
+														}}
+														onKeyDown={(e) => {
+															// Prevent negative numbers from being entered
+															if (e.key === '-' || e.key === 'e' || e.key === 'E') {
+																e.preventDefault();
+															}
+														}}
+														onPaste={(e) => {
+															// Prevent pasting negative numbers
+															const pastedData = e.clipboardData.getData('text');
+															if (pastedData.startsWith('-') || isNaN(pastedData)) {
+																e.preventDefault();
+															}
 														}}
 														error={
 															formik.touched.stateEntries?.[index]?.gallons &&
@@ -1096,7 +1358,17 @@ const ConsumptionEdit = () => {
 															formik.touched.stateEntries?.[index]?.gallons &&
 															formik.errors.stateEntries?.[index]?.gallons
 														}
-														inputProps={{ min: 0, step: '0.001' }}
+														inputProps={{
+															min: 0,
+															step: '0.001',
+															onPaste: (e) => {
+																// Prevent pasting negative numbers
+																const pastedData = e.clipboardData.getData('text');
+																if (pastedData.startsWith('-') || isNaN(pastedData)) {
+																	e.preventDefault();
+																}
+															}
+														}}
 													/>
 												</Grid>
 												<Grid item xs={12} sm={1} sx={{ textAlign: 'center' }}>
@@ -1151,8 +1423,7 @@ const ConsumptionEdit = () => {
 								</Paper>
 							</Grid>
 						)}
-
-						{showJurisdictions && (
+						{isReportValid && (
 							<Grid item xs={12} md={8}>
 								<Paper
 									elevation={2}
@@ -1200,6 +1471,9 @@ const ConsumptionEdit = () => {
 										pt: 3,
 										borderTop: '1px solid',
 										borderColor: 'divider',
+										display: 'flex',
+										justifyContent: 'flex-end',
+										gap: 2,
 									}}>
 										<Typography
 											variant="h6"
@@ -1212,115 +1486,6 @@ const ConsumptionEdit = () => {
 											PNG)
 										</Typography>
 									</Box>
-
-									{/* Existing Attachments */}
-									{existingAttachments.length > 0 && (
-										<Box sx={{ mb: 3 }}>
-											<Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 500 }}>
-												Existing Files ({existingAttachments.length})
-											</Typography>
-											<Grid container spacing={1.5}>
-												{existingAttachments.map((attachment) => (
-													<Grid item key={attachment.id} xs={12} sm={6}>
-														<Box
-															sx={{
-																display: 'flex',
-																alignItems: 'center',
-																p: 1.5,
-																bgcolor: 'background.paper',
-																borderRadius: 1,
-																border: '1px solid',
-																borderColor: 'divider',
-																position: 'relative',
-																transition: 'all 0.2s',
-																'&:hover': {
-																	borderColor: 'primary.main',
-																	boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-																},
-																'&:hover .file-actions': {
-																	opacity: 1,
-																	visibility: 'visible',
-																	transform: 'translateY(0)',
-																},
-															}}
-														>
-															{attachment.file_type === 'application/pdf' ? (
-																<PictureAsPdfIcon
-																	color="error"
-																	sx={{ mr: 1, flexShrink: 0 }}
-																/>
-															) : attachment.file_type?.startsWith('image/') ? (
-																<ImageIcon
-																	color="primary"
-																	sx={{ mr: 1, flexShrink: 0 }}
-																/>
-															) : (
-																<InsertDriveFileIcon
-																	color="action"
-																	sx={{ mr: 1, flexShrink: 0 }}
-																/>
-															)}
-															<Box sx={{ minWidth: 0, flex: 1 }}>
-																<Typography
-																	variant="caption"
-																	component="div"
-																	noWrap
-																	sx={{
-																		display: 'block',
-																		fontWeight: 'medium',
-																	}}
-																>
-																	{attachment.file_name}
-																</Typography>
-																<Typography
-																	variant="caption"
-																	color="text.secondary"
-																	component="div"
-																>
-																	{(attachment.file_size / 1024).toFixed(1)} KB
-																</Typography>
-															</Box>
-															<Box
-																className="file-actions"
-																sx={{
-																	display: 'flex',
-																	ml: 1,
-																	opacity: 0,
-																	visibility: 'hidden',
-																	transform: 'translateY(5px)',
-																	transition: 'all 0.2s ease-in-out',
-																}}
-															>
-																<Tooltip title="Remove file">
-																	<IconButton
-																		size="small"
-																		onClick={(e) => {
-																			e.stopPropagation();
-																			removeExistingAttachment(attachment.id);
-																		}}
-																		sx={{
-																			color: 'error.main',
-																			'&:hover': {
-																				backgroundColor:
-																					'rgba(211, 47, 47, 0.08)',
-																			},
-																		}}
-																	>
-																		<DeleteOutlineIcon fontSize="small" />
-																	</IconButton>
-																</Tooltip>
-															</Box>
-														</Box>
-													</Grid>
-												))}
-											</Grid>
-											{attachmentsToRemove.length > 0 && (
-												<Typography variant="caption" color="error" sx={{ mt: 1, display: 'block' }}>
-													{attachmentsToRemove.length} file(s) will be removed upon saving
-												</Typography>
-											)}
-										</Box>
-									)}
 									<Box
 										sx={{
 											mt: 2,
@@ -1338,7 +1503,7 @@ const ConsumptionEdit = () => {
 											multiple
 											onChange={(e) => {
 												handleFileUpload(e.target.files);
-												e.target.value = '';
+												e.target.value = ''; // Reset input to allow selecting the same file again
 											}}
 										/>
 										<label htmlFor="file-upload">
@@ -1548,11 +1713,39 @@ const ConsumptionEdit = () => {
 												)}
 											</Box>
 										</label>
-									</Box>
-								</Paper>
-							</Grid>
-						)}
+									<Button
+										variant="outlined"
+										color="secondary"
+										onClick={() => navigate(-1)}
+										sx={{
+											textTransform: 'none',
+											fontWeight: 500,
+										}}
+									>
+										Cancel
+									</Button>
+									<Button
+										variant="contained"
+										type="submit"
+										disabled={formik.isSubmitting}
+										sx={{
+											textTransform: 'none',
+											fontWeight: 500,
+											minWidth: 120,
+										}}
+									>
+										{formik.isSubmitting ? (
+											<CircularProgress size={24} color="inherit" />
+										) : (
+											'Save Report'
+										)}
+									</Button>
+								</Box>
 
+							</Paper>
+						</Grid>
+						)}
+						{/* Right section - 30% */}
 						<Grid item xs={12} md={3.6}>
 							<Paper
 								elevation={0}
@@ -1560,8 +1753,7 @@ const ConsumptionEdit = () => {
 									p: 2,
 									m: 1,
 									minHeight: '25%',
-									backgroundColor: 'white',
-									shadow: '2px 20px 8px rgba(76, 76, 76, 0.08)',
+									backgroundColor: 'action.hover',
 									position: { xs: 'static', md: 'fixed' },
 									width: { xs: '100%', md: 'calc(25% - 24px)' },
 									right: { xs: 0, md: 16 },
@@ -1569,94 +1761,179 @@ const ConsumptionEdit = () => {
 									zIndex: 1,
 								}}
 							>
-								<Typography variant="h6" gutterBottom>Summary Repor</Typography>
+								<Typography variant="h6" gutterBottom>
+									Total
+								</Typography>
 								{formik.values.stateEntries?.length > 0 && (
-									<Box sx={{ mt: 2, p: 2, bgcolor: 'background.paper', borderRadius: 1 }}>
-										<Grid container spacing={2}>
-											<Grid item xs={12}>
-												<Box>
-													<Typography
-														variant="subtitle2"
-														component="span"
-														color="text.secondary"
+									<Box
+										sx={{
+											mt: 2,
+											p: 2,
+											bgcolor: 'background.paper',
+											borderRadius: 1,
+										}}
+									>
+										<Typography variant="h6" gutterBottom sx={{ fontWeight: 600, color: 'text.primary' }}>
+											Efficiency Summary
+										</Typography>
+										<Divider sx={{ mb: 2 }} />
+										<Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2 }}>
+											<Box sx={{ textAlign: 'center' }}>
+												<Typography variant="subtitle2" color="text.secondary">Average MPG</Typography>
+												<Typography variant="h4">
+													{formik.values.stateEntries.reduce((sum, entry) => sum + (parseFloat(entry.miles) || 0), 0) > 0 &&
+													formik.values.stateEntries.reduce((sum, entry) => sum + (parseFloat(entry.gallons) || 0), 0) > 0
+														? (formik.values.stateEntries.reduce((sum, entry) => sum + (parseFloat(entry.miles) || 0), 0) / 
+														   formik.values.stateEntries.reduce((sum, entry) => sum + (parseFloat(entry.gallons) || 0), 0)).toFixed(2)
+														: '0.00'}
+													<Typography component="span" variant="body2" sx={{ ml: 0.5 }}>mpg</Typography>
+												</Typography>
+											</Box>
+											<Box sx={{ textAlign: 'center' }}>
+												<Typography variant="subtitle2" color="text.secondary">Total Miles</Typography>
+												<Typography variant="h5">
+													{Math.round(
+														formik.values.stateEntries.reduce(
+															(sum, entry) => sum + (parseFloat(entry.miles) || 0),
+															0
+														)
+													)}
+													<Typography component="span" variant="body2" sx={{ ml: 0.5 }}>miles</Typography>
+												</Typography>
+											</Box>
+											<Box sx={{ textAlign: 'center' }}>
+												<Typography variant="subtitle2" color="text.secondary">Total Gallons</Typography>
+												<Typography variant="h5">
+													{(
+														Math.round(
+															formik.values.stateEntries.reduce(
+																(sum, entry) => sum + (parseFloat(entry.gallons) || 0),
+																0
+															) * 1000
+														) / 1000
+													).toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 })}
+													<Typography component="span" variant="body2" sx={{ ml: 0.5 }}>gallons</Typography>
+												</Typography>
+											</Box>
+										</Box>
+														sx={{
+															display: 'flex',
+															alignItems: 'center',
+															gap: 2,
+															p: 1.5,
+															borderRadius: 1,
+															bgcolor: 'background.paper',
+															boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+															width: 'fit-content',
+															mx: 'auto',
+															minWidth: 180,
+															justifyContent: 'space-between',
+														}}
 													>
-														Average MPG
-													</Typography>
-												</Box>
-												<Box
-													sx={{
-														...(() => {
-															const totalMiles =
+														<Box
+															sx={{
+																display: 'flex',
+																alignItems: 'center',
+																gap: 1,
+															}}
+														>
+															<LocalGasStationIcon color="action" />
+															<Typography
+																variant="subtitle2"
+																component="span"
+																color="text.secondary"
+															>
+																MPG:
+															</Typography>
+														</Box>
+														<Box
+															sx={{
+																px: 1.5,
+																py: 0.5,
+																borderRadius: 1,
+																...(() => {
+																	const totalMiles =
+																		formik.values.stateEntries.reduce(
+																			(sum, entry) =>
+																				sum + (parseFloat(entry.miles) || 0),
+																			0
+																		);
+																	const totalGallons =
+																		formik.values.stateEntries
+																			.reduce(
+																				(sum, entry) =>
+																					sum +
+																					(parseFloat(entry.gallons) || 0),
+																				0
+																			)
+																			.toFixed(3) || 1;
+																	const mpg =
+																		Math.round(
+																			(totalMiles / totalGallons) * 100
+																		) / 100; // Ensure exactly 2 decimal places
+
+																	// Calculate color based on distance from 5 (optimal value)
+																	const distanceFromOptimal = Math.abs(mpg - 5);
+																	// Normalize to 0-1 range where 0 is optimal (5) and 1 is max distance (5+)
+																	const normalized = Math.min(
+																		distanceFromOptimal / 5,
+																		1
+																	);
+																	// Invert so 0 distance = green, max distance = red
+																	const hue = ((1 - normalized) * 120).toString(
+																		10
+																	);
+
+																	return {
+																		bgcolor: `hsla(${hue}, 80%, 90%, 0.5)`,
+																		color: `hsl(${hue}, 70%, 30%)`,
+																		fontWeight: 600,
+																		transition: 'all 0.3s ease',
+																		'&:hover': {
+																			transform: 'scale(1.03)',
+																			boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+																		},
+																	};
+																})(),
+															}}
+														>
+															{(
 																formik.values.stateEntries.reduce(
 																	(sum, entry) =>
 																		sum + (parseFloat(entry.miles) || 0),
 																	0
-																);
-															const totalGallons =
-																formik.values.stateEntries
-																	.reduce(
-																		(sum, entry) =>
-																			sum +
-																			(parseFloat(entry.gallons) || 0),
-																		0
-																	)
-																	.toFixed(3) || 1;
-															const mpg =
-																Math.round(
-																	(totalMiles / totalGallons) * 100
-																) / 100; // Ensure exactly 2 decimal places
-
-															// Calculate color based on distance from 5 (optimal value)
-															const distanceFromOptimal = Math.abs(mpg - 5);
-															// Normalize to 0-1 range where 0 is optimal (5) and 1 is max distance (5+)
-															const normalized = Math.min(
-																distanceFromOptimal / 5,
-																1
-															);
-															// Invert so 0 distance = green, max distance = red
-															const hue = ((1 - normalized) * 120).toString(
-																10
-															);
-
-															return {
-																color: `hsl(${hue}, 70%, 30%)`,
-																fontWeight: 600,
-															};
-														})(),
-													}}
-												>
-													<Typography variant="h5">
-														{(
-															formik.values.stateEntries.reduce(
-																(sum, entry) => sum + (parseFloat(entry.miles) || 0),
-																0
-															) /
-															(formik.values.stateEntries.reduce(
-																(sum, entry) => sum + (parseFloat(entry.gallons) || 0),
-																0
-															) || 1)
-														).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-														}
-													</Typography>
-												</Box>
-												<br />
-												<Box>
-													<Typography variant="subtitle2" color="textSecondary">Total Miles:</Typography>
-													<Typography variant="h5" color="primary">{Math.round(formik.values.stateEntries.reduce((sum, entry) => sum + (parseFloat(entry.miles) || 0), 0)).toLocaleString()}</Typography>
-												</Box>
-											</Grid>
-											<Grid item xs={12}>
-												<Typography variant="subtitle2" color="textSecondary">
-													Total Gallons:
-												</Typography>
-												<Typography variant="h5" color="primary">{parseFloat(formik.values.stateEntries.reduce((sum, entry) => sum + (parseFloat(entry.gallons) || 0), 0).toFixed(3)).toLocaleString(undefined, { maximumFractionDigits: 3 })}</Typography>
-											</Grid>
+																) /
+																(formik.values.stateEntries.reduce(
+																	(sum, entry) =>
+																		sum + (parseFloat(entry.gallons) || 0),
+																	0
+																) || 1)
+															).toFixed(2)}
+														</Box>
+													</Box>
+												</Grid>
+											)}
 										</Grid>
 									</Box>
 								)}
 
-								<Box sx={{ mt: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-									<Button component={RouterLink} to={currentUser?.role === 'admin' ? '/admin/consumption' : '/client/consumption'} variant="outlined">
+								<Box
+									sx={{
+										mt: 3,
+										display: 'flex',
+										justifyContent: 'space-between',
+										alignItems: 'center',
+									}}
+								>
+									<Button
+										component={RouterLink}
+										to={
+											currentUser?.role === 'admin'
+												? '/admin/consumption'
+												: '/client/consumption'
+										}
+										variant="outlined"
+									>
 										Cancel
 									</Button>
 									<Button
@@ -1668,7 +1945,11 @@ const ConsumptionEdit = () => {
 										startIcon={isLoading ? null : <Save />}
 										sx={{ minWidth: 180, color: 'white' }}
 									>
-										{isLoading ? <CircularProgress size={24} /> : 'Update Report'}
+										{isLoading ? (
+											<CircularProgress size={24} />
+										) : (
+											'Save and Submit Report'
+										)}
 									</Button>
 								</Box>
 							</Paper>
@@ -1678,18 +1959,37 @@ const ConsumptionEdit = () => {
 
 				<Dialog open={open} onClose={handleClose}>
 					<DialogContent>
-						<Typography>Are you sure you want to update this report?</Typography>
+						<Typography>
+							Are you sure? This option will send your information for
+							transmission to IFTA. You will be able to edit this information
+							later only if the status is not completed
+						</Typography>
 					</DialogContent>
 					<DialogActions>
-						<Button onClick={handleClose}>Cancel</Button>
-						<Button type="submit" form="myForm" variant="contained" color="success">
-							Update
+						<Button onClick={handleClose}>Close</Button>
+						<Button
+							type="submit"
+							form="myForm"
+							variant="contained"
+							color="success"
+						>
+							Save
 						</Button>
 					</DialogActions>
 				</Dialog>
 
-				<Snackbar open={snackbar.open} autoHideDuration={6000} onClose={handleCloseSnackbar} anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}>
-					<Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: '100%' }}>
+				{/* Single Snackbar for notifications */}
+				<Snackbar
+					open={snackbar.open}
+					autoHideDuration={6000}
+					onClose={handleCloseSnackbar}
+					anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+				>
+					<Alert
+						onClose={handleCloseSnackbar}
+						severity={snackbar.severity}
+						sx={{ width: '100%' }}
+					>
 						{snackbar.message}
 					</Alert>
 				</Snackbar>
@@ -1698,4 +1998,4 @@ const ConsumptionEdit = () => {
 	);
 };
 
-export default ConsumptionEdit;
+export default ConsumptionCreate;

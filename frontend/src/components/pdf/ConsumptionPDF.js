@@ -169,7 +169,7 @@ const ConsumptionPDF = ({
           />
           <View style={styles.companyInfo}>
             <Text style={{ fontSize: 14, fontWeight: 'bold', marginBottom: 3 }}>{companyName}</Text>
-            <Text style={{ fontSize: 10, marginBottom: 2 }}>FUEL CONSUMPTION REPORT</Text>
+            <Text style={{ fontSize: 10, marginBottom: 2 }}>FUEL REPORT</Text>
             <Text style={{ fontSize: 10, marginBottom: 2 }}>UNIT #: {unitNumber}</Text>
             <Text style={{ fontSize: 8, color: '#666', marginTop: 3 }}>Generated on: {generatedDate}</Text>
           </View>
@@ -177,7 +177,7 @@ const ConsumptionPDF = ({
 
         {/* Report title */}
         <View style={{ marginVertical: 15, textAlign: 'center' }}>
-          <Text style={styles.title}>FUEL CONSUMPTION SUMMARY</Text>
+          <Text style={styles.title}>FUEL REPORT SUMMARY</Text>
           <Text style={styles.subtitle}>REPORT DATE: {formattedDate.toUpperCase()}</Text>
         </View>
 
