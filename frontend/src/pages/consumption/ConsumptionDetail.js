@@ -994,7 +994,7 @@ const ConsumptionDetail = () => {
           <Grid item xs={12} md={4}>
             <Card elevation={2} sx={{ mb: 3 }}>
               <CardContent>
-                <Typography variant="h6" fontWeight="bold" gutterBottom>Efficiency Summary</Typography>
+                <Typography variant="h6" fontWeight="bold" gutterBottom>Summary Report</Typography>
                 <Divider sx={{ mb: 2 }} />
                 {currentUser?.role === 'admin' && (
                   <Box mb={3}>

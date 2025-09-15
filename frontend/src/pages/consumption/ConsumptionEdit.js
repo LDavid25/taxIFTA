@@ -84,11 +84,23 @@ const validationSchema = Yup.object({
 			miles: Yup.number()
 				.typeError('Must be a number')
 				.nullable()
-				.min(1, 'Miles cannot be negative'),
+				.test('not-empty', 'Miles are required when state is selected', function(value) {
+					if (this.parent.state && (value === null || value === undefined || value === '')) {
+						return this.createError({ message: 'Miles are required when state is selected' });
+					}
+					return true;
+				})
+				.min(0, 'Miles must be a positive number'),
 			gallons: Yup.number()
 				.typeError('Must be a number')
 				.nullable()
-				.min(0, 'Gallons cannot be negative'),
+				.test('not-empty', 'Gallons are required when state is selected', function(value) {
+					if (this.parent.state && (value === null || value === undefined || value === '')) {
+						return this.createError({ message: 'Gallons are required when state is selected' });
+					}
+					return true;
+				})
+				.min(0, 'Gallons must be a positive number'),
 		})
 	),
 });
@@ -621,7 +633,7 @@ const ConsumptionEdit = () => {
 				// Update success message
 				setSnackbar({
 					open: true,
-					message: 'Informe cargado correctamente',
+					message: 'Report loaded successfully',
 					severity: 'success',
 					autoHideDuration: 3000,
 				});
@@ -1037,12 +1049,24 @@ const ConsumptionEdit = () => {
 														value={entry.miles}
 														size="small"
 														onChange={(e) => {
-															const value = parseFloat(e.target.value);
-															if (isNaN(value) || value >= 0) {
-																formik.handleChange(e);
+															const value = e.target.value;
+															if (value === '' || (parseFloat(value) >= 0 && !isNaN(parseFloat(value)))) {
+																formik.setFieldValue(`stateEntries.${index}.miles`, value);
 															}
 														}}
-														onBlur={formik.handleBlur}
+														onBlur={(e) => {
+															const { value } = e.target;
+															if (value !== '') {
+																const num = parseFloat(value);
+																if (!isNaN(num) && num >= 0) {
+																	formik.setFieldValue(`stateEntries.${index}.miles`, num.toFixed(2));
+																}
+															}
+															// Mark the field as touched to show validation errors
+															formik.setFieldTouched(`stateEntries.${index}.miles`, true);
+															// Trigger validation
+															formik.validateField(`stateEntries.${index}.miles`);
+														}}
 														error={
 															formik.touched.stateEntries?.[index]?.miles &&
 															Boolean(
@@ -1070,21 +1094,21 @@ const ConsumptionEdit = () => {
 																value === '' ||
 																/^\d*\.?\d{0,3}$/.test(value)
 															) {
-																formik.setFieldValue(e.target.name, value);
+																formik.setFieldValue(`stateEntries.${index}.gallons`, value);
 															}
 														}}
 														onBlur={(e) => {
-															const value = parseFloat(e.target.value);
-															if (isNaN(value) || value >= 0) {
-																formik.handleChange(e);
+															const { value } = e.target;
+															if (value !== '') {
+																const num = parseFloat(value);
+																if (!isNaN(num) && num >= 0) {
+																	formik.setFieldValue(`stateEntries.${index}.gallons`, num.toFixed(3));
+																}
 															}
-															if (!isNaN(value)) {
-																formik.setFieldValue(
-																	e.target.name,
-																	value.toFixed(3)
-																);
-															}
-															formik.handleBlur(e);
+															// Mark the field as touched to show validation errors
+															formik.setFieldTouched(`stateEntries.${index}.gallons`, true);
+															// Trigger validation
+															formik.validateField(`stateEntries.${index}.gallons`);
 														}}
 														error={
 															formik.touched.stateEntries?.[index]?.gallons &&
@@ -1569,7 +1593,7 @@ const ConsumptionEdit = () => {
 									zIndex: 1,
 								}}
 							>
-								<Typography variant="h6" gutterBottom>Summary Repor</Typography>
+								<Typography variant="h6" gutterBottom>Summary Report</Typography>
 								{formik.values.stateEntries?.length > 0 && (
 									<Box sx={{ mt: 2, p: 2, bgcolor: 'background.paper', borderRadius: 1 }}>
 										<Grid container spacing={2}>

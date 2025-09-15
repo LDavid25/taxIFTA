@@ -1097,10 +1097,7 @@ const ConsumptionHistory = () => {
 												)}
 												<TableCell>{getQuarter(row.date)}</TableCell>
 												<TableCell align="right">
-													{parseFloat(row.milesTraveled).toLocaleString(undefined, {
-														minimumFractionDigits: 2,
-														maximumFractionDigits: 2,
-													})}
+													{parseInt(row.milesTraveled).toLocaleString()}
 												</TableCell>
 												<TableCell align="right">
 													{parseFloat(row.totalGallons).toLocaleString(undefined, {

@@ -82,12 +82,22 @@ const validationSchema = Yup.object({
 			miles: Yup.number()
 				.typeError('Must be a number')
 				.nullable()
-				.test('not-empty', 'Miles cannot be empty', value => value !== '')
+				.test('not-empty', 'Miles are required when state is selected', function(value) {
+					if (this.parent.state && (value === null || value === undefined || value === '')) {
+						return this.createError({ message: 'Miles are required when state is selected' });
+					}
+					return true;
+				})
 				.min(0, 'Miles must be a positive number'),
 			gallons: Yup.number()
 				.typeError('Must be a number')
 				.nullable()
-				.test('not-empty', 'Gallons cannot be empty', value => value !== '')
+				.test('not-empty', 'Gallons are required when state is selected', function(value) {
+					if (this.parent.state && (value === null || value === undefined || value === '')) {
+						return this.createError({ message: 'Gallons are required when state is selected' });
+					}
+					return true;
+				})
 				.min(0, 'Gallons must be a positive number'),
 		})
 	).test('no-empty-fields', 'Please fill in all required fields', function (stateEntries) {
@@ -728,6 +738,9 @@ const ConsumptionCreate = () => {
 	const formik = useFormik({
 		initialValues,
 		validationSchema,
+		validateOnBlur: true,
+		validateOnChange: false,
+		onSubmit: handleSubmit,
 		validate: validateForm,
 		onSubmit: handleFormSubmit,
 	});
@@ -1277,23 +1290,27 @@ const ConsumptionCreate = () => {
 														size="small"
 														onChange={(e) => {
 															const value = e.target.value;
-															// Only allow positive numbers or empty string
-															if (value === '' || (parseFloat(value) > 0 && !isNaN(parseFloat(value)))) {
+															// Allow positive numbers with up to 2 decimal places or empty string
+															if (value === '' || /^\d*\.?\d{0,2}$/.test(value)) {
 																formik.setFieldValue(`stateEntries.${index}.miles`, value);
 															}
 														}}
 														onBlur={(e) => {
-															const value = e.target.value;
+															const { value } = e.target;
 															if (value && value !== '') {
 																const num = parseFloat(value);
 																if (!isNaN(num) && num > 0) {
+																	// Format to 2 decimal places for display
 																	formik.setFieldValue(`stateEntries.${index}.miles`, num.toFixed(2));
 																} else {
 																	// If the value is not a valid positive number, clear the field
 																	formik.setFieldValue(`stateEntries.${index}.miles`, '');
 																}
 															}
-															formik.handleBlur(e);
+															// Mark the field as touched to show validation errors
+															formik.setFieldTouched(`stateEntries.${index}.miles`, true);
+															// Trigger validation
+															formik.validateField(`stateEntries.${index}.miles`);
 														}}
 														error={
 															formik.touched.stateEntries?.[index]?.miles &&
@@ -1305,12 +1322,7 @@ const ConsumptionCreate = () => {
 															formik.touched.stateEntries?.[index]?.miles &&
 															formik.errors.stateEntries?.[index]?.miles
 														}
-														inputProps={{
-															step: '0.01',
-															inputMode: 'decimal',
-															min: '0.01',
-															pattern: '^[0-9]*\.?[0-9]*$' // Only allow numbers and decimal point
-														}}
+														inputProps={{ min: 0.01, step: '0.01' }}
 													/>
 												</Grid>
 												<Grid item xs={12} sm={3}>
@@ -1332,31 +1344,20 @@ const ConsumptionCreate = () => {
 															}
 														}}
 														onBlur={(e) => {
-															// Format the value to have 3 decimal places when focus is lost
-															if (e.target.value && e.target.value !== '') {
-																const num = parseFloat(e.target.value);
+															const { value } = e.target;
+															if (value !== '') {
+																const num = parseFloat(value);
 																if (!isNaN(num) && num >= 0) {
 																	formik.setFieldValue(
 																		`stateEntries.${index}.gallons`,
 																		num.toFixed(3)
 																	);
-																} else {
-																	// Show error for negative numbers
-																	formik.setFieldError(
-																		`stateEntries.${index}.gallons`,
-																		'Gallons must be a positive number or zero'
-																	);
-																	return;
 																}
-															} else if (entry.state) {
-																// Show error if state is selected but gallons is empty
-																formik.setFieldError(
-																	`stateEntries.${index}.gallons`,
-																	'Gallons are required when a state is selected'
-																);
-																return;
 															}
-															formik.handleBlur(e);
+															// Mark the field as touched to show validation errors
+															formik.setFieldTouched(`stateEntries.${index}.gallons`, true);
+															// Trigger validation
+															formik.validateField(`stateEntries.${index}.gallons`);
 														}}
 														onKeyDown={(e) => {
 															// Prevent negative numbers from being entered
