@@ -135,8 +135,15 @@ const createReport = async (req, res, next) => {
     }
 
     const { user_id, name } = req;
-    const { vehicle_plate, report_year, quarter, report_month, notes, quarterly_report_id } =
-      req.body;
+    const {
+      vehicle_plate,
+      report_year,
+      quarter,
+      report_month,
+      status,
+      notes,
+      quarterly_report_id,
+    } = req.body;
     const files = req.files?.attachments || [];
 
     // Parse states from form data
@@ -227,7 +234,7 @@ const createReport = async (req, res, next) => {
       notes: notes || '', // Usar 'notes' para coincidir con la base de datos
       total_miles: parseFloat(totals.totalMiles) || 0,
       total_gallons: parseFloat(totals.totalGallons) || 0,
-      status: 'in_progress', // Estado inicial para nuevos reportes
+      status: status, // Estado inicial para nuevos reportes
       created_by: user_id,
       quarterly_report_id: quarterlyReport.id, // Always set the quarterly report ID
     };
@@ -397,9 +404,7 @@ const getReportById = async (req, res, next) => {
 
     // For admin users, allow access to any report
     // For regular users, only allow access to reports from their company
-    const whereCondition = req.user?.role === 'admin'
-      ? { id }
-      : { id, company_id };
+    const whereCondition = req.user?.role === 'admin' ? { id } : { id, company_id };
 
     console.log('Where condition:', JSON.stringify(whereCondition, null, 2));
 
@@ -605,7 +610,7 @@ const updateReport = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { company_id, user_id } = req;
-    const { vehicle_plate, report_year, report_month, notes } = req.body;
+    const { vehicle_plate, report_year, report_month, status, notes } = req.body;
     const files = req.files?.attachments || [];
 
     // Parse states from form data (same as createReport)
@@ -628,9 +633,7 @@ const updateReport = async (req, res, next) => {
     const validStates = states.filter(Boolean);
 
     // Buscar el reporte - permitir acceso de admin a cualquier reporte
-    const whereCondition = req.user?.role === 'admin'
-      ? { id }
-      : { id, company_id };
+    const whereCondition = req.user?.role === 'admin' ? { id } : { id, company_id };
 
     const report = await IftaReport.findOne({
       where: whereCondition,
@@ -665,6 +668,7 @@ const updateReport = async (req, res, next) => {
     if (vehicle_plate) reportData.vehicle_plate = vehicle_plate;
     if (report_year) reportData.report_year = report_year;
     if (report_month) reportData.report_month = report_month;
+    if (status) reportData.status = status;
     if (notes !== undefined) reportData.notes = notes; // Usar 'notes' para coincidir con la base de datos
 
     // Si se actualizan los estados, recalcular totales
