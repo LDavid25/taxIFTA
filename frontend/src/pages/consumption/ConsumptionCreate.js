@@ -103,6 +103,7 @@ const validationSchema = Yup.object({
 const ConsumptionCreate = () => {
 	const { currentUser, isAdmin } = useAuth(); // Get currentUser and isAdmin from auth context
 	const [isLoading, setIsLoading] = useState(false);
+	const [submitStatus, setSubmitStatus] = useState('draft'); // 'draft' or 'in_progress'
 	const [snackbar, setSnackbar] = useState({
 		open: false,
 		message: '',
@@ -486,12 +487,12 @@ const ConsumptionCreate = () => {
 		return false;
 	};
 
-	const handleSubmit = async (values) => {
+	const handleSubmit = async (values, status = submitStatus) => {
 		try {
 			setIsLoading(true);
 
 			// Debug log form values
-			console.log('Form values on submit:', values);
+			console.log('Form values on submit:', values, status);
 
 			// Basic validation
 			if (!values.unitNumber || !values.year || !values.month) {
@@ -519,8 +520,16 @@ const ConsumptionCreate = () => {
 			formDataToSend.append('quarter', values.quarter);
 			formDataToSend.append('report_month', reportMonth.toString());
 
-			// Set default status
-			formDataToSend.append('status', 'in_progress');
+			// Set status based on the action
+			let finalStatus = 'in_progress'; // Default status
+			if (status === 'submit' || status === 'sent') {
+				finalStatus = 'sent';
+			}
+			// Ensure the status is one of the valid ones
+			if (!validStatuses.includes(finalStatus)) {
+				finalStatus = 'in_progress';
+			}
+			formDataToSend.append('status', finalStatus);
 
 			// Add user and company info - ensure they are not null/undefined
 			const companyId = isAdmin
@@ -615,6 +624,12 @@ const ConsumptionCreate = () => {
 				});
 			}
 
+			// Debug log the form data being sent
+			console.log('Sending form data with status:', finalStatus);
+			for (let pair of formDataToSend.entries()) {
+				console.log(pair[0] + ': ' + pair[1]);
+			}
+
 			// Send data to the backend
 			const response = await createConsumptionReport(formDataToSend);
 
@@ -682,7 +697,7 @@ const ConsumptionCreate = () => {
 			return false;
 		}
 
-		return await handleSubmit(values);
+		return await handleSubmit(values, submitStatus);
 	};
 
 	const initialValues = {
@@ -721,15 +736,21 @@ const ConsumptionCreate = () => {
 		setSnackbar((prev) => ({ ...prev, open: false }));
 	};
 
+	// Valid statuses for the report
+	const validStatuses = ['sent', 'in_progress', 'completed', 'rejected'];
+
 	// Check if the form is valid
 	const isFormValid = () => {
 		// Check if Unit & Period form is filled
 		const isUnitPeriodValid =
 			formik.values.unitNumber && formik.values.year && formik.values.month;
 
-		// If in first step, only check unit and period
+		// Check company for admin users
+		const isCompanyValid = !isAdmin || (isAdmin && formik.values.companyId);
+
+		// If in first step, check unit, period and company (if admin)
 		if (!showJurisdictions) {
-			return isUnitPeriodValid;
+			return isUnitPeriodValid && isCompanyValid;
 		}
 
 		// En el segundo paso, verifica que todas las entradas estén completas
@@ -744,7 +765,7 @@ const ConsumptionCreate = () => {
 				!isNaN(entry.gallons)
 		);
 
-		return isUnitPeriodValid && isJurisdictionsValid && isReportValid;
+		return isUnitPeriodValid && isCompanyValid && isJurisdictionsValid && isReportValid;
 	};
 
 	const quarters = getQuartersForYear(formik.values.year);
@@ -1070,7 +1091,9 @@ const ConsumptionCreate = () => {
 													)}
 												</Select>
 												{formik.touched.month && formik.errors.month && (
-													<FormHelperText>{formik.errors.month}</FormHelperText>
+													<FormHelperText>
+														{formik.errors.month}
+													</FormHelperText>
 												)}
 											</FormControl>
 										</Grid>
@@ -1103,12 +1126,7 @@ const ConsumptionCreate = () => {
 														await handleContinue(formik.values);
 													}
 												}}
-												disabled={
-													!formik.values.unitNumber ||
-													!formik.values.year ||
-													!formik.values.month ||
-													isChecking
-												}
+												disabled={!isFormValid() || isChecking}
 												sx={{
 													width: '100%',
 													textTransform: 'none',
@@ -1845,31 +1863,49 @@ const ConsumptionCreate = () => {
 
 								<Box
 									sx={{
-										mt: 3,
+										mt: 0,
+										padding: '5px',
 										display: 'flex',
 										justifyContent: 'space-between',
 										alignItems: 'center',
+										flexWrap: 'wrap',
 									}}
 								>
-									<Button
-										component={RouterLink}
-										to={
-											currentUser?.role === 'admin'
-												? '/admin/consumption'
-												: '/client/consumption'
-										}
-										variant="outlined"
-									>
-										Cancel
-									</Button>
+									<Box sx={{ display: 'flex', gap: 1 }}>
+										<Button
+											component={RouterLink}
+											to={
+												currentUser?.role === 'admin'
+													? '/admin/consumption'
+													: '/client/consumption'
+											}
+											variant="outlined"
+										>
+											Cancel
+										</Button>
+										<Button
+											variant="outlined"
+											color="primary"
+											onClick={() => {
+												setSubmitStatus('sent');
+												formik.handleSubmit(undefined, 'sent');
+											}}
+											disabled={!isFormValid()}
+										>
+											Save as Draft
+										</Button>
+									</Box>
 									<Button
 										type="button"
 										variant="contained"
 										color="success"
-										onClick={handleOpen}
+										onClick={() => {
+											setSubmitStatus('submit');
+											handleOpen();
+										}}
 										disabled={!isFormValid() || !isReportValid || isLoading}
 										startIcon={isLoading ? null : <Save />}
-										sx={{ minWidth: 180, color: 'white' }}
+										sx={{ minWidth: 180, color: 'white', mt: 2 }}
 									>
 										{isLoading ? (
 											<CircularProgress size={24} />
@@ -1898,6 +1934,11 @@ const ConsumptionCreate = () => {
 							form="myForm"
 							variant="contained"
 							color="success"
+							onClick={() => {
+								setSubmitStatus('submit');
+								formik.handleSubmit(undefined, 'submit');
+								handleClose();
+							}}
 						>
 							Save
 						</Button>

@@ -179,7 +179,7 @@ const ConsumptionDetail = () => {
   const translateStatus = (status) => {
     const statusMap = {
       in_progress: 'In Progress',
-      sent: 'Sent',
+      sent: 'Draft',
       rejected: 'Rejected',
       completed: 'Completed'
     };
@@ -219,6 +219,12 @@ const ConsumptionDetail = () => {
       label: 'In Progress', 
       icon: <EditIcon />,
       color: 'warning'
+    },
+    { 
+      value: 'sent', 
+      label: 'Draft', 
+      icon: <PendingIcon />,
+      color: 'info'
     },
     { 
       value: 'rejected', 
@@ -501,7 +507,8 @@ const ConsumptionDetail = () => {
       // Show success notification
       enqueueSnackbar('Status updated successfully', { 
         variant: 'success',
-        autoHideDuration: 3000
+        autoHideDuration: 3000,
+        style: { backgroundColor: '#4caf50' } // Green background
       });
       
       return true;
@@ -579,7 +586,7 @@ const ConsumptionDetail = () => {
       <Container maxWidth="lg" sx={{ py: 4, minHeight: '60vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
         <CircularProgress size={60} thickness={4} sx={{ mb: 3 }} />
         <Typography variant="h6" color="textSecondary">
-          Loading consumption report...
+          Loading report...
         </Typography>
       </Container>
     );
@@ -679,22 +686,60 @@ const ConsumptionDetail = () => {
                 )}
                 <Box display="flex" alignItems="center" gap={2} mb={1}>
                   <Typography variant="h4" component="h1">
-                    Consumption Report: {safeConsumption.vehicle_plate}
+                    Report: {safeConsumption.vehicle_plate}
                   </Typography>
-                  <Chip 
-                    key={`status-${safeConsumption.status}`}
-                    label={translateStatus(safeConsumption.status) || 'Unknown'}
-                    color={getStatusColor(safeConsumption.status)} 
-                    size="small"
-                    variant="outlined"
-                    sx={{ 
-                      textTransform: 'none',
-                      fontWeight: 'medium',
-                      '& .MuiChip-label': {
-                        textTransform: 'none'
-                      }
-                    }}
-                  />
+                  <Box>
+                    <Chip 
+                      key={`status-${safeConsumption.status}`}
+                      label={translateStatus(safeConsumption.status) || 'Unknown'}
+                      color={getStatusColor(safeConsumption.status)} 
+                      size="small"
+                      variant="outlined"
+                      onClick={handleStatusMenuOpen}
+                      onDelete={handleStatusMenuOpen}
+                      deleteIcon={<ArrowDropDownIcon />}
+                      sx={{ 
+                        textTransform: 'none',
+                        fontWeight: 'medium',
+                        cursor: 'pointer',
+                        '& .MuiChip-label': {
+                          textTransform: 'none'
+                        },
+                        '&:hover': {
+                          backgroundColor: 'action.hover'
+                        }
+                      }}
+                    />
+                    <Menu
+                      anchorEl={statusAnchorEl}
+                      open={Boolean(statusAnchorEl)}
+                      onClose={handleStatusMenuClose}
+                      anchorOrigin={{
+                        vertical: 'bottom',
+                        horizontal: 'left',
+                      }}
+                      transformOrigin={{
+                        vertical: 'top',
+                        horizontal: 'left',
+                      }}
+                    >
+                      {statusOptions.map((option) => (
+                        <MenuItem 
+                          key={option.value}
+                          onClick={() => {
+                            handleStatusChange(option.value);
+                            handleStatusMenuClose();
+                          }}
+                          disabled={updatingStatus}
+                        >
+                          <ListItemIcon>
+                            {option.icon}
+                          </ListItemIcon>
+                          <ListItemText>{option.label}</ListItemText>
+                        </MenuItem>
+                      ))}
+                    </Menu>
+                  </Box>
                 </Box>
                 <Typography variant="subtitle1" color="textSecondary">
                   Period: {reportDate} • Created: {createdAt}
@@ -746,7 +791,7 @@ const ConsumptionDetail = () => {
                       <TableCell sx={{ border: 'none' }}>{reportDate}</TableCell>
                     </TableRow>
                     <TableRow>
-                      <TableCell component="th" scope="row" sx={{ fontWeight: 'bold', border: 'none' }}>Consumption Quarter</TableCell>
+                      <TableCell component="th" scope="row" sx={{ fontWeight: 'bold', border: 'none' }}>Quarter</TableCell>
                       <TableCell sx={{ border: 'none' }}>{getQuarter(safeConsumption.date) || 'Not available'}</TableCell>
                     </TableRow>
                     <TableRow>
@@ -869,7 +914,7 @@ const ConsumptionDetail = () => {
               </TableContainer>
 
               <Divider sx={{ mb: 3, mt: 3 }} />
-              <Typography variant="h6" fontWeight="bold" mt={4} mb={2}>Consumption Details</Typography>
+              <Typography variant="h6" fontWeight="bold" mt={4} mb={2}>Report Details</Typography>
 
               <TableContainer>
                 <Table size="small">
@@ -898,7 +943,10 @@ const ConsumptionDetail = () => {
                                 })()
                               }</TableCell>
                               <TableCell align="right">
-                                {Math.round(miles).toLocaleString()}
+                                {miles.toLocaleString(undefined, {
+                                  minimumFractionDigits: 2,
+                                  maximumFractionDigits: 2
+                                })}
                               </TableCell>
                               <TableCell align="right">
                                 {gallons.toLocaleString(undefined, { 
@@ -913,12 +961,15 @@ const ConsumptionDetail = () => {
                         <TableRow sx={{ '& > *': { borderTop: '2px solid rgba(0, 0, 0, 0.12)', fontWeight: 'bold', backgroundColor: 'rgba(0, 0, 0, 0.02)' } }}>
                           <TableCell>Total</TableCell>
                           <TableCell align="right">
-                            {Math.round(consumptionDetails.reduce((sum, item) => sum + parseFloat(item.miles || 0), 0)).toLocaleString()}
+                            {consumptionDetails.reduce((sum, item) => sum + parseFloat(item.miles || 0), 0).toLocaleString(undefined, {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2
+                          })}
                           </TableCell>
                           <TableCell align="right">
-                            {consumptionDetails.reduce((sum, item) => sum + parseFloat(item.gallons || 0), 0).toLocaleString(undefined, { 
-                              minimumFractionDigits: 3, 
-                              maximumFractionDigits: 3 
+                            {consumptionDetails.reduce((sum, item) => sum + parseFloat(item.gallons || 0), 0).toLocaleString(undefined, {
+                              minimumFractionDigits: 3,
+                              maximumFractionDigits: 3
                             })}
                           </TableCell>
                         </TableRow>
@@ -965,7 +1016,7 @@ const ConsumptionDetail = () => {
                   <Typography variant="subtitle2" color="textSecondary">Total Gallons</Typography>
                   <Typography variant="h5">
                     {parseFloat(totalGallons).toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 })} 
-                    <Typography component="span" variant="body2" color="textSecondary">gallons</Typography>
+                    <Typography component="span" variant="body2" color="textSecondary"> gallons</Typography>
                   </Typography>
                 </Box>
               </CardContent>

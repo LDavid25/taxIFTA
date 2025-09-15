@@ -163,21 +163,26 @@ const getQuarter = (dateString) => {
 // Status mapping: { display: 'UI Text', value: 'api_value' }
 const statusOptions = [
 	{ display: 'All', value: 'All' },
-	{ display: 'Completed', value: 'Completed' },
-	{ display: 'Rejected', value: 'Rejected' },
-	{ display: 'In progress', value: 'In_progress' },
+	{ display: 'Completed', value: 'completed' },
+	{ display: 'Rejected', value: 'rejected' },
+	{ display: 'In progress', value: 'in_progress' },
+	{ display: 'Draft', value: 'sent' },
 ];
 const statusFilters = statusOptions.map((opt) => opt.display);
 
 // Set color for status
 const getStatusColor = (status) => {
-	switch (status) {
-		case 'Completed':
+	switch (status?.toLowerCase()) {
+		case 'completed':
 			return 'success';
-		case 'In progress':
+		case 'in_progress':
+		case 'in progress':
 			return 'warning';
-		case 'Rejected':
+		case 'rejected':
 			return 'error';
+		case 'sent':
+		case 'draft':
+			return 'info'; // Blue color for 'Sent' status
 		default:
 			return 'default';
 	}
@@ -237,7 +242,10 @@ const MobileTableRow = ({ row, onViewReceipt }) => {
 									Miles
 								</Typography>
 								<Typography variant="body1">
-									{row.milesTraveled.toLocaleString()}
+									{parseFloat(row.milesTraveled).toLocaleString(undefined, {
+										minimumFractionDigits: 2,
+										maximumFractionDigits: 2,
+									})}
 								</Typography>
 							</Grid>
 							<Grid item xs={6}>
@@ -245,14 +253,22 @@ const MobileTableRow = ({ row, onViewReceipt }) => {
 									Gallons
 								</Typography>
 								<Typography variant="body1">
-									{row.totalGallons.toFixed(3)}
+									{parseFloat(row.totalGallons).toLocaleString(undefined, {
+										minimumFractionDigits: 3,
+										maximumFractionDigits: 3,
+									})}
 								</Typography>
 							</Grid>
 							<Grid item xs={6}>
 								<Typography variant="body2" color="textSecondary">
 									MPG
 								</Typography>
-								<Typography variant="body1">{row.mpg}</Typography>
+								<Typography variant="body1">
+									{parseFloat(row.mpg).toLocaleString(undefined, {
+										minimumFractionDigits: 2,
+										maximumFractionDigits: 2,
+									})}
+								</Typography>
 							</Grid>
 							<Grid item xs={6} sx={{ display: 'flex', alignItems: 'center' }}>
 								<Button
@@ -531,10 +547,10 @@ const ConsumptionHistory = () => {
 
 				if (statusFilter !== 'All') {
 					const statusOption = statusOptions.find(
-						(opt) => opt.display === statusFilter
+						(opt) => opt.display === statusFilter || opt.value === statusFilter
 					);
 					if (statusOption) {
-						params.status = statusOption.value.toLowerCase();
+						params.status = statusOption.value;
 					}
 				}
 
@@ -1046,23 +1062,6 @@ const ConsumptionHistory = () => {
 									/>
 								))}
 						</Box>
-					) : isMobile ? (
-						// Mobile view - Cards
-						<Box sx={{ p: 2 }}>
-							{filteredData
-								.slice(
-									pagination.page * pagination.rowsPerPage,
-									pagination.page * pagination.rowsPerPage +
-										pagination.rowsPerPage
-								)
-								.map((row) => (
-									<MobileTableRow
-										key={row.id}
-										row={row}
-										onViewReceipt={handleViewReceipt}
-									/>
-								))}
-						</Box>
 					) : (
 						// Vista escritorio - Tabla
 						<TableContainer>
@@ -1098,15 +1097,24 @@ const ConsumptionHistory = () => {
 												)}
 												<TableCell>{getQuarter(row.date)}</TableCell>
 												<TableCell align="right">
-													{row.milesTraveled.toLocaleString(undefined, {
+													{parseFloat(row.milesTraveled).toLocaleString(undefined, {
+														minimumFractionDigits: 2,
 														maximumFractionDigits: 2,
 													})}
 												</TableCell>
 												<TableCell align="right">
-													{row.totalGallons.toFixed(3)}
+													{parseFloat(row.totalGallons).toLocaleString(undefined, {
+														minimumFractionDigits: 3,
+														maximumFractionDigits: 3,
+													})}
 												</TableCell>
 												{isAdmin(currentUser) && (
-													<TableCell align="right">{row.mpg}</TableCell>
+													<TableCell align="right">
+														{parseFloat(row.mpg).toLocaleString(undefined, {
+															minimumFractionDigits: 2,
+															maximumFractionDigits: 2,
+														})}
+													</TableCell>
 												)}
 												<TableCell>
 													<Chip
