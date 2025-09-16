@@ -59,7 +59,7 @@ const minDateToSelect = maxDateToSelect - 10; // 10 years ago
 
 // Validation Schema
 const validationSchema = Yup.object({
-<<<<<<< HEAD
+
 	unitNumber: Yup.string()
 		.required('Unit number is required')
 		.matches(/^[A-Za-z0-9-]+$/, 'Please enter a valid unit number'),
@@ -103,7 +103,7 @@ const validationSchema = Yup.object({
 		})
 	).test('no-empty-fields', 'Please fill in all required fields', function (stateEntries) {
 		if (!stateEntries) return true; // Skip if no entries
-=======
+
   unitNumber: Yup.string()
     .required("Unit number is required")
     .matches(/^[A-Za-z0-9-]+$/, "Please enter a valid unit number"),
@@ -142,7 +142,6 @@ const validationSchema = Yup.object({
       "Please fill in all required fields",
       function (stateEntries) {
         if (!stateEntries) return true; // Skip if no entries
->>>>>>> a789e545079fb112fd96a0da36484b585213909a
 
         return stateEntries.every((entry) => {
           if (!entry.state) return true; // Skip if no state selected
