@@ -224,7 +224,7 @@ const DashboardCliente = () => {
 						For assistance, please call{' '}
 						<a href="Tel:(956) 381-5025">(956) 381-5025</a> and select option 3,
 						or{' '}
-						<a href="https://web-ubq6gq6jr2lw.up-de-fra1-k8s-1.apps.run-on-seenode.com/Contact">
+						<a href="/client/contact">
 							click here
 						</a>{' '}
 						to send us a message.

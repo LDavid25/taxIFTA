@@ -695,18 +695,22 @@ const ConsumptionDetail = () => {
                       color={getStatusColor(safeConsumption.status)} 
                       size="small"
                       variant="outlined"
-                      onClick={handleStatusMenuOpen}
-                      onDelete={handleStatusMenuOpen}
-                      deleteIcon={<ArrowDropDownIcon />}
+                      onClick={currentUser?.role === 'admin' ? handleStatusMenuOpen : null}
+                      onDelete={currentUser?.role === 'admin' ? handleStatusMenuOpen : null}
+                      deleteIcon={currentUser?.role === 'admin' ? <ArrowDropDownIcon /> : null}
                       sx={{ 
                         textTransform: 'none',
                         fontWeight: 'medium',
-                        cursor: 'pointer',
+                        cursor: currentUser?.role === 'admin' ? 'pointer' : 'default',
                         '& .MuiChip-label': {
-                          textTransform: 'none'
+                          textTransform: 'none',
+                          paddingRight: currentUser?.role === 'admin' ? '8px' : '12px'
                         },
                         '&:hover': {
-                          backgroundColor: 'action.hover'
+                          backgroundColor: currentUser?.role === 'admin' ? 'action.hover' : 'transparent'
+                        },
+                        '& .MuiChip-deleteIcon': {
+                          margin: currentUser?.role === 'admin' ? '0 4px 0 -8px' : 0
                         }
                       }}
                     />

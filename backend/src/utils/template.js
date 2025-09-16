@@ -1,4 +1,52 @@
 const emailTemplate = {
+  contactConfirmation: {
+    subject: () => 'Thank you for contacting us',
+    html: ({ name }) => `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
+        <h2 style="color: #333;">Thank you for reaching out, ${name}!</h2>
+        <p>We've received your message and our team will get back to you as soon as possible. We typically respond within 24-48 hours.</p>
+        
+        <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin: 15px 0;">
+          <p><strong>What to expect next:</strong></p>
+          <ul>
+            <li>Our team will review your inquiry</li>
+            <li>We may contact you for additional information if needed</li>
+            <li>You'll receive a response from one of our representatives</li>
+          </ul>
+        </div>
+        
+        <p>If you have any urgent questions, feel free to reply directly to this email.</p>
+        
+        <p style="color: #666; font-size: 0.9em; margin-top: 20px; border-top: 1px solid #eee; padding-top: 15px;">
+          This is an automated message. Please do not reply to this email.
+        </p>
+      </div>
+    `,
+  },
+  contact: {
+    subject: () => 'New Contact Form Submission',
+    html: ({ name, email, phone, company, message }) => `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
+        <h2 style="color: #333;">New Contact Form Submission</h2>
+        <p>You have received a new message from the contact form:</p>
+        
+        <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin: 15px 0;">
+          <p><strong>Name:</strong> ${name}</p>
+          <p><strong>Email:</strong> <a href="mailto:${email}">${email}</a></p>
+          ${phone ? `<p><strong>Phone:</strong> ${phone}</p>` : ''}
+          ${company ? `<p><strong>Company:</strong> ${company}</p>` : ''}
+          <p><strong>Message:</strong></p>
+          <div style="white-space: pre-line; background-color: white; padding: 10px; border: 1px solid #eee; border-radius: 4px;">
+            ${message}
+          </div>
+        </div>
+        
+        <p style="color: #666; font-size: 0.9em; margin-top: 20px; border-top: 1px solid #eee; padding-top: 15px;">
+          This message was sent from the contact form on your website.
+        </p>
+      </div>
+    `,
+  },
   register: {
     subject: ({ serviceName }) => `Welcome to ${serviceName} - your access credentials!`,
     html: ({ name, serviceName, message }) => `

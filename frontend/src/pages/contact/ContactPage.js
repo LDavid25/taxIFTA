@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import emailjs from '@emailjs/browser';
 import {
   Typography,
@@ -13,9 +13,11 @@ import {
 } from '@mui/material';
 import { Send, ArrowBack } from '@mui/icons-material';
 import { Link as RouterLink } from 'react-router-dom';  
-import { Link } from '@mui/material'; 
+import { Link } from '@mui/material';
+import { useAuth } from '../../context/AuthContext';
 
 const ContactPage = () => {
+  const { currentUser } = useAuth();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [formData, setFormData] = useState({
@@ -26,6 +28,21 @@ const ContactPage = () => {
     company: '',
     message: ''
   });
+
+  // Populate form with user data if available
+  useEffect(() => {
+    if (currentUser) {
+      setFormData(prev => ({
+        ...prev,
+        firstName: currentUser.firstName || currentUser.name?.split(' ')[0] || '',
+        lastName: currentUser.lastName || currentUser.name?.split(' ').slice(1).join(' ') || '',
+        email: currentUser.email || '',
+        phone: currentUser.phone || '',
+        company: currentUser.company?.name || currentUser.companyName || ''
+      }));
+    }
+  }, [currentUser]);
+
   const [openSnackbar, setOpenSnackbar] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [snackbarSeverity, setSnackbarSeverity] = useState('success');
@@ -46,35 +63,35 @@ const ContactPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
-
-    // Configuración de EmailJS
-    const serviceID = process.env.REACT_APP_EMAILJS_SERVICE_ID;
-    const templateID = process.env.REACT_APP_EMAILJS_TEMPLATE_CREATE_ACCOUNT;
-    const publicKey = process.env.REACT_APP_EMAILJS_PUBLIC_KEY;
     
     try {
-      await emailjs.send(
-        serviceID,
-        templateID,
-        {
-          to_name: `${formData.firstName} ${formData.lastName}`,
-          from_name: 'Dot Truck Permits',
-          reply_to: formData.email,
-          message: `
-            Name: ${formData.firstName} ${formData.lastName}
-            Email: ${formData.email}
-            Phone: ${formData.phone}
-            Company: ${formData.company}
-            Message: ${formData.message}
-          `,
-          phone: formData.phone,
-          company: formData.company
+      const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+      // Ensure we don't have double slashes in the URL
+      const apiUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+      const response = await fetch(`${apiUrl}/api/contact`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         },
-        publicKey
-      );
+        body: JSON.stringify({
+          name: `${formData.firstName} ${formData.lastName}`,
+          email: formData.email,
+          phone: formData.phone,
+          company: formData.company,
+          message: formData.message
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to send message');
+      }
 
       setSnackbarMessage('Message sent successfully! We will get back to you soon.');
       setSnackbarSeverity('success');
+      
+      // Reset form
       setFormData({
         firstName: '',
         lastName: '',
@@ -84,8 +101,8 @@ const ContactPage = () => {
         message: ''
       });
     } catch (error) {
-      console.error('Error al enviar el mensaje:', error);
-      setSnackbarMessage('Hubo un error al enviar el mensaje. Por favor, inténtalo de nuevo.');
+      console.error('Error sending message:', error);
+      setSnackbarMessage(error.message || 'Error sending message. Please try again.');
       setSnackbarSeverity('error');
     } finally {
       setOpenSnackbar(true);
@@ -94,91 +111,14 @@ const ContactPage = () => {
   };
 
   return (
-    <Box
-      sx={{
-        width: '98.9vw',
-        minHeight: '95vh',
-        display: 'flex',
-        flexDirection: isMobile ? 'column' : 'row',
-        bgcolor: 'background.default',
-        p: 0,
-        m: 0,
-      }}
-    >
-      {/* Left Section - Content */}
+    <Box>
       <Box
         sx={{
-          width: isMobile ? '100%' : '50%',
+          width: isMobile ? '100%' : '75%',
           p: { xs: 4, md: 8 },
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'center',
-          bgcolor: 'primary.gray',
-          color: 'text.primary',
-        }}
-      >
-        <Typography
-          variant="body1"
-          sx={{
-            mb: 4,
-            color: 'text.primary',
-            '& a': {
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 1,
-              textDecoration: 'none',
-              '&:hover': {
-                textDecoration: 'underline',
-              },
-            },
-          }}
-        >
-          <Link component={RouterLink} to="/Login" color="inherit">
-          <ArrowBack/>
-            Back to Login
-          </Link>
-        </Typography>
-        <Typography
-          variant="h3"
-          component="h3"
-          sx={{
-            fontWeight: 700,
-            mb: 3,
-            fontSize: { xs: '1.5rem', md: '2rem' },
-            lineHeight: 1.2,
-            color: 'text.primary',
-          }}
-        >
-          Talk to our Account expert
-        </Typography>
-
-        <Typography
-          variant="body1"
-          sx={{
-            fontSize: '1.1rem',
-            opacity: 0.9,
-            mb: 4,
-            maxWidth: '90%',
-            lineHeight: 1.6,
-            color: 'text.primary',
-          }}
-        >
-          We are Dot Truck Permits, authorized agents here to assist you with your IFTA filling. Please complete the form bellow, and one of our representatives will contact you to help register on our IFTA Reporting plataform.
-        </Typography>
-
-
-      </Box>
-
-      {/* Right Section - Form */}
-      <Box
-        sx={{
-          width: isMobile ? '100%' : '50%',
-          p: { xs: 4, md: 8 },
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'center',
-          bgcolor: 'background.paper',
-          boxShadow: '0px 3px 5px rgba(0,0,0,0.1)'
         }}
       >
         <Typography
@@ -190,7 +130,7 @@ const ContactPage = () => {
             color: 'text.primary'
           }}
         >
-          Fill the form below to request an account
+          Send us a message
 
         </Typography>
 
@@ -295,7 +235,7 @@ const ContactPage = () => {
                   }
                 }}
               >
-                {isSubmitting ? 'Enviando...' : 'Send Message'}
+                {isSubmitting ? 'Sending...' : 'Send Message'}
               </Button>
             </Grid>
           </Grid>

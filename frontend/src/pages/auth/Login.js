@@ -181,14 +181,14 @@ const Login = () => {
           {loading ? <CircularProgress size={24} /> : 'Login'}
         </Button>
         
-        <Box sx={{ textAlign: 'center' }}>
+        {/* <Box sx={{ textAlign: 'center' }}>
           <Typography variant="body2">
             Don't have an account?{' '}
             <Link component={RouterLink} to="/Contact" variant="body2">
               Request an account
             </Link>
           </Typography>
-        </Box>
+        </Box> */}
       </form>
     </Box>
   );

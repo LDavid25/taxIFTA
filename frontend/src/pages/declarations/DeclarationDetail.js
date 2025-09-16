@@ -308,13 +308,17 @@ const DeclarationDetail = () => {
         }));
       }
 
-      // Add empty attachments array to each report
-      const processedReports = (response.data?.individual_reports || []).map(
-        (report) => ({
+      // Filter reports to only include 'completed' or 'in_progress' status
+      // and add empty attachments array to each report
+      const processedReports = (response.data?.individual_reports || [])
+        .filter(report => {
+          const status = (report.status || '').toLowerCase();
+          return status === 'completed' || status === 'in_progress';
+        })
+        .map((report) => ({
           ...report,
           attachments: [], // Initialize with empty attachments array
-        }),
-      );
+        }));
 
       // Set report data with processed reports
       setReportData({
