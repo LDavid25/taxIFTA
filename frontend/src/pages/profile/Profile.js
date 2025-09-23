@@ -143,10 +143,11 @@ const Profile = () => {
     },
   });
 
-  // Load notification emails when component mounts
+  // Load notification emails when component mounts (only for admin users)
   useEffect(() => {
     const loadNotificationEmails = async () => {
-      if (!currentUser?.company_id) return;
+      // Only load emails for admin users
+      if (currentUser?.role !== 'admin' || !currentUser?.company_id) return;
 
       try {
         const response = await api.get(
@@ -164,7 +165,7 @@ const Profile = () => {
     };
 
     loadNotificationEmails();
-  }, [currentUser?.company_id]);
+  }, [currentUser?.company_id, currentUser?.role]);
 
   // Handle closing alert messages
   const handleAlertClose = () => {

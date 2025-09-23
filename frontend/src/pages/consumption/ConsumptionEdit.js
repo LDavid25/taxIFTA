@@ -636,11 +636,11 @@ const ConsumptionEdit = () => {
           stateEntries:
             Array.isArray(report.states) && report.states.length > 0
               ? report.states.map((state, index) => ({
-                  state: state.state_code || "",
-                  miles: state.miles ? String(state.miles) : "",
-                  gallons: state.gallons ? String(state.gallons) : "",
-                  index: index,
-                }))
+                state: state.state_code || "",
+                miles: state.miles !== null && state.miles !== undefined ? String(state.miles) : "",
+                gallons: state.gallons !== null && state.gallons !== undefined ? String(state.gallons) : "",
+                index: index,
+              }))
               : [{ state: null, miles: "", gallons: "" }],
           files: [],
         });
@@ -1135,10 +1135,10 @@ const ConsumptionEdit = () => {
                             label="Gallons"
                             name={`stateEntries.${index}.gallons`}
                             type="number"
-                            value={entry.gallons}
+                            value={entry.gallons === 0 ? "0" : entry.gallons}
                             size="small"
                             onChange={(e) => {
-                              const value = e.target.value;
+                              const value = e.target.value === "0" ? "0" : e.target.value;
                               if (
                                 value === "" ||
                                 /^\d*\.?\d{0,3}$/.test(value)
@@ -1770,34 +1770,37 @@ const ConsumptionEdit = () => {
 
                 <Box
                   sx={{
-                    mt: 3,
+                    mt: 0,
+                    padding: "5px",
                     display: "flex",
-                    justifyContent: "space-between",
                     alignItems: "center",
+                    flexWrap: "wrap",
                   }}
                 >
-                  <Button
-                    component={RouterLink}
-                    to={
-                      currentUser?.role === "admin"
-                        ? "/admin/consumption"
-                        : "/client/consumption"
-                    }
-                    variant="outlined"
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    variant="outlined"
-                    color="primary"
-                    onClick={() => {
-                      setSubmitStatus("sent");
-                      handleOpen();
-                    }}
-                    disabled={!isFormValid()}
-                  >
-                    Save as Draft
-                  </Button>
+                  <Box sx={{ display: "flex", gap: 1, padding: "5px" }}>
+                    <Button
+                      component={RouterLink}
+                      to={
+                        currentUser?.role === "admin"
+                          ? "/admin/consumption"
+                          : "/client/consumption"
+                      }
+                      variant="outlined"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      color="primary"
+                      onClick={() => {
+                        setSubmitStatus("sent");
+                        handleOpen();
+                      }}
+                      disabled={!isFormValid()}
+                    >
+                      Save as Draft
+                    </Button>
+                  </Box>
                   <Button
                     type="button"
                     variant="contained"
@@ -1813,6 +1816,7 @@ const ConsumptionEdit = () => {
                       "Update Report"
                     )}
                   </Button>
+
                 </Box>
               </Paper>
             </Grid>
@@ -1828,7 +1832,7 @@ const ConsumptionEdit = () => {
           <DialogActions>
             <Button onClick={handleClose}>Cancel</Button>
             <Button
-            sx={{ color: "white" }}
+              sx={{ color: "white" }}
               type="submit"
               form="myForm"
               variant="contained"

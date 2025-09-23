@@ -752,7 +752,7 @@ const ConsumptionDetail = () => {
             </Grid>
             <Grid item>
               <Box display="flex" gap={1}>
-                {safeConsumption.status !== 'completed' && (
+                {(currentUser?.role === 'admin' || (currentUser?.role === 'user' && safeConsumption.status?.toLowerCase() === 'draft')) && (
                   <Button
                     variant="contained"
                     color="primary"
@@ -1000,7 +1000,6 @@ const ConsumptionDetail = () => {
               <CardContent>
                 <Typography variant="h6" fontWeight="bold" gutterBottom>Summary Report</Typography>
                 <Divider sx={{ mb: 2 }} />
-                {currentUser?.role === 'admin' && (
                   <Box mb={3}>
                     <Typography variant="subtitle2" color="textSecondary">Average MPG</Typography>
                     <Typography variant="h4" color="primary">
@@ -1008,7 +1007,6 @@ const ConsumptionDetail = () => {
                       <Typography component="span" variant="body2" color="textSecondary">mpg</Typography>
                   </Typography>
                 </Box>
-                )}
                 <Box mb={3}>
                   <Typography variant="subtitle2" color="textSecondary">Total Miles</Typography>
                   <Typography variant="h5">

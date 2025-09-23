@@ -156,7 +156,7 @@ const MainLayout = () => {
       path: isAdmin ? "/admin/dashboard" : "/client/dashboard",
     },
     {
-      text: "Review",
+      text: "Review & Changes",
       icon: <HistoryIcon />,
       path: isAdmin ? "/admin/consumption" : "/client/consumption",
     },

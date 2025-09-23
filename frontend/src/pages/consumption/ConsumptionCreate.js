@@ -126,11 +126,20 @@ const ConsumptionCreate = () => {
 	const [isChecking, setIsChecking] = useState(false);
 	const [companies, setCompanies] = useState([]);
 	const [open, setOpen] = useState(false);
+	const [openDraftDialog, setOpenDraftDialog] = useState(false);
 	const [isLoadingCompanies, setIsLoadingCompanies] = useState(false);
 	const navigate = useNavigate();
 
 	const handleOpen = () => setOpen(true);
 	const handleClose = () => setOpen(false);
+	const handleOpenDraftDialog = () => setOpenDraftDialog(true);
+	const handleCloseDraftDialog = () => setOpenDraftDialog(false);
+
+	const handleSaveDraft = () => {
+		setSubmitStatus("sent");
+		formik.handleSubmit(undefined, "sent");
+		handleCloseDraftDialog();
+	};
 
 	const handleFileUpload = (newFiles) => {
 		const validFiles = Array.from(newFiles).filter((file) =>
@@ -652,16 +661,16 @@ const ConsumptionCreate = () => {
 				autoHideDuration: 3000,
 			});
 
-			// Reset form and redirect after successful submission
-			formik.resetForm();
-			setSelectedFiles([]);
-			setUploadedFiles([]);
-
-			// Redirect after a short delay based on user role
-			setTimeout(() => {
-				const basePath = currentUser?.role === 'admin' ? '/admin' : '/client';
-				navigate(`${basePath}/consumption`);
-			}, 2000);
+			// Only reset form and redirect if not saving as draft
+			if (status !== 'sent') {
+				formik.resetForm();
+				setSelectedFiles([]);
+				setUploadedFiles([]);
+				setTimeout(() => {
+					const basePath = currentUser?.role === 'admin' ? '/admin' : '/client';
+					navigate(`${basePath}/consumption`);
+				}, 2000);
+			}
 		} catch (error) {
 			console.error('Error creating report:', error);
 			let errorMessage = 'Error creating the consumption report';
@@ -1800,8 +1809,7 @@ const ConsumptionCreate = () => {
                       borderRadius: 1,
                     }}
                   >
-                    {/* MPG - Only visible for Admin */}
-                    {currentUser?.role === "admin" && (
+
                       <Grid item xs={12}>
                         <Box>
                           <Box>
@@ -1874,7 +1882,7 @@ const ConsumptionCreate = () => {
                           </Box>
                         </Box>
                       </Grid>
-                    )}
+                    
 
                     <Grid spacing={2}>
                       <Grid item xs={6} mb={2} mt={2}>
@@ -1948,10 +1956,7 @@ const ConsumptionCreate = () => {
                     <Button
                       variant="outlined"
                       color="primary"
-                      onClick={() => {
-                        setSubmitStatus("sent");
-                        formik.handleSubmit(undefined, "sent");
-                      }}
+                      onClick={handleOpenDraftDialog}
                       disabled={!isFormValid()}
                     >
                       Save as Draft
@@ -1981,12 +1986,31 @@ const ConsumptionCreate = () => {
           </Grid>
         </form>
 
+        {/* Draft Confirmation Dialog */}
+        <Dialog open={openDraftDialog} onClose={handleCloseDraftDialog}>
+          <DialogContent>
+            <Typography>
+            This option saves your information, and you can make corrections in the "Review & Changes" menu before submitting
+            </Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleCloseDraftDialog}>Cancel</Button>
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={handleSaveDraft}
+            >
+              Continue
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Submit Confirmation Dialog */}
         <Dialog open={open} onClose={handleClose}>
           <DialogContent>
             <Typography>
               Are you sure? This option will send your information for
-              transmission to IFTA. You will be able to edit this information
-              later only if the status is not completed
+              transmission to IFTA.
             </Typography>
           </DialogContent>
           <DialogActions>

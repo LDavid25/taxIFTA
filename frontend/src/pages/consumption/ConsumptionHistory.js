@@ -5,6 +5,7 @@ import {
 	FilterList as FilterListIcon,
 	Receipt as ReceiptIcon,
 	Search as SearchIcon,
+	Send as SendIcon,
 	Visibility as VisibilityIcon,
 } from '@mui/icons-material';
 import BusinessIcon from '@mui/icons-material/Business';
@@ -47,12 +48,19 @@ import format from 'date-fns/format';
 import es from 'date-fns/locale/es';
 import parseISO from 'date-fns/parseISO';
 import { useSnackbar } from 'notistack';
+import { styled } from '@mui/material/styles';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { isAdmin } from '../../constants/roles';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
-import { getConsumptionReports } from '../../services/consumptionService';
+import {
+	getConsumptionReports,
+	getConsumptionReportById,
+	deleteConsumptionReport,
+	updateConsumptionReport,
+	updateConsumptionReportStatus,
+} from '../../services/consumptionService';
 
 // Mapping of state codes to full names
 const STATE_NAMES = {
@@ -208,8 +216,8 @@ const MobileTableRow = ({ row, onViewReceipt }) => {
 								row.status === 'completed'
 									? 'success'
 									: row.status === 'in_progress'
-									? 'warning'
-									: 'error'
+										? 'warning'
+										: 'error'
 							}
 							size="small"
 						/>
@@ -754,14 +762,14 @@ const ConsumptionHistory = () => {
 			mpg: parseFloat(mpg) || 0,
 			status: report.status
 				? (() => {
-						const statusValue =
-							report.status.charAt(0).toUpperCase() +
-							report.status.slice(1).toLowerCase();
-						const statusOption = statusOptions.find(
-							(opt) => opt.value.toLowerCase() === statusValue.toLowerCase()
-						);
-						return statusOption ? statusOption.display : statusValue;
-				  })()
+					const statusValue =
+						report.status.charAt(0).toUpperCase() +
+						report.status.slice(1).toLowerCase();
+					const statusOption = statusOptions.find(
+						(opt) => opt.value.toLowerCase() === statusValue.toLowerCase()
+					);
+					return statusOption ? statusOption.display : statusValue;
+				})()
 				: 'Pending',
 			states: states || 'N/A',
 			receiptId: report.id,
@@ -811,7 +819,7 @@ const ConsumptionHistory = () => {
 					}}
 				>
 					<Typography variant="h5" component="h1" fontWeight="bold">
-						Review
+						Review & Changes
 					</Typography>
 					<Button
 						variant="contained"
@@ -1052,7 +1060,7 @@ const ConsumptionHistory = () => {
 								.slice(
 									pagination.page * pagination.rowsPerPage,
 									pagination.page * pagination.rowsPerPage +
-										pagination.rowsPerPage
+									pagination.rowsPerPage
 								)
 								.map((row) => (
 									<MobileTableRow
@@ -1074,19 +1082,20 @@ const ConsumptionHistory = () => {
 										<TableCell>Quarter</TableCell>
 										<TableCell align="right">Miles Traveled</TableCell>
 										<TableCell align="right">Total Gallons</TableCell>
-										{isAdmin(currentUser) && (
-											<TableCell align="right">MPG</TableCell>
-										)}
+
+										<TableCell align="right">MPG</TableCell>
+
 										<TableCell>Status</TableCell>
 										<TableCell>Actions</TableCell>
+										<TableCell>Submit</TableCell>
 									</TableRow>
 								</TableHead>
 								<TableBody>
-									{filteredData
+									{Array.isArray(filteredData) && filteredData
 										.slice(
 											pagination.page * pagination.rowsPerPage,
 											pagination.page * pagination.rowsPerPage +
-												pagination.rowsPerPage
+											pagination.rowsPerPage
 										)
 										.map((row) => (
 											<TableRow key={row.id} hover>
@@ -1105,14 +1114,14 @@ const ConsumptionHistory = () => {
 														maximumFractionDigits: 3,
 													})}
 												</TableCell>
-												{isAdmin(currentUser) && (
-													<TableCell align="right">
-														{parseFloat(row.mpg).toLocaleString(undefined, {
-															minimumFractionDigits: 2,
-															maximumFractionDigits: 2,
-														})}
-													</TableCell>
-												)}
+
+												<TableCell align="right">
+													{parseFloat(row.mpg).toLocaleString(undefined, {
+														minimumFractionDigits: 2,
+														maximumFractionDigits: 2,
+													})}
+												</TableCell>
+
 												<TableCell>
 													<Chip
 														label={row.status}
@@ -1134,20 +1143,97 @@ const ConsumptionHistory = () => {
 													>
 														<VisibilityIcon />
 													</IconButton>
-													{row.status !== 'Completed' ? (
+													{/* Admin Edit Button - Shows for Draft or In Progress */}
+													{currentUser?.role === 'admin' && (row.status === 'Draft' || row.status === 'In progress') && (
 														<IconButton
 															color="primary"
 															onClick={(e) => {
 																e.stopPropagation();
-																const basePath = currentUser?.role === 'admin' ? '/admin' : '/client';
-																navigate(`${basePath}/consumption/edit/${row.id}`);
+																navigate(`/admin/consumption/edit/${row.id}`);
 															}}
-															aria-label="edit"
+															aria-label="admin-edit"
 															size="small"
+															title="Edit (Admin)"
 														>
 															<EditIcon fontSize="small" />
 														</IconButton>
-													) : null}
+													)}
+													{/* Client Edit Button - Only shows for Draft */}
+													{currentUser?.role === 'user' && row.status === 'Draft' && (
+														<IconButton
+															color="primary"
+															onClick={(e) => {
+																e.stopPropagation();
+																navigate(`/client/consumption/edit/${row.id}`);
+															}}
+															aria-label="client-edit"
+															size="small"
+															title="Edit"
+														>
+															<EditIcon fontSize="small" />
+														</IconButton>
+
+													)}
+												</TableCell>
+												<TableCell>
+													<Button
+														variant="contained"
+														size="small"
+														disabled={row.status !== 'Draft'}
+														onClick={async (e) => {
+															e.stopPropagation();
+															try {
+																enqueueSnackbar('Submitting report...', { 
+																	variant: 'info',
+																	autoHideDuration: 3000,
+																	content: (key, message) => (
+																		<Alert severity="info" sx={{ width: '100%', bgcolor: '#2196f3', color: 'white' }}>
+																			{message}
+																		</Alert>
+																	)
+																});
+																const result = await updateConsumptionReportStatus(row.id, { status: 'in_progress' });
+																if (result && result.status === 'success') {
+																	enqueueSnackbar('Report submitted successfully', { 
+																		variant: 'success',
+																		autoHideDuration: 3000,
+																		content: (key, message) => (
+																			<Alert severity="success" sx={{ width: '100%', bgcolor: '#43a047', color: 'white' }}>
+																				{message}
+																			</Alert>
+																		)
+																	});
+																	setFilteredData(prevData => {
+																		if (!Array.isArray(prevData)) return [];
+																		return prevData.map(item => 
+																			item.id === row.id 
+																				? { ...item, status: 'In progress' } 
+																				: item
+																		);
+																	});
+																} else {
+																	throw new Error(result?.message || 'Failed to update report status');
+																}
+															} catch (error) {
+																enqueueSnackbar(error.message || 'Failed to submit report', { 
+																	variant: 'error',
+																	autoHideDuration: 3000,
+																	content: (key, message) => (
+																		<Alert severity="error" sx={{ width: '100%', bgcolor: '#d32f2f', color: 'white', fontWeight: 'bold' }}>
+																			{message}
+																		</Alert>
+																	)
+																});
+															}
+														}}
+														sx={{
+															textTransform: 'none',
+															fontSize: '0.75rem',
+															opacity: row.status === 'Draft' ? 1 : 0.5,
+														}}
+													>
+														<SendIcon fontSize="small" />
+													</Button>
 												</TableCell>
 											</TableRow>
 										))}
@@ -1156,7 +1242,7 @@ const ConsumptionHistory = () => {
 						</TableContainer>
 					)}
 					<TablePagination
-						rowsPerPageOptions={[5, 10, 25]}
+						rowsPerPageOptions={[5, 10, 25, 100]}
 						component="div"
 						count={pagination.total}
 						rowsPerPage={pagination.rowsPerPage}
