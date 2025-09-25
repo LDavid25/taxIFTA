@@ -59,7 +59,7 @@ CREATE TABLE IF NOT EXISTS ifta_quarterly_reports (
   quarter INTEGER NOT NULL CHECK (quarter BETWEEN 1 AND 4),
   year INTEGER NOT NULL,
   name TEXT GENERATED ALWAYS AS (get_quarter_name(quarter) || ' ' || year) STORED,
-  status VARCHAR(20) DEFAULT 'in_progress' CHECK (status IN ('in_progress', 'sent', 'rejected', 'completed')),
+  status VARCHAR(20) DEFAULT 'in_progress' CHECK (status IN ('in_progress', 'sent', 'rejected', 'completed', 'trash')),
   submitted_at TIMESTAMP WITH TIME ZONE,
   approved_at TIMESTAMP WITH TIME ZONE,
   notes TEXT,

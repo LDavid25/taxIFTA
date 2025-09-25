@@ -22,6 +22,7 @@ import InsertDriveFileIcon from "@mui/icons-material/InsertDriveFile";
 import LocalGasStationIcon from "@mui/icons-material/LocalGasStation";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
+import SendIcon from "@mui/icons-material/Send";
 import {
   Alert,
   Autocomplete,
@@ -1933,52 +1934,60 @@ const ConsumptionCreate = () => {
 
                 <Box
                   sx={{
-                    mt: 0,
-                    padding: "5px",
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    flexWrap: "wrap",
+                    mt: 3,
+                    display: "grid",
+                    gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(120px, 1fr))" },
+                    gap: 2,
+                    width: "100%",
+                    maxWidth: "500px"
                   }}
                 >
-                  <Box sx={{ display: "flex", gap: 1 }}>
-                    <Button
-                      component={RouterLink}
-                      to={
-                        currentUser?.role === "admin"
-                          ? "/admin/consumption"
-                          : "/client/consumption"
-                      }
-                      variant="outlined"
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      variant="outlined"
-                      color="primary"
-                      onClick={handleOpenDraftDialog}
-                      disabled={!isFormValid()}
-                    >
-                      Save as Draft
-                    </Button>
-                  </Box>
                   <Button
-                    type="button"
+                    component={RouterLink}
+                    to={
+                      currentUser?.role === "admin"
+                        ? "/admin/consumption"
+                        : "/client/consumption"
+                    }
+                    variant="outlined"
+                    size="medium"
+                    fullWidth
+                  >
+                    Cancel
+                  </Button>
+                  
+                  <Button
+                    variant="outlined"
+                    color="primary"
+                    onClick={handleOpenDraftDialog}
+                    disabled={!isFormValid()}
+                    size="medium"
+                    fullWidth
+                    startIcon={<Save />}
+                  >
+                      Save
+                  </Button>
+                  
+                  <Button
                     variant="contained"
-                    color="success"
+                    color="primary"
                     onClick={() => {
                       setSubmitStatus("submit");
                       handleOpen();
                     }}
                     disabled={!isFormValid() || !isReportValid || isLoading}
-                    startIcon={isLoading ? null : <Save />}
-                    sx={{ minWidth: 180, color: "white", mt: 2 }}
+                    size="medium"
+                    fullWidth
+                    startIcon={isLoading ? <CircularProgress size={20} color="inherit" /> : <SendIcon />}
+                    sx={{
+                      gridColumn: { xs: "1 / -1", sm: "1 / -1" },
+                      backgroundColor: "success.main",
+                      "&:hover": {
+                        backgroundColor: "success.dark"
+                      }
+                    }}
                   >
-                    {isLoading ? (
-                      <CircularProgress size={24} />
-                    ) : (
-                      "Save and Submit Report"
-                    )}
+                    {isLoading ? "Submitting..." : "Submit "}
                   </Button>
                 </Box>
               </Paper>
@@ -2027,7 +2036,7 @@ const ConsumptionCreate = () => {
                 handleClose();
               }}
             >
-              Save
+              Submit
             </Button>
           </DialogActions>
         </Dialog>

@@ -26,7 +26,7 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: false,
       defaultValue: 'in_progress',
       validate: {
-        isIn: [['in_progress', 'sent', 'rejected', 'completed']]
+        isIn: [['in_progress', 'sent', 'rejected', 'completed', 'trash']]
       }
     },
     total_miles: {

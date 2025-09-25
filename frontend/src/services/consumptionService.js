@@ -45,6 +45,17 @@ export const getConsumptionReports = async (filters = {}) => {
       status: response.status,
       data: response.data
     });
+
+    // Filtrar para excluir reportes con estado 'trash'
+    if (response.data && Array.isArray(response.data.data)) {
+      response.data.data = response.data.data.filter(report => report.status !== 'trash');
+      // Actualizar el contador total después del filtrado
+      if (response.data.pagination) {
+        response.data.pagination.total = response.data.data.length;
+      }
+    } else if (Array.isArray(response.data)) {
+      response.data = response.data.filter(report => report.status !== 'trash');
+    }
     
     return response.data;
   } catch (error) {
@@ -229,15 +240,6 @@ export const updateConsumptionReportStatus = async (id, statusData) => {
 };
 
 // Eliminar un informe de consumo
-export const deleteConsumptionReport = async (id) => {
-  try {
-    const response = await api.delete(`${API_URL}/${id}`);
-    return response.data;
-  } catch (error) {
-    throw error.response?.data || { message: 'Error al eliminar el informe de consumo' };
-  }
-};
-
 // Verificar si ya existe un informe para la unidad y período
 export const checkExistingReport = async (vehiclePlate, year, month) => {
   try {
@@ -272,5 +274,28 @@ export const checkExistingReport = async (vehiclePlate, year, month) => {
     
     // Para otros errores, asumimos que no existe para no bloquear al usuario
     return { exists: false };
+  }
+};
+
+// Eliminación lógica de un informe (cambiar estado a 'trash')
+export const trashConsumptionReport = async (id) => {
+  try {
+    const response = await api.patch(
+      `${API_URL}/${id}/status`,
+      { status: 'trash' },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error('error deleting report', error);
+    throw error.response?.data || { 
+      status: 'error',
+      message: error.message || 'Error deleting report',
+      details: error.response?.data?.message
+    };
   }
 };

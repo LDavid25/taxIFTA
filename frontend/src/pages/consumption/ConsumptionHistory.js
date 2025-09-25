@@ -619,14 +619,14 @@ const ConsumptionHistory = () => {
 					reportsSample: reportsData.slice(0, 2), // Show sample of first 2 reports
 				});
 
-				// Update state with reports
-				setReports(reportsData);
+				// Filter out reports with status 'trash'
+				const filteredReports = reportsData.filter(report => report.status?.toLowerCase() !== 'trash');
+
+				// Update state with filtered reports
+				setReports(filteredReports);
 
 				// Calculate pagination
-				const totalItems =
-					responseData.pagination?.total ||
-					responseData.total ||
-					reportsData.length;
+				const totalItems = filteredReports.length;
 
 				const totalPages =
 					responseData.pagination?.totalPages ||
@@ -1140,6 +1140,7 @@ const ConsumptionHistory = () => {
 														size="small"
 														sx={{ color: 'primary.main' }}
 														aria-label="Ver detalles"
+														title="View Report"
 													>
 														<VisibilityIcon />
 													</IconButton>
@@ -1180,6 +1181,7 @@ const ConsumptionHistory = () => {
 														variant="contained"
 														size="small"
 														disabled={row.status !== 'Draft'}
+														title="Submit Report"
 														onClick={async (e) => {
 															e.stopPropagation();
 															try {

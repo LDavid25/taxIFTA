@@ -829,13 +829,13 @@ const updateReportStatus = async (req, res, next) => {
     console.log('Nuevo estado solicitado:', status);
 
     // Validate status
-    const validStatuses = ['in_progress', 'sent', 'rejected', 'completed'];
+    const validStatuses = ['in_progress', 'sent', 'rejected', 'completed', 'trash'];
     console.log('Validando estado:', { status, validStatuses });
 
     if (!validStatuses.includes(status)) {
-      console.error('Estado no válido:', status);
+      console.error('Status not valid:', status);
       await transaction.rollback();
-      return next(new AppError('Estado no válido', 400));
+      return next(new AppError('Status not valid', 400));
     }
 
     // Find the report with related data before the update

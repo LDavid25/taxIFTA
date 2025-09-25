@@ -9,11 +9,13 @@ import {
   createConsumptionReport,
   updateConsumptionReport,
   getConsumptionReportById,
+  trashConsumptionReport,
 } from "../../services/consumptionService";
 
 import {
   Add as AddIcon,
   CheckCircleOutline,
+  Delete as DeleteIcon,
   DeleteOutline as DeleteOutlineIcon,
   Save,
   Visibility as VisibilityIcon,
@@ -24,6 +26,7 @@ import InsertDriveFileIcon from "@mui/icons-material/InsertDriveFile";
 import LocalGasStationIcon from "@mui/icons-material/LocalGasStation";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
+import SendIcon from "@mui/icons-material/Send";
 import {
   Alert,
   Autocomplete,
@@ -97,6 +100,8 @@ const ConsumptionEdit = () => {
   const { currentUser, isAdmin } = useAuth(); // Get currentUser and isAdmin from auth context
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingReport, setIsLoadingReport] = useState(true);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [reportStatus, setReportStatus] = useState('draft'); // Estado para almacenar el estado actual del reporte
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: "",
@@ -112,10 +117,52 @@ const ConsumptionEdit = () => {
   const [companies, setCompanies] = useState([]);
   const [open, setOpen] = useState(false);
   const [isLoadingCompanies, setIsLoadingCompanies] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const navigate = useNavigate();
 
   const handleOpen = () => setOpen(true);
   const handleClose = () => setOpen(false);
+
+  // Función para manejar la eliminación lógica del reporte
+  const handleDeleteClick = () => {
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    try {
+      setIsDeleting(true);
+      await trashConsumptionReport(id);
+      
+      setSnackbar({
+        open: true,
+        message: 'Reporte eliminado correctamente',
+        severity: 'success',
+        autoHideDuration: 3000,
+      });
+      
+      // Redirigir a la lista de reportes después de un breve retraso
+      setTimeout(() => {
+        const basePath = currentUser?.role === 'admin' ? '/admin' : '/client';
+        navigate(`${basePath}/consumption`);
+      }, 1000);
+      
+    } catch (error) {
+      console.error('Error al eliminar el reporte:', error);
+      setSnackbar({
+        open: true,
+        message: error.message || 'Error al eliminar el reporte',
+        severity: 'error',
+        autoHideDuration: 5000,
+      });
+    } finally {
+      setIsDeleting(false);
+      setDeleteDialogOpen(false);
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteDialogOpen(false);
+  };
 
   const handleFileUpload = (newFiles) => {
     const validFiles = Array.from(newFiles).filter((file) =>
@@ -625,6 +672,11 @@ const ConsumptionEdit = () => {
           throw new Error("Not found");
         }
 
+        // Set report status
+        if (report.status) {
+          setReportStatus(report.status);
+        }
+
         // Set form values
         formik.setValues({
           unitNumber: report.vehicle_plate || "",
@@ -659,7 +711,7 @@ const ConsumptionEdit = () => {
         // Update success message
         setSnackbar({
           open: true,
-          message: "Informe cargado correctamente",
+          message: "Report loaded successfully",
           severity: "success",
           autoHideDuration: 3000,
         });
@@ -1770,53 +1822,70 @@ const ConsumptionEdit = () => {
 
                 <Box
                   sx={{
-                    mt: 0,
-                    padding: "5px",
-                    display: "flex",
-                    alignItems: "center",
-                    flexWrap: "wrap",
+                    mt: 3,
+                    display: "grid",
+                    gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(120px, 1fr))" },
+                    gap: 2,
+                    width: "100%",
+                    maxWidth: "500px"
                   }}
                 >
-                  <Box sx={{ display: "flex", gap: 1, padding: "5px" }}>
-                    <Button
-                      component={RouterLink}
-                      to={
-                        currentUser?.role === "admin"
-                          ? "/admin/consumption"
-                          : "/client/consumption"
-                      }
-                      variant="outlined"
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      variant="outlined"
-                      color="primary"
-                      onClick={() => {
-                        setSubmitStatus("sent");
-                        handleOpen();
-                      }}
-                      disabled={!isFormValid()}
-                    >
-                      Save as Draft
-                    </Button>
-                  </Box>
-                  <Button
-                    type="button"
-                    variant="contained"
-                    color="success"
-                    onClick={handleOpen}
-                    disabled={!isFormValid() || !isReportValid || isLoading}
-                    startIcon={isLoading ? null : <Save />}
-                    sx={{ minWidth: 180, color: "white" }}
-                  >
-                    {isLoading ? (
-                      <CircularProgress size={24} />
-                    ) : (
-                      "Update Report"
-                    )}
-                  </Button>
 
+                  
+                  <Button
+                    component={RouterLink}
+                    to={
+                      currentUser?.role === "admin"
+                        ? "/admin/consumption"
+                        : "/client/consumption"
+                    }
+                    variant="outlined"
+                    size="medium"
+                    fullWidth
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="contained"
+                    color="error"
+                    onClick={handleDeleteClick}
+                    disabled={isDeleting || isLoading}
+                    size="medium"
+                    fullWidth
+                    startIcon={isDeleting ? <CircularProgress size={20} color="inherit" /> : <DeleteIcon />}
+                  >
+                    {isDeleting ? "Deleting..." : "Delete"}
+                  </Button>
+                  
+                  <Button
+                    variant="outlined"
+                    color="primary"
+                    onClick={() => {
+                      setSubmitStatus("sent");
+                      handleOpen();
+                    }}
+                    disabled={!isFormValid()}
+                    size="medium"
+                    fullWidth
+                    startIcon={<Save />}
+                  >
+                    {reportStatus === 'in_progress' ? 'Switch to Draft' : 'Save'}
+                  </Button>
+                  
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    onClick={() => {
+                      setSubmitStatus(reportStatus === 'draft' ? 'submit' : 'sent');
+                      handleOpen();
+                    }}
+                    disabled={!isFormValid() || !isReportValid || isLoading}
+                    size="medium"
+                    fullWidth
+                    startIcon={isLoading ? <CircularProgress size={20} color="inherit" /> : <SendIcon fontSize="small" />}
+                  >
+                    {isLoading ? "Updating..." : reportStatus === 'sent' ? 'Submit' : 'Update Report'}
+                  </Button>
                 </Box>
               </Paper>
             </Grid>
@@ -1857,6 +1926,35 @@ const ConsumptionEdit = () => {
             {snackbar.message}
           </Alert>
         </Snackbar>
+        <Dialog
+          open={deleteDialogOpen}
+          onClose={handleDeleteCancel}
+          aria-labelledby="alert-dialog-title"
+          aria-describedby="alert-dialog-description"
+        >
+          <DialogTitle id="alert-dialog-title">
+            Delete Report
+          </DialogTitle>
+          <DialogContent>
+            <Typography>
+              Are you sure you want to delete this report?. <br/>You can't undo this action.
+            </Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleDeleteCancel} color="primary" disabled={isDeleting}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleDeleteConfirm} 
+              color="error" 
+              autoFocus
+              disabled={isDeleting}
+              startIcon={isDeleting ? <CircularProgress size={20} /> : null}
+            >
+              {isDeleting ? 'Deleting...' : 'Delete'}
+            </Button>
+          </DialogActions>
+        </Dialog>
       </Box>
     </LocalizationProvider>
   );
