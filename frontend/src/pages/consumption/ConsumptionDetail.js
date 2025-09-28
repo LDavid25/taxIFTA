@@ -39,6 +39,10 @@ import {
   Pending as PendingIcon,
   Check as CheckIcon,
   Edit as EditIcon,
+  PictureAsPdf as PictureAsPdfIcon,
+  Image as ImageIcon,
+  InsertDriveFile as InsertDriveFileIcon,
+  Visibility as VisibilityIcon,
 } from '@mui/icons-material';
 import { useTheme as useMuiTheme } from '@mui/material/styles';
 import { format, parseISO, parse } from 'date-fns';
@@ -48,10 +52,10 @@ import ConsumptionPDF from '../../components/pdf/ConsumptionPDF';
 import { enUS } from 'date-fns/locale';
 import { LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-import { 
-  getConsumptionReportById, 
+import {
+  getConsumptionReportById,
   updateConsumptionReport,
-  updateConsumptionReportStatus 
+  updateConsumptionReportStatus
 } from '../../services/consumptionService';
 import { getStatesByReportId } from '../../services/iftaReportState.service';
 import { CircularProgress, Alert } from '@mui/material';
@@ -150,7 +154,7 @@ const ConsumptionDetail = () => {
   const { enqueueSnackbar } = useSnackbar();
   const muiTheme = useMuiTheme();
   const { currentUser } = useAuth();
-  
+
   // Component states
   const [report, setReport] = useState(null);
   const [reportStates, setReportStates] = useState([]);
@@ -162,7 +166,7 @@ const ConsumptionDetail = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [updatingStatus, setUpdatingStatus] = useState(false);
-  
+
   // Function to get color based on status
   const getStatusColor = (status) => {
     const colors = {
@@ -183,7 +187,7 @@ const ConsumptionDetail = () => {
       rejected: 'Rejected',
       completed: 'Completed'
     };
-    return statusMap[status] || status.split('_').map(word => 
+    return statusMap[status] || status.split('_').map(word =>
       word.charAt(0).toUpperCase() + word.slice(1)
     ).join(' ');
   };
@@ -197,6 +201,7 @@ const ConsumptionDetail = () => {
     return {
       ...consumption,
       states: Array.isArray(consumption.states) ? consumption.states : [],
+      attachments: Array.isArray(consumption.attachments) ? consumption.attachments : [],
       notes: consumption.notes || '',
       id: consumption.id || '',
       status: consumption.status || 'in_progress',
@@ -204,7 +209,6 @@ const ConsumptionDetail = () => {
       date: consumption.date || new Date(),
       created_at: consumption.created_at || new Date().toISOString(),
       vehicle_plate: consumption.vehicle_plate || 'N/A',
-
       totalMiles: consumption.totalMiles || 0,
       totalGallons: consumption.totalGallons || 0,
       mpg: consumption.mpg || 0,
@@ -214,37 +218,37 @@ const ConsumptionDetail = () => {
 
   // Status options for dropdown menu
   const statusOptions = [
-    { 
-      value: 'in_progress', 
-      label: 'In Progress', 
+    {
+      value: 'in_progress',
+      label: 'In Progress',
       icon: <EditIcon />,
       color: 'warning'
     },
-    { 
-      value: 'sent', 
-      label: 'Draft', 
+    {
+      value: 'sent',
+      label: 'Draft',
       icon: <PendingIcon />,
       color: 'info'
     },
-    { 
-      value: 'rejected', 
-      label: 'Rejected', 
+    {
+      value: 'rejected',
+      label: 'Rejected',
       icon: <CancelIcon />,
       color: 'error'
     }
   ].filter(option => option.value !== safeConsumption?.status); // Exclude current status
-  
+
   // Prepare consumption details for display in table
   const consumptionDetails = useMemo(() => {
     console.log('Preparing consumptionDetails...');
     console.log('reportStates:', reportStates);
-    
+
     // If we have reportStates data, use it (already formatted)
     if (Array.isArray(reportStates) && reportStates.length > 0) {
       console.log('Details generated from reportStates:', reportStates);
       return reportStates;
     }
-    
+
     // If no data in reportStates, try with report data
     if (Array.isArray(safeConsumption?.states) && safeConsumption.states.length > 0) {
       const details = safeConsumption.states.map(state => ({
@@ -256,7 +260,7 @@ const ConsumptionDetail = () => {
       console.log('Details generated from safeConsumption.states:', details);
       return details;
     }
-    
+
     console.log('No data found to display in the table');
     return [];
   }, [reportStates, safeConsumption?.states]);
@@ -267,11 +271,11 @@ const ConsumptionDetail = () => {
   // Function to format report data
   const formatReportData = (report) => {
     if (!report) return null;
-    
+
     // Initialize variables for states and state codes
     let statesArray = [];
     let stateCodes = '';
-    
+
     // Handle different formats of states
     if (Array.isArray(report.states)) {
       statesArray = [...report.states];
@@ -282,7 +286,7 @@ const ConsumptionDetail = () => {
       const stateList = stateCodes.split(',').map(s => s.trim());
       const totalMiles = parseFloat(report.milesTraveled || report.total_miles) || 0;
       const totalGallons = parseFloat(report.totalGallons || report.total_gallons) || 0;
-      
+
       statesArray = stateList.filter(Boolean).map(state => ({
         stateCode: state,
         stateName: STATE_NAMES[state] || state,
@@ -290,15 +294,15 @@ const ConsumptionDetail = () => {
         gallons: (totalGallons / stateList.length).toFixed(2)
       }));
     }
-    
+
     // Use totals from report
     const totalMiles = parseFloat(report.milesTraveled || report.total_miles) || 0;
     const totalGallons = parseFloat(report.totalGallons || report.total_gallons) || 0;
     const mpg = report.mpg || (totalGallons > 0 ? (totalMiles / totalGallons).toFixed(2) : 0);
-    
+
     // Format dates
     const reportDate = report.date || report.report_date || new Date();
-    
+
     // Determine status to display
     const getStatusLabel = (status) => {
       const statusMap = {
@@ -312,7 +316,7 @@ const ConsumptionDetail = () => {
       };
       return statusMap[status] || status || 'In Progress';
     };
-    
+
     return {
       id: report.id,
       date: reportDate,
@@ -336,7 +340,7 @@ const ConsumptionDetail = () => {
       console.log(`[fetchReportStates] Requesting states for report ID: ${reportId}`);
       const states = await getStatesByReportId(reportId);
       console.log('[fetchReportStates] Received states:', states);
-      
+
       // Map data to the format expected by the component
       const formattedStates = states.map(state => ({
         stateCode: state.state_code,
@@ -345,7 +349,7 @@ const ConsumptionDetail = () => {
         gallons: parseFloat(state.gallons || 0),
         mpg: parseFloat(state.mpg || 0)
       }));
-      
+
       setReportStates(formattedStates);
       return formattedStates;
     } catch (err) {
@@ -361,7 +365,7 @@ const ConsumptionDetail = () => {
   // Effect to load report data
   useEffect(() => {
     console.log('[useEffect] Initializing data loading...');
-    
+
     const fetchReport = async () => {
       try {
         console.log('[fetchReport] Starting...');
@@ -380,7 +384,7 @@ const ConsumptionDetail = () => {
           const formattedData = formatReportData(reportWithStates);
           console.log('[fetchReport] Formatted data:', formattedData);
           setReport(formattedData);
-          
+
           // Get report states if an ID exists
           if (reportWithStates?.id) {
             console.log(`[fetchReport] Getting states for report ID: ${reportWithStates.id}`);
@@ -388,7 +392,7 @@ const ConsumptionDetail = () => {
           } else {
             console.warn('[fetchReport] No ID found in locationState');
           }
-          
+
           setLoading(false);
           return;
         }
@@ -396,28 +400,28 @@ const ConsumptionDetail = () => {
         console.log(`[fetchReport] Getting report data with ID: ${id}`);
         const response = await getConsumptionReportById(id);
         console.log('[fetchReport] Response from getConsumptionReportById:', response);
-        
+
         const reportData = response.data || response; // Handle different response formats
         console.log('[fetchReport] Processed report data:', reportData);
         console.log('[fetchReport] company_name in data:', reportData.company_name);
         console.log('[fetchReport] Complete report structure:', JSON.stringify(reportData, null, 2));
-        
+
         if (!reportData) {
           const errorMsg = 'The requested report was not found';
           console.error(`[fetchReport] ${errorMsg}`);
           throw new Error(errorMsg);
         }
-        
+
         // Ensure states is an array
         const reportWithStates = {
           ...reportData,
           states: Array.isArray(reportData.states) ? reportData.states : []
         };
-        
+
         const formattedData = formatReportData(reportWithStates);
         console.log('[fetchReport] Formatted data:', formattedData);
         setReport(formattedData);
-        
+
         // Get report states if an ID exists
         if (reportData?.id) {
           console.log(`[fetchReport] Getting states for report ID: ${reportData.id}`);
@@ -425,17 +429,17 @@ const ConsumptionDetail = () => {
         } else {
           console.warn('[fetchReport] No ID found in reportData');
         }
-        
+
       } catch (err) {
         const errorMessage = err.response?.data?.message || err.message || 'Error loading report';
         console.error('[fetchReport] Error:', errorMessage, err);
         setError(errorMessage);
-        
-        enqueueSnackbar(errorMessage, { 
+
+        enqueueSnackbar(errorMessage, {
           variant: 'error',
           autoHideDuration: 5000
         });
-        
+
         // Redirect to reports list after showing error
         setTimeout(() => {
           navigate('/consumption');
@@ -456,7 +460,7 @@ const ConsumptionDetail = () => {
   const handleStatusChange = async (newStatus) => {
     if (!id) {
       console.error('Report ID not found');
-      enqueueSnackbar('Error: Could not identify the report', { 
+      enqueueSnackbar('Error: Could not identify the report', {
         variant: 'error',
         autoHideDuration: 3000
       });
@@ -465,29 +469,29 @@ const ConsumptionDetail = () => {
 
     console.log(`[handleStatusChange] Starting status change to: ${newStatus}`);
     setUpdatingStatus(true);
-    
+
     try {
       // Call service to update status
-      console.log('[handleStatusChange] Calling updateReportStatus with:', { 
-        id, 
-        status: newStatus 
+      console.log('[handleStatusChange] Calling updateReportStatus with:', {
+        id,
+        status: newStatus
       });
-      
+
       const response = await updateReportStatus(id, newStatus);
       console.log('[handleStatusChange] Server response:', response);
-      
+
       if (!response || !response.status) {
         throw new Error('Invalid server response');
       }
-      
+
       // Update local report state with server data
       const updatedReport = response.data?.report || response.data;
       if (!updatedReport) {
         throw new Error('No updated data received from server');
       }
-      
+
       console.log('[handleStatusChange] Received updated data:', updatedReport);
-      
+
       // Update report status
       setReport(prev => ({
         ...prev,
@@ -498,36 +502,36 @@ const ConsumptionDetail = () => {
         ...(updatedReport.report_year && { report_year: updatedReport.report_year }),
         ...(updatedReport.report_month && { report_month: updatedReport.report_month })
       }));
-      
+
       console.log('[handleStatusChange] Status updated in frontend:', updatedReport.status || newStatus);
-      
+
       // Close status menu
       setStatusAnchorEl(null);
-      
+
       // Show success notification
-      enqueueSnackbar('Status updated successfully', { 
+      enqueueSnackbar('Status updated successfully', {
         variant: 'success',
         autoHideDuration: 3000,
         style: { backgroundColor: '#4caf50' } // Green background
       });
-      
+
       return true;
-      
+
     } catch (error) {
       console.error('[handleStatusChange] Error updating status:', error);
-      
+
       // Show detailed error message
-      const errorMessage = error.response?.data?.message || 
-                         error.message || 
-                         'Unknown error updating status';
-      
-      enqueueSnackbar(`Error: ${errorMessage}`, { 
+      const errorMessage = error.response?.data?.message ||
+        error.message ||
+        'Unknown error updating status';
+
+      enqueueSnackbar(`Error: ${errorMessage}`, {
         variant: 'error',
         autoHideDuration: 5000
       });
-      
+
       return false;
-      
+
     } finally {
       // Make sure to clear loading state
       setUpdatingStatus(false);
@@ -551,7 +555,7 @@ const ConsumptionDetail = () => {
     try {
       // Generate the PDF blob
       const pdfBlob = await pdf(
-        <ConsumptionPDF 
+        <ConsumptionPDF
           companyName={currentUser?.companyName || 'IFTA'}
           reportDate={safeConsumption?.date}
           unitNumber={safeConsumption?.vehicle_plate || 'N/A'}
@@ -562,11 +566,11 @@ const ConsumptionDetail = () => {
           notes={safeConsumption?.notes || ''}
         />
       ).toBlob();
-      
+
       // Create a blob URL and open in a new tab for printing
       const url = URL.createObjectURL(pdfBlob);
       const printWindow = window.open(url, '_blank');
-      
+
       // Clean up the URL after the window loads
       if (printWindow) {
         printWindow.onload = () => {
@@ -595,10 +599,10 @@ const ConsumptionDetail = () => {
   if (error || !consumption) {
     return (
       <Container maxWidth="lg" sx={{ py: 4, minHeight: '60vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
-        <Alert 
-          severity="error" 
-          sx={{ 
-            mb: 3, 
+        <Alert
+          severity="error"
+          sx={{
+            mb: 3,
             maxWidth: '600px',
             '& .MuiAlert-message': {
               width: '100%',
@@ -634,10 +638,10 @@ const ConsumptionDetail = () => {
   const totalMiles = parseFloat(safeConsumption.totalMiles) || 0;
   const totalGallons = parseFloat(safeConsumption.totalGallons) || 0;
   const averageMPG = safeConsumption.mpg || (totalGallons > 0 ? (totalMiles / totalGallons).toFixed(2) : 0);
-  
+
   // Get status color
   const statusColor = getStatusColor(safeConsumption.status);
-  
+
   // Format dates
   const reportDate = safeConsumption.date ? format(new Date(safeConsumption.date), 'MMMM yyyy', { locale: enUS }) : 'No disponible';
   const createdAt = safeConsumption.created_at ? format(new Date(safeConsumption.created_at), 'PPpp', { locale: enUS }) : 'No disponible';
@@ -650,34 +654,34 @@ const ConsumptionDetail = () => {
           <Button
             startIcon={<ArrowBackIcon />}
             onClick={() => {
-            const basePath = currentUser?.role === 'admin' ? '/admin' : '/client';
-            navigate(`${basePath}/consumption`);
-          }}
+              const basePath = currentUser?.role === 'admin' ? '/admin' : '/client';
+              navigate(`${basePath}/consumption`);
+            }}
             sx={{ mb: 2, textTransform: 'none' }}
           >
-            Back to History
+            Back to Review & Changes
           </Button>
 
           <Grid container justifyContent="space-between" alignItems="center" mb={2}>
             <Grid item>
               <Breadcrumbs aria-label="breadcrumb">
-                <Link 
-                  component={RouterLink} 
-                  to={currentUser?.role === 'admin' ? '/admin/dashboard' : '/client/dashboard'} 
+                <Link
+                  component={RouterLink}
+                  to={currentUser?.role === 'admin' ? '/admin/dashboard' : '/client/dashboard'}
                   color="inherit"
                 >
                   Home
                 </Link>
-                <Link 
-                  component={RouterLink} 
-                  to={currentUser?.role === 'admin' ? '/admin/consumption' : '/client/consumption'} 
+                <Link
+                  component={RouterLink}
+                  to={currentUser?.role === 'admin' ? '/admin/consumption' : '/client/consumption'}
                   color="inherit"
                 >
-                  Review
+                  Review & Changes
                 </Link>
                 <Typography color="textPrimary">Report Details</Typography>
               </Breadcrumbs>
-              
+
               <Box mt={1}>
                 {safeConsumption.company_name && (
                   <Typography variant="h6" component="div" color="textPrimary" mb={1}>
@@ -689,16 +693,16 @@ const ConsumptionDetail = () => {
                     Report: {safeConsumption.vehicle_plate}
                   </Typography>
                   <Box>
-                    <Chip 
+                    <Chip
                       key={`status-${safeConsumption.status}`}
                       label={translateStatus(safeConsumption.status) || 'Unknown'}
-                      color={getStatusColor(safeConsumption.status)} 
+                      color={getStatusColor(safeConsumption.status)}
                       size="small"
                       variant="outlined"
                       onClick={currentUser?.role === 'admin' ? handleStatusMenuOpen : null}
                       onDelete={currentUser?.role === 'admin' ? handleStatusMenuOpen : null}
                       deleteIcon={currentUser?.role === 'admin' ? <ArrowDropDownIcon /> : null}
-                      sx={{ 
+                      sx={{
                         textTransform: 'none',
                         fontWeight: 'medium',
                         cursor: currentUser?.role === 'admin' ? 'pointer' : 'default',
@@ -728,7 +732,7 @@ const ConsumptionDetail = () => {
                       }}
                     >
                       {statusOptions.map((option) => (
-                        <MenuItem 
+                        <MenuItem
                           key={option.value}
                           onClick={() => {
                             handleStatusChange(option.value);
@@ -803,11 +807,11 @@ const ConsumptionDetail = () => {
                       <TableCell sx={{ border: 'none' }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                           {['completed', 'Completed'].includes(safeConsumption.status) ? (
-                            <Chip 
+                            <Chip
                               label={translateStatus(safeConsumption.status) || 'N/A'}
                               color={getStatusColor(safeConsumption.status || 'in_progress')}
                               size="small"
-                              sx={{ 
+                              sx={{
                                 fontWeight: 'bold',
                                 minWidth: '100px',
                                 '& .MuiChip-label': {
@@ -824,8 +828,8 @@ const ConsumptionDetail = () => {
                                 endIcon={updatingStatus ? <CircularProgress size={16} color="inherit" /> : <ArrowDropDownIcon />}
                                 onClick={handleStatusMenuOpen}
                                 disabled={updatingStatus || currentUser?.role !== 'admin'}
-                                sx={{ 
-                                  fontWeight: 'bold', 
+                                sx={{
+                                  fontWeight: 'bold',
                                   textTransform: 'none',
                                   minWidth: '160px',
                                   justifyContent: 'space-between',
@@ -856,7 +860,7 @@ const ConsumptionDetail = () => {
                                 {statusOptions.map((option) => {
                                   const optionColor = getStatusColor(option.value);
                                   return (
-                                    <MenuItem 
+                                    <MenuItem
                                       key={option.value}
                                       onClick={() => handleStatusChange(option.value)}
                                       selected={option.value === safeConsumption.status}
@@ -881,14 +885,14 @@ const ConsumptionDetail = () => {
                                         py: 1.5
                                       }}
                                     >
-                                      <Box sx={{ 
-                                        display: 'flex', 
-                                        alignItems: 'center', 
+                                      <Box sx={{
+                                        display: 'flex',
+                                        alignItems: 'center',
                                         width: '100%',
-                                        color: option.value === safeConsumption.status ? 
+                                        color: option.value === safeConsumption.status ?
                                           muiTheme.palette[optionColor]?.dark : 'inherit'
                                       }}>
-                                        <Box sx={{ 
+                                        <Box sx={{
                                           display: 'inline-flex',
                                           mr: 1.5,
                                           color: 'inherit'
@@ -936,7 +940,7 @@ const ConsumptionDetail = () => {
                           // Format numbers with 2 decimals and thousand separators
                           const miles = parseFloat(item.miles || 0);
                           const gallons = parseFloat(item.gallons || 0);
-                          
+
                           return (
                             <TableRow key={`${item.stateCode || 'state'}-${index}`}>
                               <TableCell>{
@@ -953,9 +957,9 @@ const ConsumptionDetail = () => {
                                 })}
                               </TableCell>
                               <TableCell align="right">
-                                {gallons.toLocaleString(undefined, { 
-                                  minimumFractionDigits: 3, 
-                                  maximumFractionDigits: 3 
+                                {gallons.toLocaleString(undefined, {
+                                  minimumFractionDigits: 3,
+                                  maximumFractionDigits: 3
                                 })}
                               </TableCell>
                             </TableRow>
@@ -966,9 +970,9 @@ const ConsumptionDetail = () => {
                           <TableCell>Total</TableCell>
                           <TableCell align="right">
                             {consumptionDetails.reduce((sum, item) => sum + parseFloat(item.miles || 0), 0).toLocaleString(undefined, {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2
-                          })}
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2
+                            })}
                           </TableCell>
                           <TableCell align="right">
                             {consumptionDetails.reduce((sum, item) => sum + parseFloat(item.gallons || 0), 0).toLocaleString(undefined, {
@@ -992,6 +996,124 @@ const ConsumptionDetail = () => {
                 </Table>
               </TableContainer>
             </Paper>
+
+
+            {/* Attachments Section */}
+            <Card elevation={2} sx={{ mt: 3 }}>
+              <CardContent>
+                <Typography variant="h6" fontWeight="bold" gutterBottom>
+                  Attachments
+                </Typography>
+                <Divider sx={{ mb: 2 }} />
+                
+                {/* Existing Attachments */}
+                {safeConsumption.attachments?.length > 0 ? (
+                  <Box sx={{ mb: 3 }}>
+                    <Typography
+                      variant="subtitle2"
+                      sx={{ mb: 2, fontWeight: 500 }}
+                    >
+                      Attached Files ({safeConsumption.attachments.length})
+                    </Typography>
+                    <Grid container spacing={1.5}>
+                      {safeConsumption.attachments.map((file, index) => (
+                        <Grid item key={index} xs={12} sm={6}>
+                          <Box
+                            sx={{
+                              display: "flex",
+                              alignItems: "center",
+                              p: 1.5,
+                              bgcolor: "background.paper",
+                              borderRadius: 1,
+                              border: "1px solid",
+                              borderColor: "divider",
+                              position: "relative",
+                              transition: "all 0.2s",
+                              "&:hover": {
+                                borderColor: "primary.main",
+                                boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+                              },
+                            }}
+                          >
+                            {file.type === "application/pdf" ? (
+                              <PictureAsPdfIcon
+                                color="error"
+                                sx={{ mr: 1, flexShrink: 0 }}
+                              />
+                            ) : file.type?.startsWith("image/") ? (
+                              <ImageIcon
+                                color="primary"
+                                sx={{ mr: 1, flexShrink: 0 }}
+                              />
+                            ) : (
+                              <InsertDriveFileIcon
+                                color="action"
+                                sx={{ mr: 1, flexShrink: 0 }}
+                              />
+                            )}
+                            <Box sx={{ minWidth: 0, flex: 1 }}>
+                              <Typography
+                                variant="caption"
+                                component="div"
+                                noWrap
+                                sx={{
+                                  display: "block",
+                                  fontWeight: "medium",
+                                }}
+                              >
+                                {file.name || `File ${index + 1}`}
+                              </Typography>
+                              <Typography
+                                variant="caption"
+                                color="text.secondary"
+                                component="div"
+                              >
+                                {file.size ? `${(file.size / 1024).toFixed(1)} KB` : 'Size not available'}
+                              </Typography>
+                            </Box>
+                            <Box
+                              sx={{
+                                display: "flex",
+                                ml: 1,
+                              }}
+                            >
+                              <IconButton 
+                                size="small" 
+                                color="primary"
+                                component="a"
+                                href={file.url || '#'}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                title="View file"
+                              >
+                                <VisibilityIcon fontSize="small" />
+                              </IconButton>
+                              <IconButton 
+                                size="small" 
+                                color="primary"
+                                component="a"
+                                href={file.url || '#'}
+                                download={file.name || 'download'}
+                                title="Download file"
+                              >
+                                <DownloadIcon fontSize="small" />
+                              </IconButton>
+                            </Box>
+                          </Box>
+                        </Grid>
+                      ))}
+                    </Grid>
+                  </Box>
+                ) : (
+                  <Box sx={{ textAlign: 'center', py: 3 }}>
+                    <InsertDriveFileIcon color="disabled" sx={{ fontSize: 48, mb: 1 }} />
+                    <Typography variant="body2" color="text.secondary">
+                      No files attached to this report
+                    </Typography>
+                  </Box>
+                )}
+              </CardContent>
+            </Card>
           </Grid>
 
           {/* Right Column - Summary */}
@@ -1000,24 +1122,24 @@ const ConsumptionDetail = () => {
               <CardContent>
                 <Typography variant="h6" fontWeight="bold" gutterBottom>Summary Report</Typography>
                 <Divider sx={{ mb: 2 }} />
-                  <Box mb={3}>
-                    <Typography variant="subtitle2" color="textSecondary">Average MPG</Typography>
-                    <Typography variant="h4" color="primary">
-                      {parseFloat(averageMPG).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} 
-                      <Typography component="span" variant="body2" color="textSecondary">mpg</Typography>
+                <Box mb={3}>
+                  <Typography variant="subtitle2" color="textSecondary">Average MPG</Typography>
+                  <Typography variant="h4" color="primary">
+                    {parseFloat(averageMPG).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    <Typography component="span" variant="body2" color="textSecondary">mpg</Typography>
                   </Typography>
                 </Box>
                 <Box mb={3}>
                   <Typography variant="subtitle2" color="textSecondary">Total Miles</Typography>
                   <Typography variant="h5">
-                    {Math.round(totalMiles).toLocaleString()}
+                    {Math.round(parseFloat(totalMiles)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     <Typography component="span" variant="body2" color="textSecondary"> miles</Typography>
                   </Typography>
                 </Box>
                 <Box mb={3}>
                   <Typography variant="subtitle2" color="textSecondary">Total Gallons</Typography>
                   <Typography variant="h5">
-                    {parseFloat(totalGallons).toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 })} 
+                    {parseFloat(totalGallons).toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 })}
                     <Typography component="span" variant="body2" color="textSecondary"> gallons</Typography>
                   </Typography>
                 </Box>
@@ -1028,10 +1150,10 @@ const ConsumptionDetail = () => {
             <Card elevation={2} sx={{ mt: 3 }}>
               <CardContent>
                 <Typography variant="h6" fontWeight="bold" gutterBottom>Notes</Typography>
-                <textarea 
-                  rows={4} 
-                  disabled={true} 
-                  value={safeConsumption.notes || 'No notes'} 
+                <textarea
+                  rows={4}
+                  disabled={true}
+                  value={safeConsumption.notes || 'No notes'}
                   style={{ width: '100%', padding: '8px', border: '1px solid #e0e0e0', borderRadius: '4px' }}
                 />
               </CardContent>

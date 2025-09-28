@@ -240,7 +240,7 @@ const Profile = () => {
   console.log("user_info: ", currentUser);
 
   return (
-    <Box>
+    <Box sx={{ p: 2 }}>
       <AlertMessage
         open={alert.open}
         onClose={handleAlertClose}
@@ -249,7 +249,7 @@ const Profile = () => {
         autoHideDuration={6000}
       />
 
-      <Typography variant="h5" sx={{ mb: 3 }}>
+      <Typography variant="h5" sx={{ mb: 3, p: 2, borderRadius: 2, width: "fit-content" }}>
         My Profile
       </Typography>
 

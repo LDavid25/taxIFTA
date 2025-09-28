@@ -304,15 +304,29 @@ const ConsumptionHistory = () => {
 	const { currentUser } = useAuth();
 	const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
+	// States for data
+	const [reports, setReports] = useState([]);
+
 	// States for filters
 	const [searchTerm, setSearchTerm] = useState('');
 	const [companyFilter, setCompanyFilter] = useState(''); // Empty string for 'All companies'
 	const [statusFilter, setStatusFilter] = useState('All');
 	const [companies, setCompanies] = useState([]);
+	const [yearOptions, setYearOptions] = useState([]);
 
-	// Year options (last 5 years and current)
-	const currentYear = new Date().getFullYear();
-	const yearOptions = Array.from({ length: 6 }, (_, i) => currentYear - i);
+	// Update year options when reports are loaded
+	useEffect(() => {
+		if (reports && reports.length > 0) {
+			const uniqueYears = [...new Set(reports.map(report => report.report_year))]
+				.filter(year => year != null)
+				.sort((a, b) => b - a);
+			setYearOptions(prevYears => {
+				// Combine with existing years to maintain all possible years
+				const combinedYears = [...new Set([...prevYears, ...uniqueYears])];
+				return combinedYears.sort((a, b) => b - a);
+			});
+		}
+	}, [reports]);
 
 	// Quarter options
 	const quarterOptions = [1, 2, 3, 4];
@@ -320,9 +334,6 @@ const ConsumptionHistory = () => {
 	// States for selected year and quarter
 	const [selectedYear, setSelectedYear] = useState('');
 	const [selectedQuarter, setSelectedQuarter] = useState('');
-
-	// States for data
-	const [reports, setReports] = useState([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState(null);
 
@@ -330,7 +341,7 @@ const ConsumptionHistory = () => {
 	const [filteredData, setFilteredData] = useState([]);
 	const [pagination, setPagination] = useState({
 		page: 0,
-		rowsPerPage: 10,
+		rowsPerPage: 20, // Changed from 10 to 20
 		total: 0,
 		totalPages: 1,
 	});
@@ -888,7 +899,7 @@ const ConsumptionHistory = () => {
 									))}
 								</Stack>
 							</Grid>
-							<Grid item xs={6} md={2}>
+							<Grid item xs={6} md={3}>
 								<TextField
 									fullWidth
 									variant="outlined"
@@ -1244,7 +1255,7 @@ const ConsumptionHistory = () => {
 						</TableContainer>
 					)}
 					<TablePagination
-						rowsPerPageOptions={[5, 10, 25, 100]}
+						rowsPerPageOptions={[20, 40, 60, 100, 500]}
 						component="div"
 						count={pagination.total}
 						rowsPerPage={pagination.rowsPerPage}

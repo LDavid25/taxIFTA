@@ -110,47 +110,52 @@ const ConsumptionEdit = () => {
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [existingAttachments, setExistingAttachments] = useState([]);
-  const [attachmentsToRemove, setAttachmentsToRemove] = useState([]);
   const [submitStatus, setSubmitStatus] = useState("draft"); // 'draft' or 'in_progress'
   const [isReportValid, setIsReportValid] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
   const [companies, setCompanies] = useState([]);
   const [open, setOpen] = useState(false);
   const [isLoadingCompanies, setIsLoadingCompanies] = useState(false);
+  const [submitDialogOpen, setSubmitDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const navigate = useNavigate();
 
-  const handleOpen = () => setOpen(true);
-  const handleClose = () => setOpen(false);
+  const handleOpenSave = () => setOpen(true);
+  const handleCloseSave = () => setOpen(false);
+
+  const handleOpenSubmit = () => setSubmitDialogOpen(true);
+  const handleCloseSubmit = () => setSubmitDialogOpen(false);
 
   // Función para manejar la eliminación lógica del reporte
   const handleDeleteClick = () => {
     setDeleteDialogOpen(true);
   };
 
+  const [attachmentsToRemove, setAttachmentsToRemove] = useState([]);
+
   const handleDeleteConfirm = async () => {
     try {
       setIsDeleting(true);
       await trashConsumptionReport(id);
-      
+
       setSnackbar({
         open: true,
-        message: 'Reporte eliminado correctamente',
+        message: 'Report deleted successfully',
         severity: 'success',
         autoHideDuration: 3000,
       });
-      
+
       // Redirigir a la lista de reportes después de un breve retraso
       setTimeout(() => {
         const basePath = currentUser?.role === 'admin' ? '/admin' : '/client';
         navigate(`${basePath}/consumption`);
       }, 1000);
-      
+
     } catch (error) {
-      console.error('Error al eliminar el reporte:', error);
+      console.error('Error deleting report:', error);
       setSnackbar({
         open: true,
-        message: error.message || 'Error al eliminar el reporte',
+        message: error.message || 'Error deleting report',
         severity: 'error',
         autoHideDuration: 5000,
       });
@@ -830,7 +835,7 @@ const ConsumptionEdit = () => {
                   spacing={2}
                   sx={{ flexWrap: { xs: "wrap", sm: "nowrap" } }}
                 >
-                  <Grid item xs={8} sm={5} md={5}>
+                  <Grid item xs={12} sm={4} md={3}>
                     <TextField
                       id="unitNumber"
                       name="unitNumber"
@@ -847,6 +852,7 @@ const ConsumptionEdit = () => {
                       }
                       disabled={isLoading}
                       variant="outlined"
+                      fullWidth
                       size="small"
                       InputLabelProps={{
                         shrink: true,
@@ -855,7 +861,7 @@ const ConsumptionEdit = () => {
                   </Grid>
 
                   {isAdmin && (
-                    <Grid item xs={8} sm={3} md={2}>
+                    <Grid item xs={12} sm={4} md={3}>
                       <FormControl
                         fullWidth
                         error={
@@ -892,7 +898,7 @@ const ConsumptionEdit = () => {
                     </Grid>
                   )}
 
-                  <Grid item xs={8} sm={5} md={2}>
+                  <Grid item xs={12} sm={4} md={2}>
                     <TextField
                       select
                       fullWidth
@@ -919,7 +925,7 @@ const ConsumptionEdit = () => {
                       ))}
                     </TextField>
                   </Grid>
-                  <Grid item container spacing={2} xs={12} sm={4}>
+                  <Grid item container spacing={2} xs={12} sm={4} md={4}>
                     <Grid item xs={6}>
                       <TextField
                         select
@@ -990,6 +996,7 @@ const ConsumptionEdit = () => {
                   <Grid
                     item
                     xs={12}
+                    md={1}
                     sx={{ mt: 0, display: "flex", justifyContent: "flex-end" }}
                   >
                     {!isReportValid ? (
@@ -1420,24 +1427,51 @@ const ConsumptionEdit = () => {
                                   transition: "all 0.2s ease-in-out",
                                 }}
                               >
-                                <Tooltip title="Remove file">
-                                  <IconButton
-                                    size="small"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      removeExistingAttachment(attachment.id);
-                                    }}
-                                    sx={{
-                                      color: "error.main",
-                                      "&:hover": {
-                                        backgroundColor:
-                                          "rgba(211, 47, 47, 0.08)",
-                                      },
-                                    }}
-                                  >
-                                    <DeleteOutlineIcon fontSize="small" />
-                                  </IconButton>
-                                </Tooltip>
+                                <Box sx={{ display: 'flex', gap: 0.5 }}>
+                                  <Tooltip title="View file">
+                                    <IconButton
+                                      size="small"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        // Ensure there's no double slash between API URL and file path
+                                        const baseUrl = process.env.REACT_APP_API_URL?.endsWith('/')
+                                          ? process.env.REACT_APP_API_URL.slice(0, -1)
+                                          : process.env.REACT_APP_API_URL;
+                                        const filePath = attachment.file_path?.startsWith('/')
+                                          ? attachment.file_path.substring(1)
+                                          : attachment.file_path;
+                                        const fileUrl = `${baseUrl}/${filePath}`;
+                                        console.log('Opening file URL:', fileUrl);
+                                        window.open(fileUrl, '_blank');
+                                      }}
+                                      sx={{
+                                        color: "primary.main",
+                                        "&:hover": {
+                                          backgroundColor: "rgba(25, 118, 210, 0.08)",
+                                        },
+                                      }}
+                                    >
+                                      <VisibilityIcon fontSize="small" />
+                                    </IconButton>
+                                  </Tooltip>
+                                  <Tooltip title="Remove file">
+                                    <IconButton
+                                      size="small"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        removeExistingAttachment(attachment.id);
+                                      }}
+                                      sx={{
+                                        color: "error.main",
+                                        "&:hover": {
+                                          backgroundColor: "rgba(211, 47, 47, 0.08)",
+                                        },
+                                      }}
+                                    >
+                                      <DeleteOutlineIcon fontSize="small" />
+                                    </IconButton>
+                                  </Tooltip>
+                                </Box>
                               </Box>
                             </Box>
                           </Grid>
@@ -1515,25 +1549,14 @@ const ConsumptionEdit = () => {
                           gutterBottom
                           sx={{ fontWeight: 500 }}
                         >
-                          Drag & drop files here
+                          Your files here
                         </Typography>
                         <Typography
                           variant="body2"
                           color="text.secondary"
                           sx={{ mb: 2 }}
                         >
-                          or{" "}
-                          <Box
-                            component="span"
-                            sx={{
-                              color: "primary.main",
-                              textDecoration: "underline",
-                              fontWeight: 500,
-                            }}
-                          >
-                            browse
-                          </Box>{" "}
-                          to choose files
+                          click and choose your files
                         </Typography>
                         <Typography
                           variant="caption"
@@ -1831,8 +1854,9 @@ const ConsumptionEdit = () => {
                   }}
                 >
 
-                  
+
                   <Button
+                    title="Back to Review & Changes"
                     component={RouterLink}
                     to={
                       currentUser?.role === "admin"
@@ -1846,6 +1870,7 @@ const ConsumptionEdit = () => {
                     Cancel
                   </Button>
                   <Button
+                    title="Delete Report"
                     variant="contained"
                     color="error"
                     onClick={handleDeleteClick}
@@ -1856,13 +1881,14 @@ const ConsumptionEdit = () => {
                   >
                     {isDeleting ? "Deleting..." : "Delete"}
                   </Button>
-                  
+
                   <Button
+                    title={reportStatus === 'in_progress' ? 'Switch to Draft' : 'Save'}
                     variant="outlined"
                     color="primary"
                     onClick={() => {
                       setSubmitStatus("sent");
-                      handleOpen();
+                      handleOpenSave();
                     }}
                     disabled={!isFormValid()}
                     size="medium"
@@ -1871,13 +1897,14 @@ const ConsumptionEdit = () => {
                   >
                     {reportStatus === 'in_progress' ? 'Switch to Draft' : 'Save'}
                   </Button>
-                  
+
                   <Button
+                    title={reportStatus === 'in_progress' ? 'Update Report' : 'Submit Report'}
                     variant="contained"
                     color="primary"
                     onClick={() => {
-                      setSubmitStatus(reportStatus === 'draft' ? 'submit' : 'sent');
-                      handleOpen();
+                      setSubmitStatus("in_progress");
+                      handleOpenSubmit();
                     }}
                     disabled={!isFormValid() || !isReportValid || isLoading}
                     size="medium"
@@ -1892,14 +1919,15 @@ const ConsumptionEdit = () => {
           </Grid>
         </form>
 
-        <Dialog open={open} onClose={handleClose}>
+        <Dialog open={open} onClose={handleCloseSave}>
           <DialogContent>
             <Typography>
-              Are you sure you want to update this report?
+              {reportStatus === 'in_progress' ? 'Are you sure? This action changes your report to Draft.' : 'Are you sure? This action saves the changes to the report.'}
+
             </Typography>
           </DialogContent>
           <DialogActions>
-            <Button onClick={handleClose}>Cancel</Button>
+            <Button onClick={handleCloseSave}>Cancel</Button>
             <Button
               sx={{ color: "white" }}
               type="submit"
@@ -1907,7 +1935,28 @@ const ConsumptionEdit = () => {
               variant="contained"
               color="success"
             >
-              Update
+              {reportStatus === 'in_progress' ? 'Switch to Draft' : 'Save'}
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        <Dialog open={submitDialogOpen} onClose={handleCloseSubmit}>
+          <DialogContent>
+            <Typography>
+              {reportStatus === 'sent' ? 'Are you sure? This option will send your information for transmission to IFTA.' : 'Are you sure? This action updates your report.'}
+
+            </Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleCloseSubmit}>Cancel</Button>
+            <Button
+              sx={{ color: "white" }}
+              type="submit"
+              form="myForm"
+              variant="contained"
+              color="primary"
+            >
+              {reportStatus === 'sent' ? 'Submit' : 'Update'}
             </Button>
           </DialogActions>
         </Dialog>
@@ -1937,26 +1986,31 @@ const ConsumptionEdit = () => {
           </DialogTitle>
           <DialogContent>
             <Typography>
-              Are you sure you want to delete this report?. <br/>You can't undo this action.
+              Are you sure you want to <b>DELETE</b> this report? <br />You can't undo this action.
             </Typography>
           </DialogContent>
           <DialogActions>
-            <Button onClick={handleDeleteCancel} color="primary" disabled={isDeleting}>
-              Cancel
-            </Button>
-            <Button 
-              onClick={handleDeleteConfirm} 
-              color="error" 
-              autoFocus
-              disabled={isDeleting}
-              startIcon={isDeleting ? <CircularProgress size={20} /> : null}
-            >
-              {isDeleting ? 'Deleting...' : 'Delete'}
-            </Button>
+            <Box sx={{ display: "flex", width: "100%", justifyContent: "center", gap: 6 }}>
+              <Button
+                onClick={handleDeleteConfirm}
+                color="error"
+                autoFocus
+                disabled={isDeleting}
+                startIcon={isDeleting ? <CircularProgress size={20} /> : null}
+              >
+                {isDeleting ? 'Deleting...' : 'Delete'}
+              </Button>
+              <Button onClick={handleDeleteCancel}
+                color="primary"
+                disabled={isDeleting}
+              >
+                Cancel
+              </Button>
+            </Box>
           </DialogActions>
-        </Dialog>
-      </Box>
-    </LocalizationProvider>
+      </Dialog>
+    </Box>
+    </LocalizationProvider >
   );
 };
 

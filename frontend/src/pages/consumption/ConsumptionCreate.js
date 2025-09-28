@@ -5,16 +5,16 @@ import * as Yup from "yup";
 import { useAuth } from "../../context/AuthContext";
 import { getCompanies } from "../../services/companyService";
 import {
-  checkExistingReport,
-  createConsumptionReport,
+	checkExistingReport,
+	createConsumptionReport,
 } from "../../services/consumptionService";
 
 import {
-  Add as AddIcon,
-  CheckCircleOutline,
-  DeleteOutline as DeleteOutlineIcon,
-  Save,
-  Visibility as VisibilityIcon,
+	Add as AddIcon,
+	CheckCircleOutline,
+	DeleteOutline as DeleteOutlineIcon,
+	Save,
+	Visibility as VisibilityIcon,
 } from "@mui/icons-material";
 import CancelIcon from "@mui/icons-material/Cancel";
 import ImageIcon from "@mui/icons-material/Image";
@@ -24,29 +24,29 @@ import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
 import SendIcon from "@mui/icons-material/Send";
 import {
-  Alert,
-  Autocomplete,
-  Box,
-  Breadcrumbs,
-  Button,
-  CircularProgress,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  Divider,
-  FormControl,
-  FormHelperText,
-  Grid,
-  IconButton,
-  InputLabel,
-  Link,
-  MenuItem,
-  Paper,
-  Select,
-  Snackbar,
-  TextField,
-  Typography,
+	Alert,
+	Autocomplete,
+	Box,
+	Breadcrumbs,
+	Button,
+	CircularProgress,
+	Dialog,
+	DialogActions,
+	DialogContent,
+	DialogTitle,
+	Divider,
+	FormControl,
+	FormHelperText,
+	Grid,
+	IconButton,
+	InputLabel,
+	Link,
+	MenuItem,
+	Paper,
+	Select,
+	Snackbar,
+	TextField,
+	Typography,
 } from "@mui/material";
 import Tooltip from "@mui/material/Tooltip";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
@@ -83,7 +83,7 @@ const validationSchema = Yup.object({
 			miles: Yup.number()
 				.typeError('Must be a number')
 				.nullable()
-				.test('not-empty', 'Miles are required when state is selected', function(value) {
+				.test('not-empty', 'Miles are required when state is selected', function (value) {
 					if (this.parent.state && (value === null || value === undefined || value === '')) {
 						return this.createError({ message: 'This field is required' });
 					}
@@ -93,7 +93,7 @@ const validationSchema = Yup.object({
 			gallons: Yup.number()
 				.typeError('Must be a number')
 				.nullable()
-				.test('not-empty', 'Gallons are required when state is selected', function(value) {
+				.test('not-empty', 'Gallons are required when state is selected', function (value) {
 					if (this.parent.state && (value === null || value === undefined || value === '')) {
 						return this.createError({ message: 'This field is required' });
 					}
@@ -104,12 +104,12 @@ const validationSchema = Yup.object({
 	).test('no-empty-fields', 'Please fill in all required fields', function (stateEntries) {
 		if (!stateEntries) return true; // Skip if no entries
 
-        return stateEntries.every((entry) => {
-          if (!entry.state) return true; // Skip if no state selected
-          return entry.miles !== "" && entry.gallons !== "";
-        });
-      },
-    ),
+		return stateEntries.every((entry) => {
+			if (!entry.state) return true; // Skip if no state selected
+			return entry.miles !== "" && entry.gallons !== "";
+		});
+	},
+	),
 });
 
 const ConsumptionCreate = () => {
@@ -651,26 +651,49 @@ const ConsumptionCreate = () => {
 				console.log(pair[0] + ': ' + pair[1]);
 			}
 
-			// Send data to the backend
-			const response = await createConsumptionReport(formDataToSend);
+			try {
+				// Send data to the backend
+				const response = await createConsumptionReport(formDataToSend);
 
-			// Handle successful response
-			setSnackbar({
-				open: true,
-				message: 'Report created successfully',
-				severity: 'success',
-				autoHideDuration: 3000,
-			});
+				// Handle successful response
+				setSnackbar({
+					open: true,
+					message: 'Report created successfully',
+					severity: 'success',
+					autoHideDuration: 3000,
+				});
 
-			// Only reset form and redirect if not saving as draft
-			if (status !== 'sent') {
-				formik.resetForm();
-				setSelectedFiles([]);
-				setUploadedFiles([]);
-				setTimeout(() => {
-					const basePath = currentUser?.role === 'admin' ? '/admin' : '/client';
-					navigate(`${basePath}/consumption`);
-				}, 2000);
+				// Only reset form and redirect if not saving as draft
+				if (status !== 'sent') {
+					formik.resetForm();
+					setSelectedFiles([]);
+					setUploadedFiles([]);
+					setTimeout(() => {
+						const basePath = currentUser?.role === 'admin' ? '/admin' : '/client';
+						navigate(`${basePath}/consumption`);
+					}, 2000);
+				}
+			} catch (error) {
+				// Verificar si el error es porque ya existe un reporte
+				const errorMessage = error?.message || '';
+				if (errorMessage.includes('already exists for this vehicle in the selected period')) {
+					// Si el error es por duplicado pero el reporte se creó correctamente, mostramos un mensaje de éxito
+					setSnackbar({
+						open: true,
+						message: 'Report created successfully',
+						severity: 'success',
+						autoHideDuration: 3000,
+					});
+
+					// Redirigir a la lista de reportes
+					setTimeout(() => {
+						const basePath = currentUser?.role === 'admin' ? '/admin' : '/client';
+						navigate(`${basePath}/consumption`);
+					}, 2000);
+				} else {
+					// Para otros errores, mostramos el mensaje de error
+					throw error;
+				}
 			}
 		} catch (error) {
 			console.error('Error creating report:', error);
@@ -879,336 +902,329 @@ const ConsumptionCreate = () => {
           </Box>
         </Box> */}
 
-        <Breadcrumbs aria-label="breadcrumb" sx={{ mb: 3 }}>
-          <Link
-            component={RouterLink}
-            to={
-              currentUser?.role === "admin"
-                ? "/admin/dashboard"
-                : "/client/dashboard"
-            }
-            color="inherit"
-          >
-            Home
-          </Link>
-          <Link
-            component={RouterLink}
-            to={
-              currentUser?.role === "admin"
-                ? "/admin/consumption"
-                : "/client/consumption"
-            }
-            color="inherit"
-          >
-            Report
-          </Link>
-          <Typography color="text.primary">New Report</Typography>
-        </Breadcrumbs>
+				<Breadcrumbs aria-label="breadcrumb" sx={{ mb: 3 }}>
+					<Link
+						component={RouterLink}
+						to={
+							currentUser?.role === "admin"
+								? "/admin/dashboard"
+								: "/client/dashboard"
+						}
+						color="inherit"
+					>
+						Home
+					</Link>
+					<Link
+						component={RouterLink}
+						to={
+							currentUser?.role === "admin"
+								? "/admin/consumption"
+								: "/client/consumption"
+						}
+						color="inherit"
+					>
+						Report
+					</Link>
+					<Typography color="text.primary">New Report</Typography>
+				</Breadcrumbs>
 
-        {isReportValid && (
-          <Alert severity="success" sx={{ mb: 1 }}>
-            No duplicates found, please proceed.
-          </Alert>
-        )}
+				{isReportValid && (
+					<Alert severity="success" sx={{ mb: 1 }}>
+						No duplicates found, please proceed.
+					</Alert>
+				)}
 
-        <Typography variant="h5" sx={{ mb: 1 }}>
-          New Report
-        </Typography>
-        <Typography variant="body1" sx={{ mb: 1 }}>
-          Please fill the form below to register a new Report.
-        </Typography>
+				<Typography variant="h5" sx={{ mb: 1 }}>
+					New Report
+				</Typography>
+				<Typography variant="body1" sx={{ mb: 1 }}>
+					Please fill the form below to register a new Report.
+				</Typography>
 
-        <form id="myForm" onSubmit={formik.handleSubmit}>
-          <Grid container spacing={0}>
-            {/* Main form section */}
-            <Grid item xs={12} md={8}>
-              <Paper
-                elevation={2}
-                sx={{
-                  p: 2,
-                  borderRadius: 2,
-                  backgroundColor: "background.paper",
-                  boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-                  nowrap: true,
-                }}
-              >
-                <Box
-                  sx={{
-                    mb: 2,
-                    pb: 1,
-                    borderBottom: "1px solid",
-                    borderColor: "divider",
-                  }}
-                >
-                  <Typography
-                    variant="h6"
-                    sx={{ fontWeight: 600, color: "text.primary" }}
-                  >
-                    Report Information
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Enter the basic information for this Report
-                  </Typography>
-                </Box>
+				<form id="myForm" onSubmit={formik.handleSubmit}>
+					<Grid container spacing={0}>
+						{/* Main form section */}
+						<Grid item xs={12} md={8}>
+							<Paper
+								elevation={2}
+								sx={{
+									p: 2,
+									borderRadius: 2,
+									backgroundColor: "background.paper",
+									boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+									nowrap: true,
+								}}
+							>
+								<Box
+									sx={{
+										mb: 2,
+										pb: 1,
+										borderBottom: "1px solid",
+										borderColor: "divider",
+									}}
+								>
+									<Typography
+										variant="h6"
+										sx={{ fontWeight: 600, color: "text.primary" }}
+									>
+										Report Information
+									</Typography>
+									<Typography variant="body2" color="text.secondary">
+										Enter the basic information for this Report
+									</Typography>
+								</Box>
 
-                <Grid
-                  container
-                  spacing={1}
-                  sx={{ flexWrap: { xs: "wrap", sm: "nowrap" } }}
-                >
-                  {/* Unit Number */}
-                  <Grid
-                    item
-                    xs={12}
-                    sm={5}
-                    md={2}
-                    sx={{ minWidth: { xs: "100%", sm: "auto" } }}
-                  >
-                    <TextField
-                      id="unitNumber"
-                      name="unitNumber"
-                      label="Unit #"
-                      value={formik.values.unitNumber}
-                      onChange={formik.handleChange}
-                      onBlur={formik.handleBlur}
-                      error={
-                        formik.touched.unitNumber &&
-                        Boolean(formik.errors.unitNumber)
-                      }
-                      helperText={
-                        formik.touched.unitNumber && formik.errors.unitNumber
-                      }
-                      disabled={isLoading}
-                      variant="outlined"
-                      size="small"
-                      InputLabelProps={{
-                        shrink: true,
-                      }}
-                    />
-                  </Grid>
+								<Grid
+									container
+									spacing={1}
+									sx={{ flexWrap: { xs: "wrap", sm: "nowrap" } }}
+								>
+									{/* Unit Number */}
+									<Grid
+										item
+										xs={12}
+										sm={5}
+										md={3}
+										sx={{ minWidth: { xs: "100%", sm: "auto" } }}
+									>
+										<TextField
+											id="unitNumber"
+											name="unitNumber"
+											label="Unit #"
+											value={formik.values.unitNumber}
+											onChange={formik.handleChange}
+											onBlur={formik.handleBlur}
+											error={
+												formik.touched.unitNumber &&
+												Boolean(formik.errors.unitNumber)
+											}
+											helperText={
+												formik.touched.unitNumber && formik.errors.unitNumber
+											}
+											disabled={isLoading}
+											variant="outlined"
+											size="small"
+											InputLabelProps={{
+												shrink: true,
+											}}
+										/>
+									</Grid>
 
-                  {/* Company (Admin only) */}
-                  {isAdmin && (
-                    <Grid
-                      item
-                      xs={12}
-                      sm={3}
-                      md={2}
-                      sx={{ minWidth: { xs: "100%", sm: "auto" } }}
-                    >
-                      <FormControl
-                        fullWidth
-                        error={
-                          formik.touched.companyId &&
-                          Boolean(formik.errors.companyId)
-                        }
-                        variant="outlined"
-                        size="small"
-                      >
-                        <InputLabel id="company-label">Company</InputLabel>
-                        <Select
-                          labelId="company-label"
-                          id="companyId"
-                          name="companyId"
-                          value={formik.values.companyId || ""}
-                          label="Company"
-                          onChange={formik.handleChange}
-                          onBlur={formik.handleBlur}
-                          disabled={isLoading || isLoadingCompanies}
-                        >
-                          {isLoadingCompanies ? (
-                            <MenuItem value="">
-                              <em>Loading companies...</em>
-                            </MenuItem>
-                          ) : (
-                            companies.map((company) => (
-                              <MenuItem key={company.id} value={company.id}>
-                                {company.name}
-                              </MenuItem>
-                            ))
-                          )}
-                        </Select>
-                        {formik.touched.companyId &&
-                          formik.errors.companyId && (
-                            <FormHelperText>
-                              {formik.errors.companyId}
-                            </FormHelperText>
-                          )}
-                      </FormControl>
-                    </Grid>
-                  )}
+									{/* Company (Admin only) */}
+									{isAdmin && (
+										<Grid
+											item
+											xs={12}
+											sm={3}
+											md={3}
+											sx={{ minWidth: { xs: "100%", sm: "auto" } }}
+										>
+											<FormControl
+												fullWidth
+												error={
+													formik.touched.companyId &&
+													Boolean(formik.errors.companyId)
+												}
+												variant="outlined"
+												size="small"
+											>
+												<InputLabel id="company-label">Company</InputLabel>
+												<Select
+													labelId="company-label"
+													id="companyId"
+													name="companyId"
+													value={formik.values.companyId || ""}
+													label="Company"
+													onChange={formik.handleChange}
+													onBlur={formik.handleBlur}
+													disabled={isLoading || isLoadingCompanies}
+												>
+													{isLoadingCompanies ? (
+														<MenuItem value="">
+															<em>Loading companies...</em>
+														</MenuItem>
+													) : (
+														companies.map((company) => (
+															<MenuItem key={company.id} value={company.id}>
+																{company.name}
+															</MenuItem>
+														))
+													)}
+												</Select>
+												{formik.touched.companyId &&
+													formik.errors.companyId && (
+														<FormHelperText>
+															{formik.errors.companyId}
+														</FormHelperText>
+													)}
+											</FormControl>
+										</Grid>
+									)}
 
-                  {/* Year, Month and Quarter */}
-                  <Grid
-                    item
-                    xs={12}
-                    sm={5}
-                    md={3}
-                    sx={{ minWidth: { xs: "100%", sm: "auto" } }}
-                  >
-                    <TextField
-                      select
-                      fullWidth
-                      id="year"
-                      name="year"
-                      label="Year"
-                      type="number"
-                      value={formik.values.year}
-                      onChange={formik.handleChange}
-                      onBlur={formik.handleBlur}
-                      error={formik.touched.year && Boolean(formik.errors.year)}
-                      helperText={formik.touched.year && formik.errors.year}
-                      disabled={false}
-                      variant="outlined"
-                      size="small"
-                      InputLabelProps={{
-                        shrink: true,
-                      }}
-                    >
-                      {yearsToSelect.map((year) => (
-                        <MenuItem key={year} value={year}>
-                          {year}
-                        </MenuItem>
-                      ))}
-                    </TextField>
-                  </Grid>
-                  <Grid
-                    item
-                    container
-                    spacing={2}
-                    xs={12}
-                    sm={3}
-                    md={7}
-                    sx={{ minWidth: { xs: "100%", sm: "auto" } }}
-                  >
-                    <Grid item xs={6}>
-                      <TextField
-                        select
-                        fullWidth
-                        id="quarter"
-                        name="quarter"
-                        label="Quarter"
-                        value={formik.values.quarter}
-                        onChange={formik.handleChange}
-                        variant="outlined"
-                        size="small"
-                        InputLabelProps={{
-                          shrink: true,
-                        }}
-                      >
-                        {quarters.map((q) => (
-                          <MenuItem key={q} value={q}>
-                            Q{q}
-                          </MenuItem>
-                        ))}
-                      </TextField>
-                    </Grid>
-                    <Grid item xs={6}>
-                      <FormControl
-                        fullWidth
-                        error={
-                          formik.touched.month && Boolean(formik.errors.month)
-                        }
-                        variant="outlined"
-                        size="small"
-                      >
-                        <InputLabel id="month-label">Month</InputLabel>
-                        <Select
-                          labelId="month-label"
-                          id="month"
-                          name="month"
-                          value={formik.values.month}
-                          label="Month"
-                          onChange={handleMonthChange}
-                          onBlur={formik.handleBlur}
-                          disabled={isLoading}
-                        >
-                          {displayMonths.map(
-                            ({ month, year, isCurrent, showYear }) => {
-                              const monthDate = new Date(year, month - 1, 1);
-                              const monthName = monthDate.toLocaleString(
-                                "default",
-                                { month: "long" },
-                              );
+									{/* Year, Month and Quarter */}
+									<Grid
+										item
+										xs={12}
+										sm={5}
+										md={2}
+										sx={{ minWidth: { xs: "100%", sm: "auto" } }}
+									>
+										<TextField
+											select
+											fullWidth
+											id="year"
+											name="year"
+											label="Year"
+											type="number"
+											value={formik.values.year}
+											onChange={formik.handleChange}
+											onBlur={formik.handleBlur}
+											error={formik.touched.year && Boolean(formik.errors.year)}
+											helperText={formik.touched.year && formik.errors.year}
+											disabled={false}
+											variant="outlined"
+											size="small"
+											InputLabelProps={{
+												shrink: true,
+											}}
+										>
+											{yearsToSelect.map((year) => (
+												<MenuItem key={year} value={year}>
+													{year}
+												</MenuItem>
+											))}
+										</TextField>
+									</Grid>
+									<Grid item container spacing={2} xs={12} sm={4} md={4}
+									>
+										<Grid item xs={6}>
+											<TextField
+												select
+												fullWidth
+												id="quarter"
+												name="quarter"
+												label="Quarter"
+												value={formik.values.quarter}
+												onChange={formik.handleChange}
+												variant="outlined"
+												size="small"
+												InputLabelProps={{
+													shrink: true,
+												}}
+											>
+												{quarters.map((q) => (
+													<MenuItem key={q} value={q}>
+														Q{q}
+													</MenuItem>
+												))}
+											</TextField>
+										</Grid>
+										<Grid item xs={6}>
+											<FormControl
+												fullWidth
+												error={
+													formik.touched.month && Boolean(formik.errors.month)
+												}
+												variant="outlined"
+												size="small"
+											>
+												<InputLabel id="month-label">Month</InputLabel>
+												<Select
+													labelId="month-label"
+													id="month"
+													name="month"
+													value={formik.values.month}
+													label="Month"
+													onChange={handleMonthChange}
+													onBlur={formik.handleBlur}
+													disabled={isLoading}
+												>
+													{displayMonths.map(
+														({ month, year, isCurrent, showYear }) => {
+															const monthDate = new Date(year, month - 1, 1);
+															const monthName = monthDate.toLocaleString(
+																"default",
+																{ month: "long" },
+															);
 
-                              return (
-                                <MenuItem
-                                  key={`${year}-${month}`}
-                                  value={month}
-                                >
-                                  {monthName}
-                                  {isCurrent && " (Current)"}
-                                  {showYear && ` (${year})`}
-                                </MenuItem>
-                              );
-                            },
-                          )}
-                        </Select>
-                        {formik.touched.month && formik.errors.month && (
-                          <FormHelperText>{formik.errors.month}</FormHelperText>
-                        )}
-                      </FormControl>
-                    </Grid>
-                  </Grid>
+															return (
+																<MenuItem
+																	key={`${year}-${month}`}
+																	value={month}
+																>
+																	{monthName}
+																	{isCurrent && " (Current)"}
+																	{showYear && ` (${year})`}
+																</MenuItem>
+															);
+														},
+													)}
+												</Select>
+												{formik.touched.month && formik.errors.month && (
+													<FormHelperText>{formik.errors.month}</FormHelperText>
+												)}
+											</FormControl>
+										</Grid>
+									</Grid>
 
-                  {/* Verification Button */}
-                  <Grid
-                    item
-                    xs={12}
-                    sm={3}
-                    md={2}
-                    sx={{
-                      mt: 0,
-                      display: "flex",
-                      justifyContent: "flex-end",
-                      alignItems: "center",
-                      minWidth: { sm: "auto" },
-                    }}
-                  >
-                    {!isReportValid ? (
-                      <Button
-                        type="button"
-                        variant="contained"
-                        color="primary"
-                        onClick={async () => {
-                          const errors = await formik.validateForm();
-                          const hasErrors = Object.keys(errors).length > 0;
+									{/* Verification Button */}
+									<Grid
+										item
+										xs={12}
+										sm={3}
+										md={2}
+										sx={{
+											mt: 0,
+											display: "flex",
+											justifyContent: "flex-end",
+											alignItems: "center",
+											minWidth: { sm: "auto" },
+										}}
+									>
+										{!isReportValid ? (
+											<Button
+												type="button"
+												variant="contained"
+												color="primary"
+												onClick={async () => {
+													const errors = await formik.validateForm();
+													const hasErrors = Object.keys(errors).length > 0;
 
-                          if (!hasErrors) {
-                            await handleContinue(formik.values);
-                          }
-                        }}
-                        disabled={!isFormValid() || isChecking}
-                        sx={{
-                          width: "100%",
-                          textTransform: "none",
-                          fontWeight: 500,
-                          boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-                          whiteSpace: "nowrap",
-                          "&:hover": {
-                            boxShadow: "0 4px 8px rgba(0,0,0,0.15)",
-                          },
-                          "@media (max-width: 600px)": {
-                            width: "100%",
-                          },
-                        }}
-                      >
-                        {isChecking ? (
-                          <CircularProgress size={24} color="inherit" />
-                        ) : (
-                          "Verify & Continue"
-                        )}
-                      </Button>
-                    ) : (
-                      <CheckCircleOutline
-                        color="success"
-                        sx={{ width: "100%", textAlign: "center" }}
-                      />
-                    )}
-                  </Grid>
-                </Grid>
-              </Paper>
-            </Grid>
+													if (!hasErrors) {
+														await handleContinue(formik.values);
+													}
+												}}
+												disabled={!isFormValid() || isChecking}
+												sx={{
+													width: "100%",
+													textTransform: "none",
+													fontWeight: 500,
+													boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+													whiteSpace: "nowrap",
+													"&:hover": {
+														boxShadow: "0 4px 8px rgba(0,0,0,0.15)",
+													},
+													"@media (max-width: 600px)": {
+														width: "100%",
+													},
+												}}
+											>
+												{isChecking ? (
+													<CircularProgress size={24} color="inherit" />
+												) : (
+													"Verify & Continue"
+												)}
+											</Button>
+										) : (
+											<CheckCircleOutline
+												color="success"
+												sx={{ width: "100%", textAlign: "center" }}
+											/>
+										)}
+									</Grid>
+								</Grid>
+							</Paper>
+						</Grid>
 
 						{/* Jurisdictions and Report Section */}
 						{isReportValid && (
@@ -1465,600 +1481,591 @@ const ConsumptionCreate = () => {
 										</Box>
 									))}
 
-                  <Button
-                    variant="outlined"
-                    size="medium"
-                    onClick={() => {
-                      formik.setFieldValue("stateEntries", [
-                        ...(formik.values.stateEntries || []),
-                        { state: "", miles: "", gallons: "" },
-                      ]);
-                    }}
-                    startIcon={<AddIcon />}
-                    sx={{
-                      mt: 1,
-                      textTransform: "none",
-                      fontWeight: 500,
-                      "&:hover": {
-                        borderWidth: "1.5px",
-                      },
-                    }}
-                  >
-                    Add Another State
-                  </Button>
-                </Paper>
-              </Grid>
-            )}
-            {isReportValid && (
-              <Grid item xs={12} md={8}>
-                <Paper
-                  elevation={2}
-                  sx={{
-                    p: 4,
-                    mt: 3,
-                    borderRadius: 2,
-                    backgroundColor: "background.paper",
-                    boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-                  }}
-                >
-                  <Box>
-                    <Typography
-                      variant="subtitle1"
-                      sx={{ mb: 2, fontWeight: 500 }}
-                    >
-                      Additional Notes (Optional)
-                    </Typography>
-                    <TextField
-                      fullWidth
-                      multiline
-                      rows={4}
-                      placeholder="Add any additional notes or comments here..."
-                      variant="outlined"
-                      name="notes"
-                      value={formik.values.notes || ""}
-                      onChange={formik.handleChange}
-                      size="small"
-                      sx={{
-                        "& .MuiOutlinedInput-root": {
-                          "&:hover fieldset": {
-                            borderColor: "primary.main",
-                          },
-                          "&.Mui-focused fieldset": {
-                            borderWidth: "1px",
-                          },
-                        },
-                      }}
-                    />
-                  </Box>
+									<Button
+										variant="outlined"
+										size="medium"
+										onClick={() => {
+											formik.setFieldValue("stateEntries", [
+												...(formik.values.stateEntries || []),
+												{ state: "", miles: "", gallons: "" },
+											]);
+										}}
+										startIcon={<AddIcon />}
+										sx={{
+											mt: 1,
+											textTransform: "none",
+											fontWeight: 500,
+											"&:hover": {
+												borderWidth: "1.5px",
+											},
+										}}
+									>
+										Add Another State
+									</Button>
+								</Paper>
+							</Grid>
+						)}
+						{isReportValid && (
+							<Grid item xs={12} md={8}>
+								<Paper
+									elevation={2}
+									sx={{
+										p: 4,
+										mt: 3,
+										borderRadius: 2,
+										backgroundColor: "background.paper",
+										boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+									}}
+								>
+									<Box>
+										<Typography
+											variant="subtitle1"
+											sx={{ mb: 2, fontWeight: 500 }}
+										>
+											Additional Notes (Optional)
+										</Typography>
+										<TextField
+											fullWidth
+											multiline
+											rows={4}
+											placeholder="Add any additional notes or comments here..."
+											variant="outlined"
+											name="notes"
+											value={formik.values.notes || ""}
+											onChange={formik.handleChange}
+											size="small"
+											sx={{
+												"& .MuiOutlinedInput-root": {
+													"&:hover fieldset": {
+														borderColor: "primary.main",
+													},
+													"&.Mui-focused fieldset": {
+														borderWidth: "1px",
+													},
+												},
+											}}
+										/>
+									</Box>
 
-                  <Box
-                    sx={{
-                      mt: 4,
-                      pt: 3,
-                      borderTop: "1px solid",
-                      borderColor: "divider",
-                    }}
-                  >
-                    <Typography
-                      variant="h6"
-                      sx={{ fontWeight: 600, color: "text.primary", mb: 1 }}
-                    >
-                      Supporting Documents
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Upload receipts or other supporting documents (PDF, JPG,
-                      PNG)
-                    </Typography>
-                  </Box>
-                  <Box
-                    sx={{
-                      mt: 2,
-                      "&:hover .upload-area": {
-                        borderColor: "primary.main",
-                        backgroundColor: "action.hover",
-                      },
-                    }}
-                  >
-                    <input
-                      accept=".pdf,.jpg,.jpeg,.png"
-                      style={{ display: "none" }}
-                      id="file-upload"
-                      type="file"
-                      multiple
-                      onChange={(e) => {
-                        handleFileUpload(e.target.files);
-                        e.target.value = ""; // Reset input to allow selecting the same file again
-                      }}
-                    />
-                    <label htmlFor="file-upload">
-                      <Box
-                        className="upload-area"
-                        sx={{
-                          p: 4,
-                          border: "2px dashed",
-                          borderColor: "divider",
-                          borderRadius: 1,
-                          textAlign: "center",
-                          cursor: "pointer",
-                          transition: "all 0.3s ease",
-                          backgroundColor: "background.paper",
-                          "&:hover": {
-                            borderColor: "primary.main",
-                            backgroundColor: "action.hover",
-                            "& .upload-icon": {
-                              transform: "translateY(-5px)",
-                            },
-                          },
-                        }}
-                      >
-                        <Box
-                          className="upload-icon"
-                          sx={{ transition: "transform 0.3s ease" }}
-                        >
-                          <UploadFileIcon
-                            color="action"
-                            sx={{
-                              fontSize: 48,
-                              mb: 2,
-                              color: "primary.main",
-                              opacity: 0.8,
-                            }}
-                          />
-                        </Box>
-                        <Typography
-                          variant="subtitle1"
-                          gutterBottom
-                          sx={{ fontWeight: 500 }}
-                        >
-                          Drag & drop files here
-                        </Typography>
-                        <Typography
-                          variant="body2"
-                          color="text.secondary"
-                          sx={{ mb: 2 }}
-                        >
-                          or{" "}
-                          <Box
-                            component="span"
-                            sx={{
-                              color: "primary.main",
-                              textDecoration: "underline",
-                              fontWeight: 500,
-                            }}
-                          >
-                            browse
-                          </Box>{" "}
-                          to choose files
-                        </Typography>
-                        <Typography
-                          variant="caption"
-                          color="text.secondary"
-                          display="block"
-                        >
-                          Supported formats: PDF, JPG, PNG (Max 10MB)
-                        </Typography>
+									<Box
+										sx={{
+											mt: 4,
+											pt: 3,
+											borderTop: "1px solid",
+											borderColor: "divider",
+										}}
+									>
+										<Typography
+											variant="h6"
+											sx={{ fontWeight: 600, color: "text.primary", mb: 1 }}
+										>
+											Supporting Documents
+										</Typography>
+										<Typography variant="body2" color="text.secondary">
+											Upload receipts or other supporting documents (PDF, JPG, PNG)
+										</Typography>
+									</Box>
+									<Box
+										sx={{
+											mt: 2,
+											"&:hover .upload-area": {
+												borderColor: "primary.main",
+												backgroundColor: "action.hover",
+											},
+										}}
+									>
+										<input
+											accept=".pdf,.jpg,.jpeg,.png"
+											style={{ display: "none" }}
+											id="file-upload"
+											type="file"
+											multiple
+											onChange={(e) => {
+												handleFileUpload(e.target.files);
+												e.target.value = ""; // Reset input to allow selecting the same file again
+											}}
+										/>
+										<label htmlFor="file-upload">
+											<Box
+												className="upload-area"
+												sx={{
+													p: 4,
+													border: "2px dashed",
+													borderColor: "divider",
+													borderRadius: 1,
+													textAlign: "center",
+													cursor: "pointer",
+													transition: "all 0.3s ease",
+													backgroundColor: "background.paper",
+													"&:hover": {
+														borderColor: "primary.main",
+														backgroundColor: "action.hover",
+														"& .upload-icon": {
+															transform: "translateY(-5px)",
+														},
+													},
+												}}
+											>
+												<Box
+													className="upload-icon"
+													sx={{ transition: "transform 0.3s ease" }}
+												>
+													<UploadFileIcon
+														color="action"
+														sx={{
+															fontSize: 48,
+															mb: 2,
+															color: "primary.main",
+															opacity: 0.8,
+														}}
+													/>
+												</Box>
+												<Typography
+													variant="subtitle1"
+													gutterBottom
+													sx={{ fontWeight: 500 }}
+												>
+													Your files here
+												</Typography>
+												<Typography
+													variant="body2"
+													color="text.secondary"
+													sx={{ mb: 2 }}
+												>
+													click and choose your files
+												</Typography>
+												<Typography
+													variant="caption"
+													color="text.secondary"
+													display="block"
+												>
+													Supported formats: PDF, JPG, PNG (Max 10MB)
+												</Typography>
 
-                        {uploadedFiles.length > 0 && (
-                          <Box sx={{ mt: 3 }}>
-                            <Typography
-                              variant="subtitle2"
-                              sx={{
-                                mb: 1.5,
-                                display: "flex",
-                                alignItems: "center",
-                              }}
-                            >
-                              <InsertDriveFileIcon
-                                color="primary"
-                                fontSize="small"
-                                sx={{ mr: 1 }}
-                              />
-                              {uploadedFiles.length} file
-                              {uploadedFiles.length !== 1 ? "s" : ""} selected
-                            </Typography>
-                            <Grid container spacing={1.5}>
-                              {uploadedFiles.map((fileData) => (
-                                <Grid item key={fileData.id} xs={12} sm={6}>
-                                  <Box
-                                    sx={{
-                                      display: "flex",
-                                      alignItems: "center",
-                                      p: 1.5,
-                                      bgcolor: "background.paper",
-                                      borderRadius: 1,
-                                      border: "1px solid",
-                                      borderColor: "divider",
-                                      position: "relative",
-                                      transition: "all 0.2s",
-                                      "&:hover": {
-                                        borderColor: "primary.main",
-                                        boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-                                      },
-                                      "&:hover .file-actions": {
-                                        opacity: 1,
-                                        visibility: "visible",
-                                        transform: "translateY(0)",
-                                      },
-                                    }}
-                                  >
-                                    {fileData.preview ? (
-                                      <ImageIcon
-                                        color="primary"
-                                        sx={{ mr: 1, flexShrink: 0 }}
-                                      />
-                                    ) : fileData.file.type ===
-                                      "application/pdf" ? (
-                                      <PictureAsPdfIcon
-                                        color="error"
-                                        sx={{ mr: 1, flexShrink: 0 }}
-                                      />
-                                    ) : (
-                                      <InsertDriveFileIcon
-                                        color="action"
-                                        sx={{ mr: 1, flexShrink: 0 }}
-                                      />
-                                    )}
-                                    <Box sx={{ minWidth: 0, flex: 1 }}>
-                                      <Typography
-                                        variant="caption"
-                                        component="div"
-                                        noWrap
-                                        sx={{
-                                          display: "block",
-                                          fontWeight: "medium",
-                                        }}
-                                      >
-                                        {fileData.file.name}
-                                      </Typography>
-                                      <Typography
-                                        variant="caption"
-                                        color="text.secondary"
-                                        component="div"
-                                      >
-                                        {(fileData.file.size / 1024).toFixed(1)}{" "}
-                                        KB
-                                      </Typography>
-                                    </Box>
-                                    <Box
-                                      className="file-actions"
-                                      sx={{
-                                        display: "flex",
-                                        ml: 1,
-                                        opacity: 0,
-                                        visibility: "hidden",
-                                        transform: "translateY(5px)",
-                                        transition: "all 0.2s ease-in-out",
-                                      }}
-                                    >
-                                      <Tooltip title="Remove file">
-                                        <IconButton
-                                          size="small"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            removeFile(fileData.id);
-                                          }}
-                                          sx={{
-                                            color: "error.main",
-                                            "&:hover": {
-                                              backgroundColor:
-                                                "rgba(211, 47, 47, 0.08)",
-                                            },
-                                          }}
-                                        >
-                                          <DeleteOutlineIcon fontSize="small" />
-                                        </IconButton>
-                                      </Tooltip>
-                                      {fileData.preview && (
-                                        <Tooltip title="View">
-                                          <IconButton
-                                            size="small"
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              // Handle preview logic here
-                                            }}
-                                            sx={{
-                                              color: "primary.main",
-                                              "&:hover": {
-                                                backgroundColor:
-                                                  "rgba(25, 118, 210, 0.08)",
-                                              },
-                                            }}
-                                          >
-                                            <VisibilityIcon fontSize="small" />
-                                          </IconButton>
-                                        </Tooltip>
-                                      )}
-                                    </Box>
-                                  </Box>
-                                </Grid>
-                              ))}
-                            </Grid>
-                          </Box>
-                        )}
-                      </Box>
-                    </label>
-                  </Box>
-                </Paper>
-              </Grid>
-            )}
-            {/* Right section - 30% */}
-            <Grid item xs={12} md={3.6}>
-              <Paper
-                elevation={0}
-                sx={{
-                  p: 2,
-                  m: 1,
-                  minHeight: "25%",
-                  backgroundColor: "white",
-                  shadow: "2px 20px 8px rgba(76, 76, 76, 0.08)",
-                  position: { xs: "static", md: "fixed" },
-                  width: { xs: "100%", md: "calc(25% - 24px)" },
-                  right: { xs: 0, md: 16 },
-                  top: { xs: "auto", md: 100 },
-                  zIndex: 1,
-                }}
-              >
-                <Typography variant="h6" gutterBottom>
-                  Summary Repor
-                </Typography>
-                {formik.values.stateEntries?.length > 0 && (
-                  <Box
-                    sx={{
-                      mt: 2,
-                      p: 2,
-                      bgcolor: "background.paper",
-                      borderRadius: 1,
-                    }}
-                  >
+												{uploadedFiles.length > 0 && (
+													<Box sx={{ mt: 3 }}>
+														<Typography
+															variant="subtitle2"
+															sx={{
+																mb: 1.5,
+																display: "flex",
+																alignItems: "center",
+															}}
+														>
+															<InsertDriveFileIcon
+																color="primary"
+																fontSize="small"
+																sx={{ mr: 1 }}
+															/>
+															{uploadedFiles.length} file
+															{uploadedFiles.length !== 1 ? "s" : ""} selected
+														</Typography>
+														<Grid container spacing={1.5}>
+															{uploadedFiles.map((fileData) => (
+																<Grid item key={fileData.id} xs={12} sm={6}>
+																	<Box
+																		sx={{
+																			display: "flex",
+																			alignItems: "center",
+																			p: 1.5,
+																			bgcolor: "background.paper",
+																			borderRadius: 1,
+																			border: "1px solid",
+																			borderColor: "divider",
+																			position: "relative",
+																			transition: "all 0.2s",
+																			"&:hover": {
+																				borderColor: "primary.main",
+																				boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+																			},
+																			"&:hover .file-actions": {
+																				opacity: 1,
+																				visibility: "visible",
+																				transform: "translateY(0)",
+																			},
+																		}}
+																	>
+																		{fileData.preview ? (
+																			<ImageIcon
+																				color="primary"
+																				sx={{ mr: 1, flexShrink: 0 }}
+																			/>
+																		) : fileData.file.type ===
+																			"application/pdf" ? (
+																			<PictureAsPdfIcon
+																				color="error"
+																				sx={{ mr: 1, flexShrink: 0 }}
+																			/>
+																		) : (
+																			<InsertDriveFileIcon
+																				color="action"
+																				sx={{ mr: 1, flexShrink: 0 }}
+																			/>
+																		)}
+																		<Box sx={{ minWidth: 0, flex: 1 }}>
+																			<Typography
+																				variant="caption"
+																				component="div"
+																				noWrap
+																				sx={{
+																					display: "block",
+																					fontWeight: "medium",
+																				}}
+																			>
+																				{fileData.file.name}
+																			</Typography>
+																			<Typography
+																				variant="caption"
+																				color="text.secondary"
+																				component="div"
+																			>
+																				{(fileData.file.size / 1024).toFixed(1)}{" "}
+																				KB
+																			</Typography>
+																		</Box>
+																		<Box
+																			className="file-actions"
+																			sx={{
+																				display: "flex",
+																				ml: 1,
+																				opacity: 0,
+																				visibility: "hidden",
+																				transform: "translateY(5px)",
+																				transition: "all 0.2s ease-in-out",
+																			}}
+																		>
+																			<Tooltip title="Remove file">
+																				<IconButton
+																					size="small"
+																					onClick={(e) => {
+																						e.stopPropagation();
+																						removeFile(fileData.id);
+																					}}
+																					sx={{
+																						color: "error.main",
+																						"&:hover": {
+																							backgroundColor:
+																								"rgba(211, 47, 47, 0.08)",
+																						},
+																					}}
+																				>
+																					<DeleteOutlineIcon fontSize="small" />
+																				</IconButton>
+																			</Tooltip>
+																			{fileData.preview && (
+																				<Tooltip title="View">
+																					<IconButton
+																						size="small"
+																						onClick={(e) => {
+																							e.stopPropagation();
+																							// Handle preview logic here
+																						}}
+																						sx={{
+																							color: "primary.main",
+																							"&:hover": {
+																								backgroundColor:
+																									"rgba(25, 118, 210, 0.08)",
+																							},
+																						}}
+																					>
+																						<VisibilityIcon fontSize="small" />
+																					</IconButton>
+																				</Tooltip>
+																			)}
+																		</Box>
+																	</Box>
+																</Grid>
+															))}
+														</Grid>
+													</Box>
+												)}
+											</Box>
+										</label>
+									</Box>
+								</Paper>
+							</Grid>
+						)}
+						{/* Right section - 30% */}
+						<Grid item xs={12} md={3.6}>
+							<Paper
+								elevation={0}
+								sx={{
+									p: 2,
+									m: 1,
+									minHeight: "25%",
+									backgroundColor: "white",
+									shadow: "2px 20px 8px rgba(76, 76, 76, 0.08)",
+									position: { xs: "static", md: "fixed" },
+									width: { xs: "100%", md: "calc(25% - 24px)" },
+									right: { xs: 0, md: 16 },
+									top: { xs: "auto", md: 100 },
+									zIndex: 1,
+								}}
+							>
+								<Typography variant="h6" gutterBottom>
+									Summary Report
+								</Typography>
+								{formik.values.stateEntries?.length > 0 && (
+									<Box
+										sx={{
+											mt: 2,
+											p: 2,
+											bgcolor: "background.paper",
+											borderRadius: 1,
+										}}
+									>
 
-                      <Grid item xs={12}>
-                        <Box>
-                          <Box>
-                            <Typography
-                              variant="subtitle2"
-                              component="span"
-                              color="text.secondary"
-                            >
-                              Average MPG
-                            </Typography>
-                          </Box>
-                          <Box
-                            sx={{
-                              ...(() => {
-                                const totalMiles =
-                                  formik.values.stateEntries.reduce(
-                                    (sum, entry) =>
-                                      sum + (parseFloat(entry.miles) || 0),
-                                    0,
-                                  );
-                                const totalGallons =
-                                  formik.values.stateEntries
-                                    .reduce(
-                                      (sum, entry) =>
-                                        sum + (parseFloat(entry.gallons) || 0),
-                                      0,
-                                    )
-                                    .toFixed(3) || 1;
-                                const mpg =
-                                  Math.round(
-                                    (totalMiles / totalGallons) * 100,
-                                  ) / 100; // Ensure exactly 2 decimal places
+										<Grid item xs={12}>
+											<Box>
+												<Box>
+													<Typography
+														variant="subtitle2"
+														component="span"
+														color="text.secondary"
+													>
+														Average MPG
+													</Typography>
+												</Box>
+												<Box
+													sx={{
+														...(() => {
+															const totalMiles =
+																formik.values.stateEntries.reduce(
+																	(sum, entry) =>
+																		sum + (parseFloat(entry.miles) || 0),
+																	0,
+																);
+															const totalGallons =
+																formik.values.stateEntries
+																	.reduce(
+																		(sum, entry) =>
+																			sum + (parseFloat(entry.gallons) || 0),
+																		0,
+																	)
+																	.toFixed(3) || 1;
+															const mpg =
+																Math.round(
+																	(totalMiles / totalGallons) * 100,
+																) / 100; // Ensure exactly 2 decimal places
 
-                                // Calculate color based on distance from 5 (optimal value)
-                                const distanceFromOptimal = Math.abs(mpg - 5);
-                                // Normalize to 0-1 range where 0 is optimal (5) and 1 is max distance (5+)
-                                const normalized = Math.min(
-                                  distanceFromOptimal / 5,
-                                  1,
-                                );
-                                // Invert so 0 distance = green, max distance = red
-                                const hue = ((1 - normalized) * 120).toString(
-                                  10,
-                                );
+															// Calculate color based on distance from 5 (optimal value)
+															const distanceFromOptimal = Math.abs(mpg - 5);
+															// Normalize to 0-1 range where 0 is optimal (5) and 1 is max distance (5+)
+															const normalized = Math.min(
+																distanceFromOptimal / 5,
+																1,
+															);
+															// Invert so 0 distance = green, max distance = red
+															const hue = ((1 - normalized) * 120).toString(
+																10,
+															);
 
-                                return {
-                                  color: `hsl(${hue}, 70%, 30%)`,
-                                  fontWeight: 600,
-                                };
-                              })(),
-                            }}
-                          >
-                            <Typography variant="h5">
-                              {(
-                                formik.values.stateEntries.reduce(
-                                  (sum, entry) =>
-                                    sum + (parseFloat(entry.miles) || 0),
-                                  0,
-                                ) /
-                                (formik.values.stateEntries.reduce(
-                                  (sum, entry) =>
-                                    sum + (parseFloat(entry.gallons) || 0),
-                                  0,
-                                ) || 1)
-                              ).toLocaleString("en-US", {
-                                minimumFractionDigits: 2,
-                                maximumFractionDigits: 2,
-                              })}
-                            </Typography>
-                          </Box>
-                        </Box>
-                      </Grid>
-                    
+															return {
+																color: `hsl(${hue}, 70%, 30%)`,
+																fontWeight: 600,
+															};
+														})(),
+													}}
+												>
+													<Typography variant="h5">
+														{(
+															formik.values.stateEntries.reduce(
+																(sum, entry) =>
+																	sum + (parseFloat(entry.miles) || 0),
+																0,
+															) /
+															(formik.values.stateEntries.reduce(
+																(sum, entry) =>
+																	sum + (parseFloat(entry.gallons) || 0),
+																0,
+															) || 1)
+														).toLocaleString("en-US", {
+															minimumFractionDigits: 2,
+															maximumFractionDigits: 2,
+														})}
+													</Typography>
+												</Box>
+											</Box>
+										</Grid>
 
-                    <Grid spacing={2}>
-                      <Grid item xs={6} mb={2} mt={2}>
-                        <Box>
-                          <Typography variant="subtitle2" color="textSecondary">
-                            Total Miles:
-                          </Typography>
-                          <Typography variant="h5" color="primary">
-                            {Math.round(
-                              formik.values.stateEntries.reduce(
-                                (sum, entry) =>
-                                  sum + (parseFloat(entry.miles) || 0),
-                                0,
-                              ),
-                            ).toLocaleString()}
-                          </Typography>
-                          <Typography variant="body2" color="textSecondary">
-                            miles
-                          </Typography>
-                        </Box>
-                      </Grid>
-                      <Grid item xs={6}>
-                        <Box>
-                          <Typography variant="subtitle2" color="textSecondary">
-                            Total Gallons:
-                          </Typography>
-                          <Typography variant="h5" color="primary">
-                            {parseFloat(
-                              formik.values.stateEntries
-                                .reduce(
-                                  (sum, entry) =>
-                                    sum + (parseFloat(entry.gallons) || 0),
-                                  0,
-                                )
-                                .toFixed(3),
-                            ).toLocaleString(undefined, {
-                              maximumFractionDigits: 3,
-                            })}
-                          </Typography>
-                          <Typography variant="body2" color="textSecondary">
-                            gallons
-                          </Typography>
-                        </Box>
-                      </Grid>
-                    </Grid>
-                  </Box>
-                )}
 
-                <Box
-                  sx={{
-                    mt: 3,
-                    display: "grid",
-                    gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(120px, 1fr))" },
-                    gap: 2,
-                    width: "100%",
-                    maxWidth: "500px"
-                  }}
-                >
-                  <Button
-                    component={RouterLink}
-                    to={
-                      currentUser?.role === "admin"
-                        ? "/admin/consumption"
-                        : "/client/consumption"
-                    }
-                    variant="outlined"
-                    size="medium"
-                    fullWidth
-                  >
-                    Cancel
-                  </Button>
-                  
-                  <Button
-                    variant="outlined"
-                    color="primary"
-                    onClick={handleOpenDraftDialog}
-                    disabled={!isFormValid()}
-                    size="medium"
-                    fullWidth
-                    startIcon={<Save />}
-                  >
-                      Save
-                  </Button>
-                  
-                  <Button
-                    variant="contained"
-                    color="primary"
-                    onClick={() => {
-                      setSubmitStatus("submit");
-                      handleOpen();
-                    }}
-                    disabled={!isFormValid() || !isReportValid || isLoading}
-                    size="medium"
-                    fullWidth
-                    startIcon={isLoading ? <CircularProgress size={20} color="inherit" /> : <SendIcon />}
-                    sx={{
-                      gridColumn: { xs: "1 / -1", sm: "1 / -1" },
-                      backgroundColor: "success.main",
-                      "&:hover": {
-                        backgroundColor: "success.dark"
-                      }
-                    }}
-                  >
-                    {isLoading ? "Submitting..." : "Submit "}
-                  </Button>
-                </Box>
-              </Paper>
-            </Grid>
-          </Grid>
-        </form>
+										<Grid spacing={2}>
+											<Grid item xs={6} mb={2} mt={2}>
+												<Box>
+													<Typography variant="subtitle2" color="textSecondary">
+														Total Miles:
+													</Typography>
+													<Typography variant="h5" color="primary">
+														{Math.round(
+															formik.values.stateEntries.reduce(
+																(sum, entry) =>
+																	sum + (parseFloat(entry.miles) || 0),
+																0,
+															),
+														).toLocaleString()}
+													</Typography>
+													<Typography variant="body2" color="textSecondary">
+														miles
+													</Typography>
+												</Box>
+											</Grid>
+											<Grid item xs={6}>
+												<Box>
+													<Typography variant="subtitle2" color="textSecondary">
+														Total Gallons:
+													</Typography>
+													<Typography variant="h5" color="primary">
+														{parseFloat(
+															formik.values.stateEntries
+																.reduce(
+																	(sum, entry) =>
+																		sum + (parseFloat(entry.gallons) || 0),
+																	0,
+																)
+																.toFixed(3),
+														).toLocaleString(undefined, {
+															maximumFractionDigits: 3,
+														})}
+													</Typography>
+													<Typography variant="body2" color="textSecondary">
+														gallons
+													</Typography>
+												</Box>
+											</Grid>
+										</Grid>
+									</Box>
+								)}
 
-        {/* Draft Confirmation Dialog */}
-        <Dialog open={openDraftDialog} onClose={handleCloseDraftDialog}>
-          <DialogContent>
-            <Typography>
-            This option saves your information, and you can make corrections in the "Review & Changes" menu before submitting
-            </Typography>
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={handleCloseDraftDialog}>Cancel</Button>
-            <Button
-              variant="contained"
-              color="primary"
-              onClick={handleSaveDraft}
-            >
-              Continue
-            </Button>
-          </DialogActions>
-        </Dialog>
+								<Box
+									sx={{
+										mt: 3,
+										display: "grid",
+										gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(120px, 1fr))" },
+										gap: 2,
+										width: "100%",
+										maxWidth: "500px"
+									}}
+								>
+									<Button
+										title="Back to Review & Changes"
+										component={RouterLink}
+										to={
+											currentUser?.role === "admin"
+												? "/admin/consumption"
+												: "/client/consumption"
+										}
+										variant="outlined"
+										size="medium"
+										fullWidth
+									>
+										Cancel
+									</Button>
 
-        {/* Submit Confirmation Dialog */}
-        <Dialog open={open} onClose={handleClose}>
-          <DialogContent>
-            <Typography>
-              Are you sure? This option will send your information for
-              transmission to IFTA.
-            </Typography>
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={handleClose}>Close</Button>
-            <Button
-              sx={{ color: "white" }}
-              type="submit"
-              form="myForm"
-              variant="contained"
-              color="success"
-              onClick={() => {
-                setSubmitStatus("submit");
-                formik.handleSubmit(undefined, "submit");
-                handleClose();
-              }}
-            >
-              Submit
-            </Button>
-          </DialogActions>
-        </Dialog>
+									<Button
+										title="Save Report"
+										variant="outlined"
+										color="primary"
+										onClick={handleOpenDraftDialog}
+										disabled={!isFormValid()}
+										size="medium"
+										fullWidth
+										startIcon={<Save />}
+									>
+										Save
+									</Button>
 
-        {/* Single Snackbar for notifications */}
-        <Snackbar
-          open={snackbar.open}
-          autoHideDuration={6000}
-          onClose={handleCloseSnackbar}
-          anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-        >
-          <Alert
-            onClose={handleCloseSnackbar}
-            severity={snackbar.severity}
-            sx={{ width: "100%" }}
-          >
-            {snackbar.message}
-          </Alert>
-        </Snackbar>
-      </Box>
-    </LocalizationProvider>
-  );
+									<Button
+										title="Submit Report"
+										variant="contained"
+										color="primary"
+										onClick={() => {
+											setSubmitStatus("in_progress");
+											handleOpen();
+										}}
+										disabled={!isFormValid() || !isReportValid || isLoading}
+										size="medium"
+										fullWidth
+										startIcon={isLoading ? <CircularProgress size={20} color="inherit" /> : <SendIcon />}
+										sx={{
+											gridColumn: { xs: "1 / -1", sm: "1 / -1" },
+											backgroundColor: "success.main",
+											"&:hover": {
+												backgroundColor: "success.dark"
+											}
+										}}
+									>
+										{isLoading ? "Submitting..." : "Submit "}
+									</Button>
+								</Box>
+							</Paper>
+						</Grid>
+					</Grid>
+				</form>
+
+				{/* Draft Confirmation Dialog */}
+				<Dialog open={openDraftDialog} onClose={handleCloseDraftDialog}>
+					<DialogContent>
+						<Typography>
+							This option saves your information, and you can make corrections in the "Review & Changes" menu before submitting
+						</Typography>
+					</DialogContent>
+					<DialogActions>
+						<Button onClick={handleCloseDraftDialog}>Cancel</Button>
+						<Button
+							variant="contained"
+							color="primary"
+							onClick={handleSaveDraft}
+						>
+							Continue
+						</Button>
+					</DialogActions>
+				</Dialog>
+
+				{/* Submit Confirmation Dialog */}
+				<Dialog open={open} onClose={handleClose}>
+					<DialogContent>
+						<Typography>
+							Are you sure? This option will send your information for
+							transmission to IFTA.
+						</Typography>
+					</DialogContent>
+					<DialogActions>
+						<Button onClick={handleClose}>Close</Button>
+						<Button
+							sx={{ color: "white" }}
+							type="submit"
+							form="myForm"
+							variant="contained"
+							color="success"
+							onClick={() => {
+								setSubmitStatus("in_progress");
+								formik.handleSubmit(undefined, "in_progress");
+								handleClose();
+							}}
+						>
+							Submit
+						</Button>
+					</DialogActions>
+				</Dialog>
+
+				{/* Single Snackbar for notifications */}
+				<Snackbar
+					open={snackbar.open}
+					autoHideDuration={6000}
+					onClose={handleCloseSnackbar}
+					anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+				>
+					<Alert
+						onClose={handleCloseSnackbar}
+						severity={snackbar.severity}
+						sx={{ width: "100%" }}
+					>
+						{snackbar.message}
+					</Alert>
+				</Snackbar>
+			</Box>
+		</LocalizationProvider>
+	);
 };
 
 export default ConsumptionCreate;

@@ -105,6 +105,14 @@ const DeclarationList = () => {
           severity: "info",
         });
         let reports = await getGroupedQuarterlyReports();
+        console.log('Reportes cargados:', reports.map(r => ({
+          id: r.id,
+          company: r.company_name,
+          quarter: r.quarter,
+          year: r.year,
+          status: r.status,
+          valid_reports: r.valid_report_count
+        })));
 
         // Esperar a que currentUser y isAdmin estén definidos
         if (
@@ -421,8 +429,15 @@ const DeclarationList = () => {
   useEffect(() => {
     console.log("individualReports:", individualReports);
     if (groupedReports && groupedReports.length > 0) {
-      console.log("Applying filters...");
+      console.log("=== Applying filters ===");
       console.log("Total grouped reports:", groupedReports.length);
+      console.log("Current filters:", {
+        statusFilter,
+        quarterFilter,
+        yearFilter,
+        companyFilter
+      });
+      console.log("Available years in data:", [...new Set(groupedReports.map(r => r.year))]);
 
       const filtered = groupedReports.filter((report) => {
         // Apply filters

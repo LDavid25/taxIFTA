@@ -169,7 +169,7 @@ const ConsumptionPDF = ({
           />
           <View style={styles.companyInfo}>
             <Text style={{ fontSize: 14, fontWeight: 'bold', marginBottom: 3 }}>{companyName}</Text>
-            <Text style={{ fontSize: 10, marginBottom: 2 }}>FUEL REPORT</Text>
+            <Text style={{ fontSize: 10, marginBottom: 2 }}>REPORT</Text>
             <Text style={{ fontSize: 10, marginBottom: 2 }}>UNIT #: {unitNumber}</Text>
             <Text style={{ fontSize: 8, color: '#666', marginTop: 3 }}>Generated on: {generatedDate}</Text>
           </View>
@@ -177,7 +177,7 @@ const ConsumptionPDF = ({
 
         {/* Report title */}
         <View style={{ marginVertical: 15, textAlign: 'center' }}>
-          <Text style={styles.title}>FUEL REPORT SUMMARY</Text>
+          <Text style={styles.title}>REPORT SUMMARY</Text>
           <Text style={styles.subtitle}>REPORT DATE: {formattedDate.toUpperCase()}</Text>
         </View>
 
@@ -198,7 +198,7 @@ const ConsumptionPDF = ({
                   {STATE_NAMES[item.stateCode] || item.stateName || item.stateCode}
                 </Text>
                 <Text style={[styles.tableCell, styles.colMiles, styles.cellRight]}>
-                  {formatNumber(item.miles, 'miles')}
+                  {formatNumber(item.miles, 'miles') + '.00'}
                 </Text>
                 <Text style={[styles.tableCell, styles.colGallons, styles.cellRight]}>
                   {formatNumber(item.gallons, 'gallons')}
@@ -212,7 +212,7 @@ const ConsumptionPDF = ({
                 TOTALS
               </Text>
               <Text style={[styles.tableCell, styles.colMiles, styles.cellRight, { fontWeight: 'bold' }]}>
-                {formatNumber(totalMiles, 'miles')}
+                {formatNumber(totalMiles, 'miles') + '.00'}
               </Text>
               <Text style={[styles.tableCell, styles.colGallons, styles.cellRight, { fontWeight: 'bold' }]}>
                 {formatNumber(totalGallons, 'gallons')}
@@ -227,7 +227,7 @@ const ConsumptionPDF = ({
           
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Total Miles Traveled:</Text>
-            <Text style={styles.summaryValue}>{formatNumber(totalMiles, 'miles')} miles</Text>
+            <Text style={styles.summaryValue}>{formatNumber(totalMiles, 'miles') + '.00'} miles</Text>
           </View>
           
           <View style={styles.summaryRow}>
@@ -254,7 +254,7 @@ const ConsumptionPDF = ({
 
 // Helper function to format numbers
 const formatNumber = (num, type = 'miles') => {
-  if (num === null || num === undefined) return type === 'miles' ? '0' : '0.000';
+  if (num === null || num === undefined) return type === 'miles' ? '0.00' : '0.000';
   
   // Convert to number if it's a string
   const number = typeof num === 'string' ? parseFloat(num) : num;

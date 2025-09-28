@@ -38,7 +38,7 @@ const ContactPage = () => {
         lastName: currentUser.lastName || currentUser.name?.split(' ').slice(1).join(' ') || '',
         email: currentUser.email || '',
         phone: currentUser.phone || '',
-        company: currentUser.company?.name || currentUser.companyName || ''
+        company: currentUser.company_name || ''
       }));
     }
   }, [currentUser]);
@@ -182,8 +182,7 @@ const ContactPage = () => {
                 variant="outlined"
                 size="small"
                 value={formData.phone}
-                onChange={handleChange}
-                required
+                onChange={handleChange}     
               />
             </Grid>
             <Grid item xs={12}>

@@ -222,7 +222,7 @@ const DashboardCliente = () => {
 					</Typography>
 					<Typography variant="body1" color="text.secondary" paragraph>
 						For assistance, please call{' '}
-						<a href="Tel:(956) 381-5025">(956) 381-5025</a> and select option 3,
+						<a href="Tel:+19563815025">(956) 381-5025</a> and select option 3,
 						or{' '}
 						<a href="/client/contact">
 							click here
