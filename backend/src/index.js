@@ -91,6 +91,7 @@ const corsOptions = {
       'http://127.0.0.1:3001',
       'http://localhost:3000',
       'http://127.0.0.1:3000',
+      'https://ifta.dottruckpermits.com',
       'https://web-ubq6gq6jr2lw.up-de-fra1-k8s-1.apps.run-on-seenode.com'
     ];
     
