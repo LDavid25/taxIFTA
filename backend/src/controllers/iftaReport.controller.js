@@ -456,6 +456,7 @@ const getCompanyReports = async (req, res, next) => {
       startMonth,
       endMonth,
       status,
+      search,
       page = 1,
       limit = 10,
       includeInactive = 'false',
@@ -497,6 +498,14 @@ const getCompanyReports = async (req, res, next) => {
 
     // Filtrar por estado
     if (status) where.status = status;
+
+    // Filtrar por término de búsqueda (vehicle_plate)
+    if (search) {
+      where.vehicle_plate = {
+        [Op.like]: `%${search}%`
+      };
+      console.log('🔍 Aplicando filtro de búsqueda para vehicle_plate:', search);
+    }
 
     const offset = (page - 1) * limit;
     const parsedLimit = parseInt(limit);

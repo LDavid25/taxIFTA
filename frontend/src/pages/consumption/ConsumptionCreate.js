@@ -140,6 +140,10 @@ const ConsumptionCreate = () => {
 		setSubmitStatus("sent");
 		formik.handleSubmit(undefined, "sent");
 		handleCloseDraftDialog();
+		setTimeout(() => {
+			const basePath = currentUser?.role === 'admin' ? '/admin' : '/client';
+			navigate(`${basePath}/consumption`);
+		}, 1500);
 	};
 
 	const handleFileUpload = (newFiles) => {
@@ -1962,10 +1966,10 @@ const ConsumptionCreate = () => {
 										variant="outlined"
 										color="primary"
 										onClick={handleOpenDraftDialog}
-										disabled={!isFormValid()}
 										size="medium"
 										fullWidth
 										startIcon={<Save />}
+										disabled={!isFormValid() || !isReportValid || isLoading}	
 									>
 										Save
 									</Button>
