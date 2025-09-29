@@ -551,12 +551,15 @@ const ConsumptionDetail = () => {
     // Logic to view receipt goes here
   };
 
+
+  console.log('ALL REPORT DATA:', locationState);
+
   const handlePrint = async () => {
     try {
       // Generate the PDF blob
       const pdfBlob = await pdf(
         <ConsumptionPDF
-          companyName={currentUser?.companyName || 'IFTA'}
+          companyName={locationState?.companyName || 'IFTA'}
           reportDate={safeConsumption?.date}
           unitNumber={safeConsumption?.vehicle_plate || 'N/A'}
           consumptionDetails={consumptionDetails}
@@ -688,36 +691,38 @@ const ConsumptionDetail = () => {
                     {safeConsumption.company_name}
                   </Typography>
                 )}
+
                 <Box display="flex" alignItems="center" gap={2} mb={1}>
                   <Typography variant="h4" component="h1">
                     Report: {safeConsumption.vehicle_plate}
                   </Typography>
-                  <Box>
-                    <Chip
-                      key={`status-${safeConsumption.status}`}
-                      label={translateStatus(safeConsumption.status) || 'Unknown'}
-                      color={getStatusColor(safeConsumption.status)}
-                      size="small"
-                      variant="outlined"
-                      onClick={currentUser?.role === 'admin' ? handleStatusMenuOpen : null}
-                      onDelete={currentUser?.role === 'admin' ? handleStatusMenuOpen : null}
-                      deleteIcon={currentUser?.role === 'admin' ? <ArrowDropDownIcon /> : null}
-                      sx={{
+
+                  <Chip
+                    key={`status-${safeConsumption.status}`}
+                    label={translateStatus(safeConsumption.status) || 'Unknown'}
+                    color={getStatusColor(safeConsumption.status)}
+                    size="small"
+                    variant="outlined"
+                    onClick={currentUser?.role === 'admin' ? handleStatusMenuOpen : null}
+                    onDelete={currentUser?.role === 'admin' ? handleStatusMenuOpen : null}
+                    deleteIcon={currentUser?.role === 'admin' ? <ArrowDropDownIcon /> : null}
+                    sx={{
+                      textTransform: 'none',
+                      fontWeight: 'medium',
+                      cursor: currentUser?.role === 'admin' ? 'pointer' : 'default',
+                      '& .MuiChip-label': {
                         textTransform: 'none',
-                        fontWeight: 'medium',
-                        cursor: currentUser?.role === 'admin' ? 'pointer' : 'default',
-                        '& .MuiChip-label': {
-                          textTransform: 'none',
-                          paddingRight: currentUser?.role === 'admin' ? '8px' : '12px'
-                        },
-                        '&:hover': {
-                          backgroundColor: currentUser?.role === 'admin' ? 'action.hover' : 'transparent'
-                        },
-                        '& .MuiChip-deleteIcon': {
-                          margin: currentUser?.role === 'admin' ? '0 4px 0 -8px' : 0
-                        }
-                      }}
-                    />
+                        paddingRight: currentUser?.role === 'admin' ? '8px' : '12px'
+                      },
+                      '&:hover': {
+                        backgroundColor: currentUser?.role === 'admin' ? 'action.hover' : 'transparent'
+                      },
+                      '& .MuiChip-deleteIcon': {
+                        margin: currentUser?.role === 'admin' ? '0 4px 0 -8px' : 0
+                      }
+                    }}
+                  />
+                  {safeConsumption.status?.toLowerCase() !== 'completed' && (
                     <Menu
                       anchorEl={statusAnchorEl}
                       open={Boolean(statusAnchorEl)}
@@ -747,7 +752,7 @@ const ConsumptionDetail = () => {
                         </MenuItem>
                       ))}
                     </Menu>
-                  </Box>
+                  )}
                 </Box>
                 <Typography variant="subtitle1" color="textSecondary">
                   Period: {reportDate} • Created: {createdAt}
@@ -756,7 +761,7 @@ const ConsumptionDetail = () => {
             </Grid>
             <Grid item>
               <Box display="flex" gap={1}>
-                {(currentUser?.role === 'admin' || (currentUser?.role === 'user' && safeConsumption.status?.toLowerCase() === 'draft')) && (
+                {(currentUser?.role === 'admin' && safeConsumption?.status?.toLowerCase() !== 'completed' || (currentUser?.role === 'user' && safeConsumption.status?.toLowerCase() === 'draft')) && (
                   <Button
                     variant="contained"
                     color="primary"
@@ -1005,7 +1010,7 @@ const ConsumptionDetail = () => {
                   Attachments
                 </Typography>
                 <Divider sx={{ mb: 2 }} />
-                
+
                 {/* Existing Attachments */}
                 {safeConsumption.attachments?.length > 0 ? (
                   <Box sx={{ mb: 3 }}>
@@ -1077,8 +1082,8 @@ const ConsumptionDetail = () => {
                                 ml: 1,
                               }}
                             >
-                              <IconButton 
-                                size="small" 
+                              <IconButton
+                                size="small"
                                 color="primary"
                                 component="a"
                                 href={file.url || '#'}
@@ -1088,8 +1093,8 @@ const ConsumptionDetail = () => {
                               >
                                 <VisibilityIcon fontSize="small" />
                               </IconButton>
-                              <IconButton 
-                                size="small" 
+                              <IconButton
+                                size="small"
                                 color="primary"
                                 component="a"
                                 href={file.url || '#'}

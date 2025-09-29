@@ -850,7 +850,7 @@ const ConsumptionEdit = () => {
                       helperText={
                         formik.touched.unitNumber && formik.errors.unitNumber
                       }
-                      disabled={isLoading}
+                      disabled={true}
                       variant="outlined"
                       fullWidth
                       size="small"
@@ -880,7 +880,7 @@ const ConsumptionEdit = () => {
                           label="Company"
                           onChange={formik.handleChange}
                           onBlur={formik.handleBlur}
-                          disabled={isLoading || isLoadingCompanies}
+                          disabled={true}
                         >
                           {isLoadingCompanies ? (
                             <MenuItem value="">
@@ -911,7 +911,7 @@ const ConsumptionEdit = () => {
                       onBlur={formik.handleBlur}
                       error={formik.touched.year && Boolean(formik.errors.year)}
                       helperText={formik.touched.year && formik.errors.year}
-                      disabled={false}
+                      disabled={true}
                       variant="outlined"
                       size="small"
                       InputLabelProps={{
@@ -940,6 +940,7 @@ const ConsumptionEdit = () => {
                         InputLabelProps={{
                           shrink: true,
                         }}
+                        disabled={true}
                       >
                         {quarters.map((q) => (
                           <MenuItem key={q} value={q}>
@@ -956,6 +957,7 @@ const ConsumptionEdit = () => {
                         }
                         variant="outlined"
                         size="small"
+                        disabled={true}
                       >
                         <InputLabel id="month-label">Month</InputLabel>
                         <Select
@@ -966,7 +968,7 @@ const ConsumptionEdit = () => {
                           label="Month"
                           onChange={handleMonthChange}
                           onBlur={formik.handleBlur}
-                          disabled={isLoading}
+                          disabled={true}
                         >
                           {displayMonths.map(
                             ({ month, year, isCurrent, showYear }) => {

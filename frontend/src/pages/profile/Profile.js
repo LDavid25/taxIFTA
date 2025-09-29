@@ -332,6 +332,7 @@ const Profile = () => {
 
                   <Grid item xs={12}>
                     <TextField
+                      disabled={true}
                       fullWidth
                       id="email"
                       name="email"

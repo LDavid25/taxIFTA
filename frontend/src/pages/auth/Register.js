@@ -28,26 +28,26 @@ import api from '../../services/api';
 const validationSchema = Yup.object({
   // User fields
   name: Yup.string()
-    .required('El nombre es requerido')
-    .min(2, 'El nombre debe tener al menos 2 caracteres')
-    .max(100, 'El nombre no puede tener más de 100 caracteres'),
+    .required('This field is required')
+    .min(2, 'Min 2 characters')
+    .max(100, 'Max 100 characters'),
   email: Yup.string()
-    .email('Ingrese un correo electrónico válido')
-    .required('El correo electrónico es requerido'),
+    .email('Into a valid email')
+    .required('This field is required'),
   password: Yup.string()
-    .required('La contraseña es requerida')
-    .min(8, 'La contraseña debe tener al menos 8 caracteres')
+    .required('This field is required')
+    .min(8, 'Min 8 characters')
     .matches(
       /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/,
       'La contraseña debe contener al menos una letra mayúscula, una minúscula, un número y un carácter especial'
     ),
   password_confirmation: Yup.string()
-    .oneOf([Yup.ref('password'), null], 'Las contraseñas no coinciden')
-    .required('Confirme su contraseña'),
+    .oneOf([Yup.ref('password'), null], 'Passwords do not match')
+    .required('Confirm your password'),
   
   // Role field
   role: Yup.string()
-    .oneOf(['admin', 'user'], 'Rol no válido')
+    .oneOf(['admin', 'user'], 'Invalid role')
     .default('user'),
   
   // Company fields (only company_name is required for 'user' role)
@@ -55,9 +55,9 @@ const validationSchema = Yup.object({
     .when('role', {
       is: 'user',
       then: Yup.string()
-        .required('El nombre de la empresa es requerido para usuarios')
-        .min(2, 'El nombre de la empresa debe tener al menos 2 caracteres')
-        .max(100, 'El nombre de la empresa no puede tener más de 100 caracteres'),
+        .required('This field is required')
+        .min(2, 'Min 2 characters')
+        .max(100, 'Max 100 characters'),
       otherwise: Yup.string().nullable()
     }),
     
@@ -65,10 +65,10 @@ const validationSchema = Yup.object({
   company_distribution_emails: Yup.array()
     .of(
       Yup.string()
-        .email('Ingrese un correo electrónico válido')
+        .email('Into a valid email')
         .nullable()
     )
-    .max(10, 'Máximo 10 correos electrónicos permitidos')
+    .max(10, 'Max 10 emails')
     .nullable()
 });
 
@@ -145,7 +145,7 @@ const Register = () => {
             navigate('/dashboard');
           }, 1500);
         } else {
-          throw new Error('No se recibió un token de autenticación');
+          throw new Error('No authentication token received');
         }
         
       } catch (error) {

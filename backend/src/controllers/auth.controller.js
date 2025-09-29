@@ -198,7 +198,7 @@ exports.register = async (req, res, next) => {
       serviceName: serviceName,
       message: `your account has been created successfully. <br /> 
       Email: ${email} <br /> Password: ${startPass}${middlePass}${endPass} <br /> <br />
-      We recommend changing your password after your first access for greater security./>
+      We recommend changing your password after your first access for greater security.
 `,
     });
 

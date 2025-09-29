@@ -144,14 +144,14 @@ const styles = StyleSheet.create({
 });
 
 const ConsumptionPDF = ({ 
-  companyName = 'DTP LOGISTICS', 
   reportDate = new Date(), 
   unitNumber = 'N/A',
   consumptionDetails = [],
   totalMiles = 0,
   totalGallons = 0,
   notes = '',
-  logoUrl = logo
+  logoUrl = logo,
+  companyName = ' '
 }) => {
   // Format date for display
   const formattedDate = format(new Date(reportDate), 'MMMM d, yyyy', { locale: enUS });
@@ -168,8 +168,9 @@ const ConsumptionPDF = ({
             style={styles.logo}
           />
           <View style={styles.companyInfo}>
-            <Text style={{ fontSize: 14, fontWeight: 'bold', marginBottom: 3 }}>{companyName}</Text>
+            <Text style={{ fontSize: 14, fontWeight: 'bold', marginBottom: 3 }}>IFTA</Text>
             <Text style={{ fontSize: 10, marginBottom: 2 }}>REPORT</Text>
+            <Text style={{ fontSize: 10, marginBottom: 2 }}>Company: {companyName}</Text>
             <Text style={{ fontSize: 10, marginBottom: 2 }}>UNIT #: {unitNumber}</Text>
             <Text style={{ fontSize: 8, color: '#666', marginTop: 3 }}>Generated on: {generatedDate}</Text>
           </View>

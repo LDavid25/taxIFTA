@@ -17,7 +17,8 @@ import {
   RadioGroup,
   Radio,
   FormLabel,
-  Divider
+  Divider,
+  AlertMessage
 } from '@mui/material';
 import { Add as AddIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import api from '../../services/api';
@@ -29,6 +30,7 @@ const RegisterUser = () => {
   const [success, setSuccess] = useState('');
   const [companies, setCompanies] = useState([]);
   const [companyOption, setCompanyOption] = useState('existing'); // 'existing' or 'new'
+  const [alert, setAlert] = useState({ open: false, message: '', severity: 'info' });
   
   // Form state
   const [formData, setFormData] = useState({
@@ -44,6 +46,8 @@ const RegisterUser = () => {
       distribution_emails: ['']
     }
   });
+
+
 
   // Fetch companies on component mount
   useEffect(() => {
@@ -189,6 +193,11 @@ const RegisterUser = () => {
       
       if (response.data && response.data.token) {
         setSuccess('');
+        setAlert({
+          open: true,
+          severity: 'success',
+          message: 'Register success.'
+        });
         // Reset form on success
         setFormData({
           name: '',
@@ -226,9 +235,9 @@ const RegisterUser = () => {
           </Alert>
         )}
         
-        {success && (
+        {alert.open && (
           <Alert severity="success" sx={{ mb: 2 }}>
-            {success}
+            {alert.message}
           </Alert>
         )}
         

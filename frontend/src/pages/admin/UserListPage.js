@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { 
   Box, 
   Card, 
@@ -27,7 +27,6 @@ import { useNavigate } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
 import { getUsers, updateUserStatus, getCurrentUser } from '../../services/userService';
 import Chip from '@mui/material/Chip';
-
 
 const formatDate = (dateString) => {
   if (!dateString) return 'Never';
@@ -68,11 +67,14 @@ const UserListPage = () => {
     setPage(0); // Go back to first page when changing page size
   };
 
-  // Manejador de búsqueda
-  const handleSearch = (event) => {
-    setSearchQuery(event.target.value);
+  // Manejador de búsqueda con debounce
+  const searchInputRef = useRef(null);
+  
+  const handleSearch = useCallback((event) => {
+    const value = event.target.value;
+    setSearchQuery(value);
     setPage(0); // Reset to first page when searching
-  };
+  }, []);
 
   // Filter users locally by search term
   const filteredUsers = React.useMemo(() => {
@@ -122,7 +124,13 @@ const UserListPage = () => {
       
       // Show message if no results
       if (formattedUsers.length === 0) {
-        enqueueSnackbar('No users found', { variant: 'info' });
+        enqueueSnackbar('No users found', { 
+          variant: 'info',
+          style: { 
+            backgroundColor: '#e3f2fd',
+            color: 'black'
+          }
+        });
       }
       
       return formattedUsers;
@@ -253,6 +261,7 @@ const UserListPage = () => {
                 placeholder="Search users by name or email..."
                 value={searchQuery}
                 onChange={handleSearch}
+                inputRef={searchInputRef}
                 InputProps={{
                   startAdornment: (
                     <InputAdornment position="start">
@@ -270,7 +279,7 @@ const UserListPage = () => {
                       <TableCell>Name</TableCell>
                       <TableCell>Email</TableCell>
                       <TableCell>Role</TableCell>
-                      <TableCell>Last Login</TableCell>
+                      <TableCell>Company</TableCell>
                       <TableCell align="center">Status</TableCell>
                       <TableCell align="center">Actions</TableCell>
                     </TableRow>
@@ -300,7 +309,7 @@ const UserListPage = () => {
                             size="small" 
                           />
                         </TableCell>
-                        <TableCell>{formatDate(user.last_login)}</TableCell>
+                        <TableCell>{user.company_name || 'N/A'}</TableCell>
                         <TableCell align="center">
                           {renderStatusSwitch(user)}
                         </TableCell>

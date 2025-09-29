@@ -975,17 +975,16 @@ const ConsumptionCreate = () => {
 								</Box>
 
 								<Grid
+									display="flex"
+									flexDirection="row"
 									container
-									spacing={1}
-									sx={{ flexWrap: { xs: "wrap", sm: "nowrap" } }}
 								>
 									{/* Unit Number */}
 									<Grid
-										item
 										xs={12}
 										sm={5}
-										md={3}
-										sx={{ minWidth: { xs: "100%", sm: "auto" } }}
+										md={2}
+										sx={{ p: .5 }}
 									>
 										<TextField
 											id="unitNumber"
@@ -1001,7 +1000,7 @@ const ConsumptionCreate = () => {
 											helperText={
 												formik.touched.unitNumber && formik.errors.unitNumber
 											}
-											disabled={isLoading}
+											disabled={isChecking}
 											variant="outlined"
 											size="small"
 											InputLabelProps={{
@@ -1013,11 +1012,10 @@ const ConsumptionCreate = () => {
 									{/* Company (Admin only) */}
 									{isAdmin && (
 										<Grid
-											item
 											xs={12}
 											sm={3}
-											md={3}
-											sx={{ minWidth: { xs: "100%", sm: "auto" } }}
+											md={2}
+											sx={{ p: .5 }}
 										>
 											<FormControl
 												fullWidth
@@ -1037,7 +1035,7 @@ const ConsumptionCreate = () => {
 													label="Company"
 													onChange={formik.handleChange}
 													onBlur={formik.handleBlur}
-													disabled={isLoading || isLoadingCompanies}
+													disabled={isChecking}
 												>
 													{isLoadingCompanies ? (
 														<MenuItem value="">
@@ -1063,11 +1061,10 @@ const ConsumptionCreate = () => {
 
 									{/* Year, Month and Quarter */}
 									<Grid
-										item
 										xs={12}
 										sm={5}
-										md={2}
-										sx={{ minWidth: { xs: "100%", sm: "auto" } }}
+										md={1.75}
+										sx={{ p: .5 }}
 									>
 										<TextField
 											select
@@ -1081,7 +1078,7 @@ const ConsumptionCreate = () => {
 											onBlur={formik.handleBlur}
 											error={formik.touched.year && Boolean(formik.errors.year)}
 											helperText={formik.touched.year && formik.errors.year}
-											disabled={false}
+											disabled={isChecking}
 											variant="outlined"
 											size="small"
 											InputLabelProps={{
@@ -1095,91 +1092,91 @@ const ConsumptionCreate = () => {
 											))}
 										</TextField>
 									</Grid>
-									<Grid item container spacing={2} xs={12} sm={4} md={4}
-									>
-										<Grid item xs={6}>
-											<TextField
-												select
-												fullWidth
-												id="quarter"
-												name="quarter"
-												label="Quarter"
-												value={formik.values.quarter}
-												onChange={formik.handleChange}
-												variant="outlined"
-												size="small"
-												InputLabelProps={{
-													shrink: true,
-												}}
-											>
-												{quarters.map((q) => (
-													<MenuItem key={q} value={q}>
-														Q{q}
-													</MenuItem>
-												))}
-											</TextField>
-										</Grid>
-										<Grid item xs={6}>
-											<FormControl
-												fullWidth
-												error={
-													formik.touched.month && Boolean(formik.errors.month)
-												}
-												variant="outlined"
-												size="small"
-											>
-												<InputLabel id="month-label">Month</InputLabel>
-												<Select
-													labelId="month-label"
-													id="month"
-													name="month"
-													value={formik.values.month}
-													label="Month"
-													onChange={handleMonthChange}
-													onBlur={formik.handleBlur}
-													disabled={isLoading}
-												>
-													{displayMonths.map(
-														({ month, year, isCurrent, showYear }) => {
-															const monthDate = new Date(year, month - 1, 1);
-															const monthName = monthDate.toLocaleString(
-																"default",
-																{ month: "long" },
-															);
 
-															return (
-																<MenuItem
-																	key={`${year}-${month}`}
-																	value={month}
-																>
-																	{monthName}
-																	{isCurrent && " (Current)"}
-																	{showYear && ` (${year})`}
-																</MenuItem>
-															);
-														},
-													)}
-												</Select>
-												{formik.touched.month && formik.errors.month && (
-													<FormHelperText>{formik.errors.month}</FormHelperText>
-												)}
-											</FormControl>
-										</Grid>
+									{/* Quarter */}
+									<Grid xs={6} md={1.75} sx={{ p: .5 }}>
+										<TextField
+											select
+											fullWidth
+											id="quarter"
+											name="quarter"
+											label="Quarter"
+											value={formik.values.quarter}
+											onChange={formik.handleChange}
+											variant="outlined"
+											size="small"
+											InputLabelProps={{
+												shrink: true,
+											}}
+											disabled={isChecking}
+										>
+											{quarters.map((q) => (
+												<MenuItem key={q} value={q}>
+													Q{q}
+												</MenuItem>
+											))}
+										</TextField>
 									</Grid>
+
+									{/* Month */}
+									<Grid
+										xs={6}
+										md={3}
+										sx={{ p: .5 }}
+									>
+										<FormControl
+											fullWidth
+											error={
+												formik.touched.month && Boolean(formik.errors.month)
+											}
+											variant="outlined"
+											size="small"
+										>
+											<InputLabel id="month-label">Month</InputLabel>
+											<Select
+												labelId="month-label"
+												id="month"
+												name="month"
+												value={formik.values.month}
+												label="Month"
+												onChange={handleMonthChange}
+												onBlur={formik.handleBlur}
+												disabled={isChecking}
+											>
+												{displayMonths.map(
+													({ month, year, isCurrent, showYear }) => {
+														const monthDate = new Date(year, month - 1, 1);
+														const monthName = monthDate.toLocaleString(
+															"default",
+															{ month: "long" },
+														);
+
+														return (
+															<MenuItem
+																key={`${year}-${month}`}
+																value={month}
+															>
+																{monthName}
+																{isCurrent && " (Current)"}
+																{showYear && ` (${year})`}
+															</MenuItem>
+														);
+													},
+												)}
+											</Select>
+											{formik.touched.month && formik.errors.month && (
+												<FormHelperText>{formik.errors.month}</FormHelperText>
+											)}
+										</FormControl>
+									</Grid>
+
 
 									{/* Verification Button */}
 									<Grid
-										item
 										xs={12}
 										sm={3}
-										md={2}
-										sx={{
-											mt: 0,
-											display: "flex",
-											justifyContent: "flex-end",
-											alignItems: "center",
-											minWidth: { sm: "auto" },
-										}}
+										md={3}
+										sx={{ p: .5 }}
 									>
 										{!isReportValid ? (
 											<Button
@@ -1197,15 +1194,14 @@ const ConsumptionCreate = () => {
 												disabled={!isFormValid() || isChecking}
 												sx={{
 													width: "100%",
+													justifyContent: "center",
+													alignItems: "center",
 													textTransform: "none",
 													fontWeight: 500,
 													boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
 													whiteSpace: "nowrap",
 													"&:hover": {
 														boxShadow: "0 4px 8px rgba(0,0,0,0.15)",
-													},
-													"@media (max-width: 600px)": {
-														width: "100%",
 													},
 												}}
 											>
@@ -1218,7 +1214,7 @@ const ConsumptionCreate = () => {
 										) : (
 											<CheckCircleOutline
 												color="success"
-												sx={{ width: "100%", textAlign: "center" }}
+												sx={{ textAlign: "center" }}
 											/>
 										)}
 									</Grid>

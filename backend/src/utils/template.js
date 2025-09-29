@@ -51,11 +51,10 @@ const emailTemplate = {
     subject: ({ serviceName }) => `Welcome to ${serviceName} - your access credentials!`,
     html: ({ name, serviceName, message }) => `
       <div style="font-family: Arial, sans-serif;">
-        <h1>Hola ${name || 'Usuario'} 👋</h1>
+        <h1>Hello ${name || 'Usuario'} 👋</h1>
         <p>${message || 'Thank you for joining us.'}</p>
-        <p style="margin-top: 30px;">
-          Welcome!
-        </p>
+        <p style="margin-top: 30px;"></p>
+       <p>For login to system click in the following link:<a href="https://web-ubq6gq6jr2lw.up-de-fra1-k8s-1.apps.run-on-seenode.com/login">TaxIFTA</a></p>
       </div>
     `,
   },
@@ -81,7 +80,9 @@ const emailTemplate = {
           Hello, you have logged in.
         </h2>
         <p>
-          ${message || 'Thank you for logging in.'}
+          A login has been detected in your Quarterly Capture Summary - Dot Truck Permits account. 
+          <br>
+          If it wasn't you, contact the administrator by replying to this email or <a href="https://web-ubq6gq6jr2lw.up-de-fra1-k8s-1.apps.run-on-seenode.com/login">change your password</a> to protect your information.
         </p>
       </div>
      `,
