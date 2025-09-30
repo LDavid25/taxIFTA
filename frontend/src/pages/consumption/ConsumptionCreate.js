@@ -115,6 +115,7 @@ const validationSchema = Yup.object({
 const ConsumptionCreate = () => {
 	const { currentUser, isAdmin } = useAuth(); // Get currentUser and isAdmin from auth context
 	const [isLoading, setIsLoading] = useState(false);
+	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [submitStatus, setSubmitStatus] = useState('draft'); // 'draft' or 'in_progress'
 	const [snackbar, setSnackbar] = useState({
 		open: false,
@@ -498,6 +499,7 @@ const ConsumptionCreate = () => {
 			});
 
 			setIsLoading(false);
+			setIsSubmitting(false);
 
 			// Log the full error for debugging
 			console.error('Full error details:', {
@@ -514,6 +516,10 @@ const ConsumptionCreate = () => {
 
 	const handleSubmit = async (values, status = submitStatus) => {
 		try {
+			// Prevent multiple submissions
+			if (isSubmitting) return;
+			
+			setIsSubmitting(true);
 			setIsLoading(true);
 
 			// Debug log form values
@@ -1969,7 +1975,7 @@ const ConsumptionCreate = () => {
 										size="medium"
 										fullWidth
 										startIcon={<Save />}
-										disabled={!isFormValid() || !isReportValid || isLoading}	
+										disabled={!isFormValid() || !isReportValid || isLoading || isSubmitting}	
 									>
 										Save
 									</Button>
@@ -1982,7 +1988,7 @@ const ConsumptionCreate = () => {
 											setSubmitStatus("in_progress");
 											handleOpen();
 										}}
-										disabled={!isFormValid() || !isReportValid || isLoading}
+										disabled={!isFormValid() || !isReportValid || isLoading || isSubmitting}
 										size="medium"
 										fullWidth
 										startIcon={isLoading ? <CircularProgress size={20} color="inherit" /> : <SendIcon />}
