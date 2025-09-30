@@ -49,8 +49,8 @@ const EditUserPage = () => {
         setUser(formattedUser);
       } catch (err) {
         console.error('Error al cargar el usuario:', err);
-        setError('No se pudo cargar la información del usuario');
-        enqueueSnackbar('Error al cargar el usuario', { 
+        setError('Error for loading user');
+        enqueueSnackbar('Error for loading user', { 
           variant: 'error',
           anchorOrigin: {
             vertical: 'top',
@@ -88,11 +88,15 @@ const EditUserPage = () => {
       
       await updateUser(id, userData);
       
-      enqueueSnackbar('Usuario actualizado correctamente', { 
+      enqueueSnackbar('User updated successfully', { 
         variant: 'success',
         anchorOrigin: {
           vertical: 'top',
           horizontal: 'right',
+        },
+        style: {
+          backgroundColor: '#4caf50',
+          color: '#fff',
         },
       });
       
@@ -104,7 +108,7 @@ const EditUserPage = () => {
       
     } catch (err) {
       console.error('Error al actualizar el usuario:', err);
-      const errorMessage = err.response?.data?.message || 'Error al actualizar el usuario';
+      const errorMessage = err.response?.data?.message || 'Error for updating user';
       
       enqueueSnackbar(errorMessage, { 
         variant: 'error',

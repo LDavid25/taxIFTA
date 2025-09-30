@@ -63,7 +63,7 @@ const Login = () => {
           console.log('Error en login:', result.error);
           setAlert({
             open: true,
-            message: result.error || 'Error al iniciar sesión. Verifique sus credenciales.',
+            message: result.error || 'Error for login. Check your credentials.',
             severity: 'error'
           });
         }
@@ -71,7 +71,7 @@ const Login = () => {
         console.error('Error en onSubmit:', error);
         setAlert({
           open: true,
-          message: error.message || 'Error al iniciar sesión. Verifique sus credenciales.',
+          message: error.message || 'Error for login. Check your credentials.',
           severity: 'error'
         });
       } finally {

@@ -117,7 +117,7 @@ const Profile = () => {
         // Show success message
         setAlert({
           open: true,
-          message: "¡Contraseña actualizada exitosamente!",
+          message: "Password updated successfully",
           severity: "success",
         });
 
@@ -134,7 +134,7 @@ const Profile = () => {
           open: true,
           message:
             error.message ||
-            "Error al actualizar la contraseña. Por favor, inténtalo de nuevo.",
+            "Error updating password. Please try again.",
           severity: "error",
         });
       } finally {

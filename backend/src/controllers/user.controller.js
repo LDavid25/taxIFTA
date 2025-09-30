@@ -68,7 +68,7 @@ exports.getAllUsers = async (req, res, next) => {
     });
   } catch (error) {
     console.error('Error en getAllUsers:', error);
-    next(new AppError('Error al obtener la lista de usuarios', 500));
+    next(new AppError('Error en get all users', 500));
   }
 };
 
@@ -87,7 +87,7 @@ exports.getUser = async (req, res, next) => {
     });
 
     if (!user) {
-      return next(new AppError('No se encontró el usuario', StatusCodes.NOT_FOUND));
+      return next(new AppError('No found user', StatusCodes.NOT_FOUND));
     }
 
     res.status(StatusCodes.OK).json({
@@ -116,7 +116,7 @@ exports.getMe = async (req, res, next) => {
     });
 
     if (!user) {
-      return next(new AppError('No se encontró el usuario', StatusCodes.NOT_FOUND));
+      return next(new AppError('No found user', StatusCodes.NOT_FOUND));
     }
     
     res.status(StatusCodes.OK).json({
@@ -136,18 +136,18 @@ exports.updateUserStatus = async (req, res, next) => {
     const { is_active } = req.body;
     
     if (typeof is_active !== 'boolean') {
-      return next(new AppError('El estado debe ser un valor booleano', StatusCodes.BAD_REQUEST));
+      return next(new AppError('The status must be a boolean value', StatusCodes.BAD_REQUEST));
     }
 
     const user = await db.User.findByPk(req.params.id);
     
     if (!user) {
-      return next(new AppError('No se encontró el usuario', StatusCodes.NOT_FOUND));
+      return next(new AppError('No found user', StatusCodes.NOT_FOUND));
     }
 
     // Evitar que un usuario se desactive a sí mismo
     if (user.id === req.user.id) {
-      return next(new AppError('No puedes cambiar tu propio estado', StatusCodes.FORBIDDEN));
+      return next(new AppError('Do not disable your own account', StatusCodes.FORBIDDEN));
     }
 
     // Usar el nombre correcto del campo (isActive en el modelo)
@@ -171,12 +171,12 @@ exports.updateUserStatus = async (req, res, next) => {
 // Actualizar un usuario (solo admin)
 exports.updateUser = async (req, res, next) => {
   try {
-    const { name, email, role, company_id } = req.body;
+    const { name, email, role, company_id, password } = req.body;
     
     const user = await db.User.findByPk(req.params.id);
     
     if (!user) {
-      return next(new AppError('No se encontró el usuario', StatusCodes.NOT_FOUND));
+      return next(new AppError('No found user', StatusCodes.NOT_FOUND));
     }
 
     // Actualizar solo los campos proporcionados
@@ -185,12 +185,28 @@ exports.updateUser = async (req, res, next) => {
     if (role) user.role = role;
     if (company_id) user.company_id = company_id;
     
+    // Actualizar contraseña si se proporciona
+    if (password) {
+      user.password = password; // El hook beforeSave en el modelo se encargará de hashearla
+    }
+    
     await user.save();
+    
+    // Recargar el usuario con la información de la compañía
+    const updatedUser = await db.User.findByPk(user.id, {
+      include: [
+        {
+          model: db.Company,
+          as: 'company',
+          attributes: ['id', 'name']
+        }
+      ]
+    });
 
     res.status(StatusCodes.OK).json({
       status: 'success',
       data: {
-        user: excludeSensitiveUserData(user.get({ plain: true }))
+        user: excludeSensitiveUserData(updatedUser.get({ plain: true }))
       }
     });
   } catch (error) {
@@ -204,12 +220,12 @@ exports.deleteUser = async (req, res, next) => {
     const user = await db.User.findByPk(req.params.id);
     
     if (!user) {
-      return next(new AppError('No se encontró el usuario', StatusCodes.NOT_FOUND));
+      return next(new AppError('No found user', StatusCodes.NOT_FOUND));
     }
 
     // Evitar que un usuario se elimine a sí mismo
     if (user.id === req.user.id) {
-      return next(new AppError('No puedes eliminar tu propia cuenta', StatusCodes.FORBIDDEN));
+      return next(new AppError('No can delete your own account', StatusCodes.FORBIDDEN));
     }
 
     await user.destroy();
