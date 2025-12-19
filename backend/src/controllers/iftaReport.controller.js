@@ -775,42 +775,133 @@ const updateReport = async (req, res, next) => {
 };
 
 /**
- * Elimina un reporte
+ * Elimina un reporte físicamente de la base de datos
  */
 const deleteReport = async (req, res, next) => {
+  console.log('=== DELETE REPORT CONTROLLER CALLED ===');
+  console.log('Method:', req.method);
+  console.log('URL:', req.originalUrl);
+  console.log('Params:', req.params);
+  console.log('Headers:', req.headers);
+  
   const transaction = await IftaReport.sequelize.transaction();
   try {
     const { id } = req.params;
     const { company_id } = req;
 
+    console.log('=== ELIMINACIÓN FÍSICA DE REPORTE ===');
+    console.log('Report ID:', id);
+    console.log('Company ID:', company_id);
+    console.log('User Role:', req.user?.role);
+
+    // Validar que el ID exista
+    if (!id) {
+      await transaction.rollback();
+      return next(new AppError('ID de reporte inválido', 400));
+    }
+
+    // Construir condición WHERE según el rol del usuario
+    const whereCondition = req.user?.role === 'admin' 
+      ? { id } 
+      : { id, company_id };
+
+    console.log('WHERE condition:', whereCondition);
+
+    // Buscar el reporte con todas sus relaciones antes de eliminar
     const report = await IftaReport.findOne({
-      where: { id, company_id },
-      include: [{ model: IftaReportAttachment, as: 'attachments' }],
+      where: whereCondition,
+      include: [
+        { model: IftaReportState, as: 'states' },
+        { model: IftaReportAttachment, as: 'attachments' },
+        { model: IftaQuarterlyReport, as: 'quarterlyReport' }
+      ],
       transaction,
     });
 
     if (!report) {
       await transaction.rollback();
-      return next(new AppError('No se encontró el reporte', 404));
+      return next(new AppError('No se encontró el reporte o no tiene permisos para eliminarlo', 404));
     }
 
-    // Eliminar archivos adjuntos
-    const uploadDir = path.join(__dirname, '../../uploads/ifta-reports', id);
-    if (fs.existsSync(uploadDir)) {
-      fs.rmSync(uploadDir, { recursive: true, force: true });
-    }
-
-    // Eliminar el reporte (los estados y adjuntos se eliminan en cascada)
-    await report.destroy({ transaction });
-    await transaction.commit();
-
-    res.status(204).json({
-      status: 'success',
-      data: null,
+    console.log('Reporte encontrado:', {
+      id: report.id,
+      vehicle_plate: report.vehicle_plate,
+      states_count: report.states?.length || 0,
+      attachments_count: report.attachments?.length || 0
     });
+
+    // 1. Eliminar estados del reporte (IftaReportState)
+    if (report.states && report.states.length > 0) {
+      const deletedStates = await IftaReportState.destroy({
+        where: { report_id: id },
+        transaction,
+      });
+      console.log('Estados eliminados:', deletedStates);
+    }
+
+    // 2. Eliminar archivos adjuntos del sistema de archivos
+    if (report.attachments && report.attachments.length > 0) {
+      const uploadDir = path.join(storageConfig.iftaReports, id);
+      console.log('Verificando directorio de archivos:', uploadDir);
+      
+      if (fs.existsSync(uploadDir)) {
+        try {
+          fs.rmSync(uploadDir, { recursive: true, force: true });
+          console.log('Directorio de archivos eliminado:', uploadDir);
+        } catch (fileError) {
+          console.error('Error deleting files:', fileError);
+          // Continuamos con la eliminación aunque falle el borrado de archivos
+        }
+      }
+    }
+
+    // 3. Eliminar registros de adjuntos de la base de datos (IftaReportAttachment)
+    const deletedAttachments = await IftaReportAttachment.destroy({
+      where: { report_id: id },
+      transaction,
+    });
+    console.log('Adjuntos eliminados de BD:', deletedAttachments);
+
+    // 4. Eliminar el reporte principal (IftaReport) - esto es el DELETE principal
+    const deletedReport = await IftaReport.destroy({
+      where: { id },
+      transaction,
+    });
+    console.log('Reporte eliminado:', deletedReport);
+
+    // Confirmar la transacción
+    await transaction.commit();
+    console.log('Transacción de eliminación confirmada');
+
+    // Responder con éxito
+    res.status(200).json({
+      status: 'success',
+      message: 'Report deleted successfully',
+      data: {
+        deleted_report_id: id,
+        deleted_states: report.states?.length || 0,
+        deleted_attachments: deletedAttachments
+      }
+    });
+
   } catch (error) {
-    await transaction.rollback();
-    next(error);
+    console.error('Error en deleteReport:', error);
+    
+    // Hacer rollback si la transacción no ha finalizado
+    if (transaction && !transaction.finished) {
+      await transaction.rollback();
+      console.log('Transacción revertida');
+    }
+
+    // Manejar errores específicos
+    if (error.name === 'SequelizeForeignKeyConstraintError') {
+      return next(new AppError('No se puede eliminar el reporte debido a dependencias', 400));
+    } else if (error.name === 'SequelizeValidationError') {
+      const errorMessages = error.errors.map(err => err.message).join(', ');
+      return next(new AppError(`Error de validación: ${errorMessages}`, 400));
+    }
+
+    next(new AppError('Error al eliminar el reporte: ' + (error.message || 'Error desconocido'), 500));
   }
 };
 

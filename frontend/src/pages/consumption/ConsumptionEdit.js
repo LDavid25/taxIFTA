@@ -1988,7 +1988,7 @@ const ConsumptionEdit = () => {
           </DialogTitle>
           <DialogContent>
             <Typography>
-              Are you sure you want to <b>DELETE</b> this report? <br />You can't undo this action.
+              Are you sure you want to <b>PERMANENTLY DELETE</b> this report? <br />You can't undo this action.
             </Typography>
           </DialogContent>
           <DialogActions>

@@ -277,18 +277,10 @@ export const checkExistingReport = async (vehiclePlate, year, month) => {
   }
 };
 
-// Eliminación lógica de un informe (cambiar estado a 'trash')
+// Eliminación física de un informe de la base de datos
 export const trashConsumptionReport = async (id) => {
   try {
-    const response = await api.patch(
-      `${API_URL}/${id}/status`,
-      { status: 'trash' },
-      {
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }
-    );
+    const response = await api.delete(`${API_URL}/${id}`);
     return response.data;
   } catch (error) {
     console.error('error deleting report', error);

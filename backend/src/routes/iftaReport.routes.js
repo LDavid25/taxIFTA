@@ -31,7 +31,14 @@ router
     iftaReportController.updateReport, // Actualizar un reporte
     cleanupTempFiles
   )
-  .delete(iftaReportController.deleteReport); // Eliminar un reporte
+  .delete((req, res, next) => {
+    console.log('=== DELETE ROUTE MATCHED ===');
+    console.log('Method:', req.method);
+    console.log('URL:', req.originalUrl);
+    console.log('Params:', req.params);
+    console.log('Headers:', req.headers);
+    return iftaReportController.deleteReport(req, res, next);
+  }); // Eliminar un reporte
 
 // Ruta para actualizar el estado de un reporte
 router.patch(
