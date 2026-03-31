@@ -4,7 +4,8 @@ const path = require('path');
 const Umzug = require('umzug');
 
 // Load database configuration
-const dbConfig = require('../src/config/database');
+const env = process.env.NODE_ENV || 'development';
+const dbConfig = require('../src/config/database')[env];
 
 // Initialize Sequelize with the configuration
 const sequelize = new Sequelize(dbConfig);

@@ -46,6 +46,12 @@ exports.getGroupedQuarterlyReports = async (req, res, next) => {
       ifta_quarterly_reports iqr
     JOIN 
       companies c ON iqr.company_id = c.id
+    WHERE EXISTS (
+      SELECT 1 
+      FROM ifta_reports ir 
+      WHERE ir.quarterly_report_id = iqr.id 
+      AND ir.status IN ('sent', 'in_progress', 'completed')
+    )
     ORDER BY 
       c.name ASC, iqr.year DESC, iqr.quarter DESC
   `;

@@ -21,7 +21,6 @@ root.render(
               horizontal: 'right',
             }}
             autoHideDuration={3000}
-            style={{ backgroundColor: 'white' }}
           >
             <App />
           </SnackbarProvider>

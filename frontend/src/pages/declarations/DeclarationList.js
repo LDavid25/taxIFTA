@@ -467,7 +467,12 @@ const DeclarationList = () => {
           report.company_id.toString() === companyFilter.toString();
 
         const matches =
-          statusMatch && quarterMatch && yearMatch && companyMatch;
+          statusMatch &&
+          quarterMatch &&
+          yearMatch &&
+          companyMatch &&
+          (parseInt(report.valid_report_count) > 0 ||
+            (report.reports && report.reports.length > 0));
         return matches;
       });
 

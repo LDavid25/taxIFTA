@@ -20,7 +20,12 @@ import {
   Divider,
   AlertMessage
 } from '@mui/material';
-import { Add as AddIcon, Delete as DeleteIcon } from '@mui/icons-material';
+import { 
+  Add as AddIcon, 
+  Delete as DeleteIcon,
+  CheckCircle as CheckCircleIcon,
+  Cancel as CancelIcon
+} from '@mui/icons-material';
 import api from '../../services/api';
 
 const RegisterUser = () => {
@@ -46,6 +51,26 @@ const RegisterUser = () => {
       distribution_emails: ['']
     }
   });
+
+  const [passwordValidation, setPasswordValidation] = useState({
+    minLength: false,
+    hasLower: false,
+    hasUpper: false,
+    hasNumber: false,
+    hasSpecial: false,
+  });
+
+  // Validate password in real-time
+  useEffect(() => {
+    const password = formData.password;
+    setPasswordValidation({
+      minLength: password.length >= 8,
+      hasLower: /[a-z]/.test(password),
+      hasUpper: /[A-Z]/.test(password),
+      hasNumber: /\d/.test(password),
+      hasSpecial: /[!@#$%^&*(),.?":{}|<> ]/.test(password),
+    });
+  }, [formData.password]);
 
 
 
@@ -216,7 +241,16 @@ const RegisterUser = () => {
       }
     } catch (err) {
       console.error('Registration error:', err);
-      setError(err.response?.data?.message || 'Error registering the user. Please try again.');
+      
+      if (err.response?.data?.errors) {
+        // If the backend provided specific validation errors, display them clearly
+        const validationErrors = err.response.data.errors
+          .map(e => e.message)
+          .join('. ');
+        setError(`Validation failed: ${validationErrors}`);
+      } else {
+        setError(err.response?.data?.message || 'Error registering the user. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -284,8 +318,35 @@ const RegisterUser = () => {
                 onChange={handleChange}
                 required
                 margin="normal"
-                helperText="Password must be at least 8 characters long, including uppercase, lowercase, numbers, and special characters"
+                helperText="Password must meet all requirements below"
+                error={formData.password.length > 0 && !Object.values(passwordValidation).every(Boolean)}
               />
+              
+              <Box sx={{ mt: 1, mb: 2, p: 1.5, bgcolor: 'background.default', borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
+                <Typography variant="caption" display="block" gutterBottom sx={{ fontWeight: 'bold' }}>
+                  Password Requirements:
+                </Typography>
+                <Grid container spacing={0.5}>
+                  {[
+                    { label: '8+ characters', met: passwordValidation.minLength },
+                    { label: 'Lowercase letter', met: passwordValidation.hasLower },
+                    { label: 'Uppercase letter', met: passwordValidation.hasUpper },
+                    { label: 'Number', met: passwordValidation.hasNumber },
+                    { label: 'Special character', met: passwordValidation.hasSpecial },
+                  ].map((req, idx) => (
+                    <Grid item xs={12} key={idx} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                      {req.met ? (
+                        <CheckCircleIcon color="success" sx={{ fontSize: 16 }} />
+                      ) : (
+                        <CancelIcon color="error" sx={{ fontSize: 16, opacity: 0.5 }} />
+                      )}
+                      <Typography variant="caption" sx={{ color: req.met ? 'success.main' : 'text.secondary' }}>
+                        {req.label}
+                      </Typography>
+                    </Grid>
+                  ))}
+                </Grid>
+              </Box>
             </Grid>
             
             <Grid item xs={12} md={6}>
@@ -442,7 +503,7 @@ const RegisterUser = () => {
                 type="submit" 
                 variant="contained" 
                 color="primary"
-                disabled={loading}
+                disabled={loading || !Object.values(passwordValidation).every(Boolean)}
                 fullWidth
                 size="large"
                 sx={{ py: 1.5 }}

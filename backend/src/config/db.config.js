@@ -9,6 +9,7 @@ module.exports = {
     port: process.env.DB_PORT || 5432,
     dialect: 'postgres',
     logging: false,
+    ssl: process.env.DB_SSL === 'true',
   },
   test: {
     username: process.env.TEST_DB_USER || 'postgres',

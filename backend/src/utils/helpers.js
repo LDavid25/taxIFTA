@@ -38,7 +38,6 @@ const excludeSensitiveUserData = user => {
     role: userData.role || 'user',
     is_active: userData.is_active !== undefined ? userData.is_active : true,
     company_id: userData.company_id || null,
-    company_name: userData.company.name || null,
     last_login: userData.last_login || userData.lastLogin || null,
   };
 };

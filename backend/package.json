@@ -14,7 +14,7 @@
     "format": "prettier --write \"**/*.+(js|json|md)\"",
     "db:test": "node scripts/test-db.js",
     "db:sync": "node scripts/test-db.js --force",
-    "db:migrate": "node scripts/run-migrations.js",
+    "db:migrate": "sequelize-cli db:migrate",
     "db:create-admin": "node scripts/create-admin.js"
   },
   "keywords": [
