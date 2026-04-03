@@ -218,7 +218,7 @@ const DeclarationPDF = ({
               
               // Sort months in chronological order
               const sortedMonths = Array.from(monthMap.entries())
-                .sort(([monthA], [monthB]) => new Date(monthA) - new Date(monthB));
+                .sort(([monthA], [monthB]) => new Date(monthA + "-01T12:00:00") - new Date(monthB + "-01T12:00:00"));
               
               // Calculate grand totals
               let grandTotalMiles = 0;
@@ -244,7 +244,7 @@ const DeclarationPDF = ({
                     grandTotalGallons += monthGallons;
                     
                     // Format month name
-                    const monthName = format(new Date(month), 'MMMM yyyy', { locale: enUS });
+                    const monthName = format(new Date(month + "-01T12:00:00"), 'MMMM yyyy', { locale: enUS });
                     
                     return (
                       <React.Fragment key={month}>

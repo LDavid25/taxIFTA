@@ -273,18 +273,34 @@ const DeclarationDetail = () => {
     if (!companyId || !year) return;
 
     try {
-      const response = await api.get(
-        `/v1/quarterly-reports/company/${companyId}/year/${year}/quarters`,
+      // Use existing service to get all grouped reports
+      const reports = await getGroupedQuarterlyReports();
+
+      // Filter reports by current company and year, and extract quarters
+      const companyQuarters = reports
+        .filter(
+          (r) =>
+            (String(r.company_id) === String(companyId) ||
+              String(r.companyId) === String(companyId)) &&
+            parseInt(r.year) === parseInt(year),
+        )
+        .map((r) => parseInt(r.quarter))
+        .sort((a, b) => a - b);
+
+      // Remove duplicates
+      const uniqueQuarters = Array.from(new Set(companyQuarters));
+
+      // Update state with available quarters, or fallback to default if none found
+      // (although there should be at least the current one)
+      setAvailableQuarters(
+        uniqueQuarters.length > 0 ? uniqueQuarters : [1, 2, 3, 4],
       );
-      if (response.data && response.data.quarters) {
-        setAvailableQuarters(response.data.quarters);
-      }
     } catch (error) {
       console.error("Error fetching available quarters:", error);
-      // If there's an error, fall back to all quarters
-      setAvailableQuarters([1, 2, 3, 4]);
+      // Fallback: Use the current quarter if we can't load others
+      setAvailableQuarters([parseInt(quarter)]);
     }
-  }, [companyId, year]);
+  }, [companyId, year, quarter]);
 
   // Fetch report data
   const fetchReportData = useCallback(async () => {
